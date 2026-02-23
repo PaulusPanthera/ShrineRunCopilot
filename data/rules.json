@@ -1,0 +1,13 @@
+{
+  "Claimed_Level": 50,
+  "Claimed_IV_All": 31,
+  "Claimed_EV_All": 0,
+  "StrengthCharm_EV_All": 85,
+  "Wild_IV_Default": 0,
+  "Wild_EV_Default": 0,
+  "RandMin": 0.85,
+  "RandMax": 1,
+  "STAB": 1.5,
+  "HelpingHand_Mult": 1.5,
+  "CritMultiplier_Gen5": 2
+}

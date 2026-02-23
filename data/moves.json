@@ -1,0 +1,1222 @@
+{
+  "Acrobatics": {
+    "name": "Acrobatics",
+    "type": "Flying",
+    "category": "Physical",
+    "power": 55.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Aerial Ace": {
+    "name": "Aerial Ace",
+    "type": "Flying",
+    "category": "Physical",
+    "power": 60.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "After You": {
+    "name": "After You",
+    "type": "Normal",
+    "category": "Status",
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Aqua Tail": {
+    "name": "Aqua Tail",
+    "type": "Water",
+    "category": "Physical",
+    "power": 90.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Aura Sphere": {
+    "name": "Aura Sphere",
+    "type": "Fighting",
+    "category": "Special",
+    "power": 80.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Bite": {
+    "name": "Bite",
+    "type": "Dark",
+    "category": "Physical",
+    "power": 60.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Blizzard": {
+    "name": "Blizzard",
+    "type": "Ice",
+    "category": "Special",
+    "power": 110.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Body Slam": {
+    "name": "Body Slam",
+    "type": "Normal",
+    "category": "Physical",
+    "power": 85.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Bonemerang": {
+    "name": "Bonemerang",
+    "type": "Ground",
+    "category": "Physical",
+    "power": 50.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Bounce": {
+    "name": "Bounce",
+    "type": "Flying",
+    "category": "Physical",
+    "power": 85.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Brave Bird": {
+    "name": "Brave Bird",
+    "type": "Flying",
+    "category": "Physical",
+    "power": 120.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Brick Break": {
+    "name": "Brick Break",
+    "type": "Fighting",
+    "category": "Physical",
+    "power": 75.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Bullet Seed": {
+    "name": "Bullet Seed",
+    "type": "Grass",
+    "category": "Physical",
+    "power": 25.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Clear Smog": {
+    "name": "Clear Smog",
+    "type": "Poison",
+    "category": "Special",
+    "power": 50.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Close Combat": {
+    "name": "Close Combat",
+    "type": "Fighting",
+    "category": "Physical",
+    "power": 120.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Covet": {
+    "name": "Covet",
+    "type": "Normal",
+    "category": "Physical",
+    "power": 60.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Crunch": {
+    "name": "Crunch",
+    "type": "Dark",
+    "category": "Physical",
+    "power": 80.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Dark Pulse": {
+    "name": "Dark Pulse",
+    "type": "Dark",
+    "category": "Special",
+    "power": 80.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Dig": {
+    "name": "Dig",
+    "type": "Ground",
+    "category": "Physical",
+    "power": 80.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Double-Edge": {
+    "name": "Double-Edge",
+    "type": "Normal",
+    "category": "Physical",
+    "power": 120.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "DoubleSlap": {
+    "name": "DoubleSlap",
+    "type": null,
+    "category": null,
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": "Needs data (custom Shrine move or name mismatch)."
+  },
+  "Draco Meteor": {
+    "name": "Draco Meteor",
+    "type": "Dragon",
+    "category": "Special",
+    "power": 130.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Dragon Claw": {
+    "name": "Dragon Claw",
+    "type": "Dragon",
+    "category": "Physical",
+    "power": 80.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Dragon Pulse": {
+    "name": "Dragon Pulse",
+    "type": "Dragon",
+    "category": "Special",
+    "power": 85.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Dragon Rush": {
+    "name": "Dragon Rush",
+    "type": "Dragon",
+    "category": "Physical",
+    "power": 100.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Dragon's Blessing": {
+    "name": "Dragon's Blessing",
+    "type": null,
+    "category": null,
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": "Needs data (custom Shrine move or name mismatch)."
+  },
+  "Drain Punch": {
+    "name": "Drain Punch",
+    "type": "Fighting",
+    "category": "Physical",
+    "power": 75.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Drill Peck": {
+    "name": "Drill Peck",
+    "type": "Flying",
+    "category": "Physical",
+    "power": 80.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Drill Run": {
+    "name": "Drill Run",
+    "type": "Ground",
+    "category": "Physical",
+    "power": 80.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "DynamicPunch": {
+    "name": "DynamicPunch",
+    "type": null,
+    "category": null,
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": "Needs data (custom Shrine move or name mismatch)."
+  },
+  "Earth Power": {
+    "name": "Earth Power",
+    "type": "Ground",
+    "category": "Special",
+    "power": 90.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Earthquake": {
+    "name": "Earthquake",
+    "type": "Ground",
+    "category": "Physical",
+    "power": 100.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Electroweb": {
+    "name": "Electroweb",
+    "type": "Electric",
+    "category": "Special",
+    "power": 55.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Energy Ball": {
+    "name": "Energy Ball",
+    "type": "Grass",
+    "category": "Special",
+    "power": 90.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Eruption": {
+    "name": "Eruption",
+    "type": "Fire",
+    "category": "Special",
+    "power": 150.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Extrasensory": {
+    "name": "Extrasensory",
+    "type": "Psychic",
+    "category": "Special",
+    "power": 80.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Fake Out": {
+    "name": "Fake Out",
+    "type": "Normal",
+    "category": "Physical",
+    "power": 40.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Fake Tears": {
+    "name": "Fake Tears",
+    "type": "Dark",
+    "category": "Status",
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Fire Blast": {
+    "name": "Fire Blast",
+    "type": "Fire",
+    "category": "Special",
+    "power": 110.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Fire Pledge": {
+    "name": "Fire Pledge",
+    "type": "Fire",
+    "category": "Special",
+    "power": 80.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Flamethrower": {
+    "name": "Flamethrower",
+    "type": "Fire",
+    "category": "Special",
+    "power": 90.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Flare Blitz": {
+    "name": "Flare Blitz",
+    "type": "Fire",
+    "category": "Physical",
+    "power": 120.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Flash Cannon": {
+    "name": "Flash Cannon",
+    "type": "Steel",
+    "category": "Special",
+    "power": 80.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Flash of Speed": {
+    "name": "Flash of Speed",
+    "type": null,
+    "category": null,
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": "Needs data (custom Shrine move or name mismatch)."
+  },
+  "Gastro Acid": {
+    "name": "Gastro Acid",
+    "type": "Poison",
+    "category": "Status",
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Grass Knot": {
+    "name": "Grass Knot",
+    "type": "Grass",
+    "category": "Special",
+    "power": null,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Grass Pledge": {
+    "name": "Grass Pledge",
+    "type": "Grass",
+    "category": "Special",
+    "power": 80.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Gunk Shot": {
+    "name": "Gunk Shot",
+    "type": "Poison",
+    "category": "Physical",
+    "power": 120.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Head Smash": {
+    "name": "Head Smash",
+    "type": "Rock",
+    "category": "Physical",
+    "power": 150.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Healing Wind": {
+    "name": "Healing Wind",
+    "type": null,
+    "category": null,
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": "Needs data (custom Shrine move or name mismatch)."
+  },
+  "Helping Hand": {
+    "name": "Helping Hand",
+    "type": "Normal",
+    "category": "Status",
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Hidden Power (Dragon)": {
+    "name": "Hidden Power (Dragon)",
+    "type": "Dragon",
+    "category": "Special",
+    "power": 60.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": "Hidden Power fixed 60 BP in PokeMMO; Shrine accuracy assumed 100."
+  },
+  "Hidden Power (Fighting)": {
+    "name": "Hidden Power (Fighting)",
+    "type": "Fighting",
+    "category": "Special",
+    "power": 60.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": "Hidden Power fixed 60 BP in PokeMMO; Shrine accuracy assumed 100."
+  },
+  "Hidden Power (Flying)": {
+    "name": "Hidden Power (Flying)",
+    "type": "Flying",
+    "category": "Special",
+    "power": 60.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": "Hidden Power fixed 60 BP in PokeMMO; Shrine accuracy assumed 100."
+  },
+  "Hidden Power (Grass)": {
+    "name": "Hidden Power (Grass)",
+    "type": "Grass",
+    "category": "Special",
+    "power": 60.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": "Hidden Power fixed 60 BP in PokeMMO; Shrine accuracy assumed 100."
+  },
+  "Hidden Power (Ground)": {
+    "name": "Hidden Power (Ground)",
+    "type": "Ground",
+    "category": "Special",
+    "power": 60.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": "Hidden Power fixed 60 BP in PokeMMO; Shrine accuracy assumed 100."
+  },
+  "Hidden Power (Ice)": {
+    "name": "Hidden Power (Ice)",
+    "type": "Ice",
+    "category": "Special",
+    "power": 60.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": "Hidden Power fixed 60 BP in PokeMMO; Shrine accuracy assumed 100."
+  },
+  "Hidden Power (Rock)": {
+    "name": "Hidden Power (Rock)",
+    "type": "Rock",
+    "category": "Special",
+    "power": 60.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": "Hidden Power fixed 60 BP in PokeMMO; Shrine accuracy assumed 100."
+  },
+  "Hidden Power (Steel)": {
+    "name": "Hidden Power (Steel)",
+    "type": "Steel",
+    "category": "Special",
+    "power": 60.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": "Hidden Power fixed 60 BP in PokeMMO; Shrine accuracy assumed 100."
+  },
+  "Horse's Protection": {
+    "name": "Horse's Protection",
+    "type": null,
+    "category": null,
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": "Needs data (custom Shrine move or name mismatch)."
+  },
+  "Hydro Pump": {
+    "name": "Hydro Pump",
+    "type": "Water",
+    "category": "Special",
+    "power": 110.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Hyper Voice": {
+    "name": "Hyper Voice",
+    "type": "Normal",
+    "category": "Special",
+    "power": 90.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Ice Beam": {
+    "name": "Ice Beam",
+    "type": "Ice",
+    "category": "Special",
+    "power": 90.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Ice Punch": {
+    "name": "Ice Punch",
+    "type": "Ice",
+    "category": "Physical",
+    "power": 75.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Icicle Crash": {
+    "name": "Icicle Crash",
+    "type": "Ice",
+    "category": "Physical",
+    "power": 85.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Icy Wind": {
+    "name": "Icy Wind",
+    "type": "Ice",
+    "category": "Special",
+    "power": 55.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Inferno": {
+    "name": "Inferno",
+    "type": "Fire",
+    "category": "Special",
+    "power": 100.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Iron Head": {
+    "name": "Iron Head",
+    "type": "Steel",
+    "category": "Physical",
+    "power": 80.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Iron Tail": {
+    "name": "Iron Tail",
+    "type": "Steel",
+    "category": "Physical",
+    "power": 100.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Joyous Cheer": {
+    "name": "Joyous Cheer",
+    "type": null,
+    "category": null,
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": "Needs data (custom Shrine move or name mismatch)."
+  },
+  "Jump Kick": {
+    "name": "Jump Kick",
+    "type": "Fighting",
+    "category": "Physical",
+    "power": 100.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Leaf Blade": {
+    "name": "Leaf Blade",
+    "type": "Grass",
+    "category": "Physical",
+    "power": 90.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Leaf Storm": {
+    "name": "Leaf Storm",
+    "type": "Grass",
+    "category": "Special",
+    "power": 130.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Leech Life": {
+    "name": "Leech Life",
+    "type": "Bug",
+    "category": "Physical",
+    "power": 80.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Lovely Kiss": {
+    "name": "Lovely Kiss",
+    "type": "Normal",
+    "category": "Status",
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Mega Kick": {
+    "name": "Mega Kick",
+    "type": "Normal",
+    "category": "Physical",
+    "power": 120.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Megahorn": {
+    "name": "Megahorn",
+    "type": "Bug",
+    "category": "Physical",
+    "power": 120.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Mending Prayer": {
+    "name": "Mending Prayer",
+    "type": null,
+    "category": null,
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": "Needs data (custom Shrine move or name mismatch)."
+  },
+  "Metal Claw": {
+    "name": "Metal Claw",
+    "type": "Steel",
+    "category": "Physical",
+    "power": 50.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Meteor Mash": {
+    "name": "Meteor Mash",
+    "type": "Steel",
+    "category": "Physical",
+    "power": 90.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Overheat": {
+    "name": "Overheat",
+    "type": "Fire",
+    "category": "Special",
+    "power": 130.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Poison Jab": {
+    "name": "Poison Jab",
+    "type": "Poison",
+    "category": "Physical",
+    "power": 80.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Power Gem": {
+    "name": "Power Gem",
+    "type": "Rock",
+    "category": "Special",
+    "power": 80.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Protect": {
+    "name": "Protect",
+    "type": "Normal",
+    "category": "Status",
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Protective Aura": {
+    "name": "Protective Aura",
+    "type": null,
+    "category": null,
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": "Needs data (custom Shrine move or name mismatch)."
+  },
+  "Provoke": {
+    "name": "Provoke",
+    "type": null,
+    "category": null,
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": "Needs data (custom Shrine move or name mismatch)."
+  },
+  "Psychic": {
+    "name": "Psychic",
+    "type": "Psychic",
+    "category": "Special",
+    "power": 90.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Return": {
+    "name": "Return",
+    "type": "Normal",
+    "category": "Physical",
+    "power": null,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Reversal": {
+    "name": "Reversal",
+    "type": "Fighting",
+    "category": "Physical",
+    "power": null,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Rock Slide": {
+    "name": "Rock Slide",
+    "type": "Rock",
+    "category": "Physical",
+    "power": 75.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Roost": {
+    "name": "Roost",
+    "type": "Flying",
+    "category": "Status",
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Sacred Sword": {
+    "name": "Sacred Sword",
+    "type": "Fighting",
+    "category": "Physical",
+    "power": 90.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Scald": {
+    "name": "Scald",
+    "type": "Water",
+    "category": "Special",
+    "power": 80.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Seed Bomb": {
+    "name": "Seed Bomb",
+    "type": "Grass",
+    "category": "Physical",
+    "power": 80.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Serpent's Fear": {
+    "name": "Serpent's Fear",
+    "type": null,
+    "category": null,
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": "Needs data (custom Shrine move or name mismatch)."
+  },
+  "Shadow Ball": {
+    "name": "Shadow Ball",
+    "type": "Ghost",
+    "category": "Special",
+    "power": 80.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Shadow Claw": {
+    "name": "Shadow Claw",
+    "type": "Ghost",
+    "category": "Physical",
+    "power": 70.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Signal Beam": {
+    "name": "Signal Beam",
+    "type": "Bug",
+    "category": "Special",
+    "power": 75.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Skill Swap": {
+    "name": "Skill Swap",
+    "type": "Psychic",
+    "category": "Status",
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Sky Drop": {
+    "name": "Sky Drop",
+    "type": "Flying",
+    "category": "Physical",
+    "power": 60.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Slack Off": {
+    "name": "Slack Off",
+    "type": "Normal",
+    "category": "Status",
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Sludge Bomb": {
+    "name": "Sludge Bomb",
+    "type": "Poison",
+    "category": "Special",
+    "power": 90.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Snarl": {
+    "name": "Snarl",
+    "type": "Dark",
+    "category": "Special",
+    "power": 55.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Stone Edge": {
+    "name": "Stone Edge",
+    "type": "Rock",
+    "category": "Physical",
+    "power": 100.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Superpower": {
+    "name": "Superpower",
+    "type": "Fighting",
+    "category": "Physical",
+    "power": 120.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Swords Dance": {
+    "name": "Swords Dance",
+    "type": "Normal",
+    "category": "Status",
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Tail Slap": {
+    "name": "Tail Slap",
+    "type": "Normal",
+    "category": "Physical",
+    "power": 25.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Tailwind": {
+    "name": "Tailwind",
+    "type": "Flying",
+    "category": "Status",
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Thunder": {
+    "name": "Thunder",
+    "type": "Electric",
+    "category": "Special",
+    "power": 110.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "ThunderPunch": {
+    "name": "ThunderPunch",
+    "type": null,
+    "category": null,
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": "Needs data (custom Shrine move or name mismatch)."
+  },
+  "Thunderbold": {
+    "name": "Thunderbold",
+    "type": null,
+    "category": null,
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": "Needs data (custom Shrine move or name mismatch)."
+  },
+  "Thunderbolt": {
+    "name": "Thunderbolt",
+    "type": "Electric",
+    "category": "Special",
+    "power": 90.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Toxic": {
+    "name": "Toxic",
+    "type": "Poison",
+    "category": "Status",
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Twister": {
+    "name": "Twister",
+    "type": "Dragon",
+    "category": "Special",
+    "power": 40.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Wake-Up Slap": {
+    "name": "Wake-Up Slap",
+    "type": "Fighting",
+    "category": "Physical",
+    "power": 70.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Water Pulse": {
+    "name": "Water Pulse",
+    "type": "Water",
+    "category": "Special",
+    "power": 60.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Waterfall": {
+    "name": "Waterfall",
+    "type": "Water",
+    "category": "Physical",
+    "power": 80.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Wild Charge": {
+    "name": "Wild Charge",
+    "type": "Electric",
+    "category": "Physical",
+    "power": 90.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Will-O-Wisp": {
+    "name": "Will-O-Wisp",
+    "type": "Fire",
+    "category": "Status",
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "X-Scissor": {
+    "name": "X-Scissor",
+    "type": "Bug",
+    "category": "Physical",
+    "power": 80.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Zap Cannon": {
+    "name": "Zap Cannon",
+    "type": "Electric",
+    "category": "Special",
+    "power": 120.0,
+    "uses": "SpA",
+    "targets": "SpD",
+    "accuracy": 100.0,
+    "notes": null
+  },
+  "Zen Headbutt": {
+    "name": "Zen Headbutt",
+    "type": "Psychic",
+    "category": "Physical",
+    "power": 80.0,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100.0,
+    "notes": null
+  }
+}
