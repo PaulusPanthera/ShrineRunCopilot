@@ -256,8 +256,7 @@ body::after{
 
 .sprite{width:28px;height:28px; image-rendering: pixelated; filter: drop-shadow(0 6px 10px rgba(0,0,0,.35));}
 .sprite-sm{width:22px;height:22px}
-.sprite-md{width:48px;height:48px}
-.sprite-lg{width:72px;height:72px}
+.sprite-lg{width:44px;height:44px}
 .sprite-xl{width:64px;height:64px}
 
 .section-title{
@@ -411,50 +410,14 @@ body::after{
 .row-sub{font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .row-right{display:flex; gap:8px; align-items:center}
 
-
-
-/* --- Type chips (Pokédex-like) --- */
-.typechips{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px}
-.typechip{
-  display:inline-flex;
-  align-items:center;
-  padding:2px 8px;
-  border-radius:999px;
-  font-size:11px;
-  font-weight:800;
-  letter-spacing:.2px;
-  border:1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.06);
-  color: var(--text);
-}
-
-/* per-type accents (soft, readable on dark) */
-.type-Normal{border-color: rgba(168,167,122,.35); background: rgba(168,167,122,.14)}
-.type-Fire{border-color: rgba(238,129,48,.45); background: rgba(238,129,48,.16)}
-.type-Water{border-color: rgba(99,144,240,.45); background: rgba(99,144,240,.16)}
-.type-Electric{border-color: rgba(247,208,44,.45); background: rgba(247,208,44,.16)}
-.type-Grass{border-color: rgba(122,199,76,.45); background: rgba(122,199,76,.16)}
-.type-Ice{border-color: rgba(150,217,214,.45); background: rgba(150,217,214,.16)}
-.type-Fighting{border-color: rgba(194,46,40,.45); background: rgba(194,46,40,.16)}
-.type-Poison{border-color: rgba(163,62,161,.45); background: rgba(163,62,161,.16)}
-.type-Ground{border-color: rgba(226,191,101,.45); background: rgba(226,191,101,.16)}
-.type-Flying{border-color: rgba(169,143,243,.45); background: rgba(169,143,243,.16)}
-.type-Psychic{border-color: rgba(249,85,135,.45); background: rgba(249,85,135,.16)}
-.type-Bug{border-color: rgba(166,185,26,.45); background: rgba(166,185,26,.16)}
-.type-Rock{border-color: rgba(182,161,54,.45); background: rgba(182,161,54,.16)}
-.type-Ghost{border-color: rgba(115,87,151,.45); background: rgba(115,87,151,.16)}
-.type-Dragon{border-color: rgba(111,53,252,.45); background: rgba(111,53,252,.16)}
-.type-Dark{border-color: rgba(112,87,70,.45); background: rgba(112,87,70,.16)}
-.type-Steel{border-color: rgba(183,183,206,.45); background: rgba(183,183,206,.16)}
-.type-Fairy{border-color: rgba(214,133,173,.45); background: rgba(214,133,173,.16)}
 /* --- Unlocked Pokédex grid --- */
 .dex-grid{
   display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap:10px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap:12px;
   max-height:65vh;
   overflow:auto;
-  padding:10px;
+  padding:12px;
   border:1px solid var(--border);
   border-radius: var(--radius);
   background: rgba(16,22,35,.55);
@@ -462,8 +425,8 @@ body::after{
 .dex-card{
   display:flex;
   align-items:center;
-  gap:10px;
-  padding:10px 10px;
+  gap:12px;
+  padding:12px 12px;
   border-radius: 14px;
   border:1px solid rgba(122,167,255,.16);
   background: rgba(16,22,35,.45);
@@ -474,27 +437,64 @@ body::after{
   font: inherit;
   color: var(--text);
 }
-
-.dex-top{display:flex; align-items:flex-start; gap:10px; width:100%}
-.dex-levels{font-size:12px; color:var(--muted); margin-top:2px}
-.dex-tag{font-size:12px; font-weight:900; padding:4px 10px; border-radius:999px; border:1px solid rgba(120,170,255,.20); background: rgba(6,10,18,.40); color:var(--muted); height:24px; display:flex; align-items:center}
-.dex-tag.good{border-color: rgba(79,227,161,.35); color: rgba(79,227,161,.95)}
-.dex-tag.bad{border-color: rgba(255,93,115,.35); color: rgba(255,93,115,.95)}
-.dex-card.unlocked{border-color: rgba(79,227,161,.25)}
-.dex-card.locked{opacity:.62; filter:saturate(.7)}
-.dex-sprite{width:56px; height:56px}
 .dex-card:hover{
   border-color: rgba(122,167,255,.35);
   background: rgba(16,22,35,.62);
 }
-.dex-card.locked{opacity:.68}
-.dex-meta{min-width:0}
-.dex-name{font-weight:900; white-space:normal; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:1.15; min-height:2.3em}
+.dex-card.unlocked{border-color: rgba(79,227,161,.22)}
+.dex-card.locked{opacity:.78; border-color: rgba(255,93,115,.18)}
+.dex-meta{min-width:0; flex:1}
+.dex-name{font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:14px}
+.dex-sub{font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px}
 .dex-status{font-size:12px; color:var(--muted)}
 .dex-tag{font-size:12px; color:var(--muted)}
-.dex-sprite{width:56px; height:56px}
+.dex-sprite{width:44px; height:44px}
 
 /* Pokédex detail */
+.dex-detail-head{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
+.dex-detail-head-left{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+
+.dex-hero{display:flex; gap:14px; align-items:center; flex-wrap:wrap}
+.dex-hero-meta{min-width:0}
+.dex-hero-title{font-weight:1000; font-size:20px; letter-spacing:.2px}
+.dex-hero-sub{font-size:12px; color:var(--muted); margin-top:2px}
+.dex-hero-badges{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
+
+.dex-stats{
+  display:grid;
+  grid-template-columns: repeat(6, minmax(64px, 1fr));
+  gap:10px;
+  margin-top:8px;
+}
+@media (max-width: 720px){
+  .dex-stats{grid-template-columns: repeat(3, minmax(64px, 1fr));}
+}
+.dex-stat{
+  border:1px solid rgba(122,167,255,.14);
+  background: rgba(6,10,18,.35);
+  border-radius: 12px;
+  padding:8px 10px;
+  text-align:center;
+}
+.dex-stat-hp{border-color: rgba(79,227,161,.35); background: rgba(79,227,161,.08);}
+.dex-stat-atk{border-color: rgba(255,93,115,.35); background: rgba(255,93,115,.08);}
+.dex-stat-def{border-color: rgba(255,209,102,.35); background: rgba(255,209,102,.08);}
+.dex-stat-spa{border-color: rgba(122,167,255,.35); background: rgba(122,167,255,.08);}
+.dex-stat-spd{border-color: rgba(255,164,92,.35); background: rgba(255,164,92,.08);}
+.dex-stat-spe{border-color: rgba(235,130,255,.35); background: rgba(235,130,255,.08);}
+.dex-stat-k{font-size:12px; color:var(--muted); font-weight:900}
+.dex-stat-v{font-weight:900; margin-top:2px}
+
+.dex-moves{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
+.dex-move{
+  padding:6px 10px;
+  border-radius: 999px;
+  border:1px solid rgba(122,167,255,.16);
+  background: rgba(6,10,18,.35);
+  font-size:12px;
+  color: var(--text);
+}
+
 .dex-evo-row{display:flex; flex-wrap:wrap; gap:10px; margin-top:8px}
 .dex-form{
   display:flex; align-items:center; gap:8px;
@@ -526,37 +526,6 @@ body::after{
 .hr{height:1px; background: rgba(120,170,255,.10); margin:12px 0}
 
 
-
-
-/* --- Battle simulator --- */
-.battle-panel{margin-top:12px}
-.battle-reinf{margin-top:10px; padding:10px; border-radius:12px; border:1px solid rgba(255,209,102,.25); background: rgba(255,209,102,.06); display:flex; flex-direction:column; gap:8px}
-.battle-grid{display:grid; grid-template-columns:1fr; gap:12px; margin-top:10px}
-@media (min-width: 1100px){
-  .battle-grid{grid-template-columns: 1fr 1fr;}
-}
-.battle-side-title{font-weight:900; margin-bottom:8px}
-.battle-card{
-  border-radius: 14px;
-  border:1px solid rgba(120,170,255,.16);
-  background: rgba(10,14,24,.72);
-  padding:10px;
-}
-.battle-card + .battle-card{margin-top:10px}
-.battle-card-head{display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:8px}
-.battle-controls{margin-top:8px; padding-top:8px; border-top:1px solid rgba(120,170,255,.10)}
-.battle-pp{margin-top:10px; padding-top:8px; border-top:1px solid rgba(120,170,255,.10)}
-.pp-list{display:flex; flex-direction:column; gap:6px; margin-top:6px}
-.pp-row{display:flex; justify-content:space-between; gap:10px; align-items:center}
-.pp-move{font-size:12px; font-weight:800; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.pp-box{display:flex; gap:6px; align-items:center}
-.battle-log{margin-top:8px; max-height:160px; overflow:auto; border-radius:12px; border:1px solid rgba(120,170,255,.12); background: rgba(6,10,18,.45); padding:8px}
-.battle-log-line{font-size:12px; color:var(--muted); padding:3px 0; border-bottom:1px dashed rgba(120,170,255,.10)}
-.battle-log-line:last-child{border-bottom:none}
-
-/* btn-mini danger */
-.btn-mini.btn-danger{border-color: rgba(255,93,115,.35)}
-.btn-mini.btn-danger:hover{border-color: rgba(255,93,115,.55); background: rgba(40,10,16,.55)}
 /* --- Wave planner v9 --- */
 .wave-planner{margin-top:12px;}
 .planner-grid{
@@ -578,7 +547,7 @@ body::after{
 }
 .pick-item{
   display:grid;
-  grid-template-columns: 34px 1fr;
+  grid-template-columns: 18px 34px 1fr auto;
   gap:10px;
   align-items:center;
   padding:8px 10px;
@@ -590,12 +559,51 @@ body::after{
   border-color: rgba(122,167,255,.35);
   background: rgba(16,22,35,.62);
 }
+.pick-item.selected{
+  border-color: rgba(79,227,161,.35);
+  box-shadow: 0 0 0 2px rgba(79,227,161,.10) inset;
+}
+
+.enemy-slots{
+  margin: 8px 0 10px;
+  padding: 10px;
+  border-radius: 12px;
+  border:1px solid rgba(120,170,255,.16);
+  background: rgba(10,15,24,.55);
+}
+.enemy-slot-row{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-top:8px;
+}
+.enemy-slot-row .lbl{
+  width:70px;
+  font-size:12px;
+  font-weight:900;
+  color:var(--muted);
+}
+.slotbadge{
+  width:18px;
+  height:18px;
+  border-radius:6px;
+  border:1px solid rgba(120,170,255,.18);
+  background: rgba(6,10,18,.35);
+  color: var(--muted);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  font-weight:900;
+}
+.slotbadge.on{
+  border-color: rgba(79,227,161,.35);
+  color: rgba(79,227,161,.95);
+  background: rgba(79,227,161,.10);
+}
 .pick-item.cleared{
   opacity:.55;
-}
-.pick-item.selected{
-  border-color: rgba(122,167,255,.65);
-  box-shadow: 0 0 0 2px rgba(122,167,255,.20) inset;
 }
 .pick-meta{min-width:0}
 .pick-title{
@@ -683,12 +691,6 @@ body::after{
 .bag-table th, .bag-table td{ border-bottom:1px solid rgba(255,255,255,0.08); padding:8px 6px; text-align:left; }
 .bag-table td:last-child{ text-align:right; }
 
-/* Bag (grouped view) */
-.bag-row{ display:grid; grid-template-columns: 1fr 80px 80px 90px; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.08); }
-.bag-row.bag-head{ font-weight:900; padding-top:0; }
-.bag-item{ display:flex; align-items:center; gap:10px; }
-.bag-num{ text-align:right; }
-
 /* --- Settings --- */
 .settings-grid{ display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; }
 .settings-col{ flex: 1 1 420px; display:flex; flex-direction:column; gap:14px; }
@@ -705,3 +707,11 @@ body::after{
 /* Mini controls used throughout the planner */
 .sel-mini{font-size:12px; padding:4px 6px; border-radius:10px; border:1px solid rgba(120,170,255,.18); background: rgba(0,0,0,.25); color: var(--text)}
 .inp-mini{font-size:12px; padding:4px 6px; border-radius:10px; border:1px solid rgba(120,170,255,.18); background: rgba(0,0,0,.25); color: var(--text); width:64px}
+
+/* --- Bag shop placeholder --- */
+.shop-grid{ display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+.shop-row{ display:grid; grid-template-columns: 1fr auto auto; gap:10px; align-items:center; padding:6px 8px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.18); }
+
+/* --- Credits / Impressum --- */
+.credits-list{ display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+.credits-list a{ color: var(--accent); text-decoration: underline; }

@@ -13,8 +13,6 @@ function byId(arr, id){
   return arr.find(x => x.id === id);
 }
 
-const DEFAULT_PP = 12;
-
 export function hydrateState(raw, defaultState, data){
   let state = raw ? {...deepClone(defaultState), ...raw} : deepClone(defaultState);
 
@@ -36,12 +34,12 @@ export function hydrateState(raw, defaultState, data){
   // Force auto-match always ON
   state.settings.autoMatch = true;
 
-  if (!('startAnimal' in state.settings)) state.settings.startAnimal = defaultState.settings.startAnimal || 'Goat';
-
   state.unlocked = state.unlocked || {};
   state.cleared = state.cleared || {};
   state.roster = Array.isArray(state.roster) ? state.roster : [];
   state.bag = state.bag || {};
+  state.wallet = state.wallet || {};
+  if (!('gold' in state.wallet)) state.wallet.gold = (defaultState.wallet && Number(defaultState.wallet.gold)) ? Number(defaultState.wallet.gold) : 0;
   // Ensure shared team starting items exist (do not overwrite existing counts)
   if (!('Evo Charm' in state.bag)) state.bag['Evo Charm'] = (defaultState.bag && defaultState.bag['Evo Charm']) ? defaultState.bag['Evo Charm'] : 2;
   if (!('Strength Charm' in state.bag)) state.bag['Strength Charm'] = (defaultState.bag && defaultState.bag['Strength Charm']) ? defaultState.bag['Strength Charm'] : 2;
@@ -52,19 +50,6 @@ export function hydrateState(raw, defaultState, data){
   state.evoCache = state.evoCache || {};
   state.baseCache = state.baseCache || {};
   state.evoLineCache = state.evoLineCache || {};
-
-  // Battle sim + PP
-  state.battles = state.battles || {};
-  state.pp = state.pp || {};
-  if (!state.ui.dexDefenderLevelByBase) state.ui.dexDefenderLevelByBase = {};
-  if (!('dexReturnTab' in state.ui)) state.ui.dexReturnTab = null;
-  if (!('simWaveKey' in state.ui)) state.ui.simWaveKey = null;
-
-  // Politoed shop
-  state.shop = state.shop || {gold:0, ledger:[]};
-  if (!('gold' in state.shop)) state.shop.gold = 0;
-  if (!Array.isArray(state.shop.ledger)) state.shop.ledger = [];
-
 
   // Seed roster if empty
   if (state.roster.length === 0){
@@ -105,26 +90,6 @@ export function hydrateState(raw, defaultState, data){
 
     // Charm rules + effectiveSpecies
     applyCharmRulesSync(data, state, r);
-
-    // Seed default PP (12 each) for enabled moves
-    state.pp = state.pp || {};
-    state.pp[r.id] = state.pp[r.id] || {};
-    for (const mv of ((r.movePool||[]).filter(m=>m && m.use !== false))){
-      const name = mv.name;
-      if (!name) continue;
-      const cur = state.pp[r.id][name];
-      if (!cur || typeof cur !== "object"){
-        state.pp[r.id][name] = {cur: DEFAULT_PP, max: DEFAULT_PP};
-      } else {
-        if (!("max" in cur)) cur.max = DEFAULT_PP;
-        if (!("cur" in cur)) cur.cur = cur.max;
-        cur.max = Number(cur.max)||DEFAULT_PP;
-        cur.cur = Number.isFinite(Number(cur.cur)) ? Number(cur.cur) : cur.max;
-        if (cur.max <= 0) cur.max = DEFAULT_PP;
-        if (cur.cur < 0) cur.cur = 0;
-        if (cur.cur > cur.max) cur.cur = cur.max;
-      }
-    }
   }
 
   // One-time fix-up: starters should have correct default move priorities and forced Strength.
@@ -146,6 +111,7 @@ export function hydrateState(raw, defaultState, data){
 
   // Ensure UI flags exist
   if (!('overviewCollapsed' in state.ui)) state.ui.overviewCollapsed = true;
+  if (!Array.isArray(state.ui.bagUndo)) state.ui.bagUndo = [];
 
   // Migrate legacy waveTeams -> wavePlans
   if (state.waveTeams){

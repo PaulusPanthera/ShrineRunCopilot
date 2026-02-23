@@ -63,6 +63,9 @@ export function buildDefaultMovePool(data, species, moveNames, source='base'){
     name: m,
     prio: defaultPrioForMove(data, species, m),
     use: true,
+    // Shrine run planner PP: default all moves to 12 until proven otherwise.
+    ppMax: 12,
+    pp: 12,
     source,
   }));
 }
@@ -139,5 +142,11 @@ export function normalizeMovePool(entry){
     else if (p === 3.0) mv.prio = 1;
     else if (p === 2.5) mv.prio = 2;
     else mv.prio = 2;
+
+    // PP defaults
+    const pm = Number(mv.ppMax);
+    mv.ppMax = Number.isFinite(pm) && pm > 0 ? Math.floor(pm) : 12;
+    const pp = Number(mv.pp);
+    mv.pp = Number.isFinite(pp) ? Math.max(0, Math.min(mv.ppMax, Math.floor(pp))) : mv.ppMax;
   }
 }

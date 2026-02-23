@@ -1,6 +1,6 @@
 // js/app/app.js
-// Abundant Shrine — Roster Planner (alpha v13)
-// Professionalized module entry: data/services/state are external; this file focuses on UI + orchestration.
+// v2.0.0-beta
+// Abundant Shrine — Roster Planner UI + orchestration (Waves tab planner UX + auto-match display)
 
 import { $, $$, el, pill, formatPct, clampInt, sprite } from '../ui/dom.js';
 import { fixName } from '../data/nameFixes.js';
@@ -17,19 +17,20 @@ import {
   getWaveDefMods,
   enemyThreatForMatchup,
   assumedEnemyThreatForMatchup,
+  bestAssignmentForWavePair,
   phaseDefenderLimit,
   speciesListFromSlots,
 } from '../domain/waves.js';
 import {
   ITEM_CATALOG,
   lootBundle,
+  normalizeBagKey,
   computeRosterUsage,
   availableCount,
   enforceBagConstraints,
-  priceOfItem,
+  isGem,
+  isPlate,
 } from '../domain/items.js';
-import { initBattleForWave, stepBattleTurn, resetBattle, setManualAction, chooseReinforcement, setPP, battleLabelForRowKey, DEFAULT_MOVE_PP } from '../domain/battle.js';
-
 
 function byId(arr, id){
   return arr.find(x => x.id === id);
@@ -45,20 +46,14 @@ function groupBy(arr, fn){
   return out;
 }
 
+function uniq(arr){
+  return Array.from(new Set((arr||[]).filter(Boolean)));
+}
+
 function rosterLabel(r){
   const eff = r.effectiveSpecies || r.baseSpecies;
   if (eff !== r.baseSpecies) return `${eff} (${r.baseSpecies})`;
   return eff;
-}
-
-// Defender "instance" keys allow duplicates, e.g. "P1W1S1#2".
-function baseDefKey(k){
-  return String(k || '').split('#')[0];
-}
-
-function formatPrioAvg(n){
-  const x = Math.round(Number(n || 0) * 2) / 2;
-  return Number.isInteger(x) ? String(x) : x.toFixed(1);
 }
 
 function waveOrderKey(wk){
@@ -75,7 +70,6 @@ export function startApp(ctx){
   const tabRoster = $('#tabRoster');
   const tabBag = $('#tabBag');
   const tabSettings = $('#tabSettings');
-  const tabSim = $('#tabSim');
   const tabUnlocked = $('#tabUnlocked');
   const unlockedCountEl = $('#unlockedCount');
 
@@ -144,7 +138,6 @@ export function startApp(ctx){
     tabRoster.classList.toggle('hidden', state.ui.tab !== 'roster');
     tabBag.classList.toggle('hidden', state.ui.tab !== 'bag');
     tabSettings.classList.toggle('hidden', state.ui.tab !== 'settings');
-    tabSim.classList.toggle('hidden', state.ui.tab !== 'sim');
     tabUnlocked.classList.toggle('hidden', state.ui.tab !== 'unlocked');
   }
 
@@ -355,294 +348,65 @@ export function startApp(ctx){
     return tbl;
   }
 
-  // ---------------- Battle simulator (Waves) ----------------
-
-  function renderBattlePanel(state, waveKey, slots, wp){
-    const battle = state.battles?.[waveKey] || null;
-    const slotByKey = new Map((slots||[]).map(s=>[s.rowKey,s]));
-
-    const header = el('div', {style:'display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap'}, [
-      el('div', {class:'panel-title'}, 'Fight simulator'),
-      el('div', {style:'display:flex; gap:8px; align-items:center; flex-wrap:wrap'}, [])
-    ]);
-
-    const btnRow = header.lastChild;
-
-    const panel = el('div', {class:'panel battle-panel'}, [
-      header,
-      el('div', {class:'muted small'}, `Default PP: ${DEFAULT_MOVE_PP} for every move (temporary rule). Use Step turn to simulate; PP persists across waves.`),
-    ]);
-
-    const makeDefLabel = (rk)=>{
-      const sl = slotByKey.get(rk);
-      if (!sl) return rk;
-      return battleLabelForRowKey({rowKey:rk, waveKey, defender:sl.defender, level:sl.level});
-    };
-
-    const makeAtkLabel = (id)=>{
-      const r = byId(state.roster,id);
-      if (!r) return id;
-      return rosterLabel(r);
-    };
-
-    const statusPill = (st)=>{
-      if (st === 'won') return pill('WON','good');
-      if (st === 'lost') return pill('LOST','bad');
-      if (st === 'active') return pill('ACTIVE','warn');
-      return pill('IDLE','');
-    };
-
-    // Controls
-    const fightBtn = el('button', {class:'btn-mini'}, battle ? 'Continue' : 'Fight');
-    fightBtn.addEventListener('click', ()=>{
-      store.update(s=>{
-        ensureWavePlan(data, s, waveKey, slots);
-        initBattleForWave({data, calc, state:s, waveKey, slots});
-      });
-    });
-
-    const stepBtn = el('button', {class:'btn-mini'}, 'Step turn');
-    stepBtn.addEventListener('click', ()=>{
-      store.update(s=>{
-        stepBattleTurn({data, calc, state:s, waveKey, slots});
-      });
-    });
-
-    const resetBtn = el('button', {class:'btn-mini'}, 'Reset');
-    resetBtn.addEventListener('click', ()=>{
-      store.update(s=>{
-        resetBattle(s, waveKey);
-      });
-    });
-
-    btnRow.appendChild(statusPill(battle?.status || 'idle'));
-    btnRow.appendChild(fightBtn);
-    if (battle) btnRow.appendChild(stepBtn);
-    if (battle) btnRow.appendChild(resetBtn);
-
-    if (!battle){
-      panel.appendChild(el('div', {class:'muted small', style:'margin-top:8px'}, 'Start a fight for this wave to simulate turns, track PP, and claim species.'));
-      return panel;
-    }
-
-    // Reinforcement chooser
-    if (battle.pending){
-      const pending = battle.pending;
-      const isAtk = pending.side === 'atk';
-      const list = isAtk ? (battle.atk?.bench||[]) : (battle.def?.bench||[]);
-      const sel = el('select', {class:'sel-mini', style:'min-width:260px'}, [
-        el('option', {value:''}, '— choose —'),
-        ...list.map(v=> el('option', {value:String(v)}, isAtk ? makeAtkLabel(v) : makeDefLabel(v))),
-      ]);
-      const btn = el('button', {class:'btn-mini'}, 'Send in');
-      btn.addEventListener('click', ()=>{
-        const val = sel.value;
-        if (!val) return;
-        store.update(s=>{
-          chooseReinforcement(s, waveKey, pending.side, pending.slotIndex, isAtk ? val : val);
-        });
-      });
-      panel.appendChild(el('div', {class:'battle-reinf'}, [
-        pill('REINFORCEMENT','warn'),
-        el('div', {class:'muted small'}, isAtk ? 'Choose next attacker to send in.' : 'Choose next defender to send in.'),
-        el('div', {style:'display:flex; gap:8px; align-items:center; flex-wrap:wrap'}, [sel, btn]),
-      ]));
-    }
-
-    const grid = el('div', {class:'battle-grid'});
-
-    // Attackers
-    const atkWrap = el('div', {class:'battle-side'}, [
-      el('div', {class:'battle-side-title'}, 'Your side'),
-    ]);
-
-    for (const id of (battle.atk?.active||[])){
-      if (!id) continue;
-      const r = byId(state.roster,id);
-      if (!r) continue;
-      const hp = Number(battle.hpAtk?.[id] ?? 100);
-      const moves = (r.movePool||[]).filter(m=>m && m.use !== false);
-
-      // Manual controls
-      const manual = battle.manual?.[id] || {};
-      const activeTargets = (battle.def?.active||[]).filter(Boolean);
-
-      const moveSel = el('select', {class:'sel-mini'}, [
-        el('option', {value:''}, '— auto —'),
-        ...moves.map(m=>{
-          const p = state.pp?.[id]?.[m.name] || {cur:DEFAULT_MOVE_PP, max:DEFAULT_MOVE_PP};
-          const disabled = Number(p.cur||0) <= 0;
-          const label = `${m.name} (PP ${p.cur ?? DEFAULT_MOVE_PP}/${p.max ?? DEFAULT_MOVE_PP})`;
-          return el('option', {value:m.name, selected: manual.move===m.name, disabled}, label);
-        })
-      ]);
-      moveSel.addEventListener('change', ()=>{
-        const v = moveSel.value || null;
-        store.update(s=>{ setManualAction(s, waveKey, id, v ? {move:v} : {move:null}); });
-      });
-
-      const targetSel = el('select', {class:'sel-mini'}, [
-        el('option', {value:''}, '— target —'),
-        ...activeTargets.map(rk=> el('option', {value:rk, selected: manual.targetRowKey===rk}, makeDefLabel(rk))),
-      ]);
-      targetSel.addEventListener('change', ()=>{
-        const v = targetSel.value || null;
-        store.update(s=>{ setManualAction(s, waveKey, id, v ? {targetRowKey:v} : {targetRowKey:null}); });
-      });
-
-      const autoBtn = el('button', {class:'btn-mini'}, 'Auto');
-      autoBtn.addEventListener('click', ()=>{
-        store.update(s=>{ setManualAction(s, waveKey, id, null); });
-      });
-
-      // PP editor
-      const ppList = el('div', {class:'pp-list'});
-      for (const m of moves){
-        const p = state.pp?.[id]?.[m.name] || {cur:DEFAULT_MOVE_PP, max:DEFAULT_MOVE_PP};
-        const inp = el('input', {type:'number', min:'0', max:String(p.max ?? DEFAULT_MOVE_PP), step:'1', value:String(p.cur ?? DEFAULT_MOVE_PP), class:'inp-mini'});
-        inp.addEventListener('change', ()=>{
-          store.update(s=>{ setPP(s, id, m.name, clampInt(inp.value, 0, Number(p.max ?? DEFAULT_MOVE_PP))); });
-        });
-        ppList.appendChild(el('div', {class:'pp-row'}, [
-          el('div', {class:'pp-move'}, m.name),
-          el('div', {class:'pp-box'}, [inp, el('span', {class:'muted small'}, ` / ${p.max ?? DEFAULT_MOVE_PP}`)]),
-        ]));
-      }
-
-      const card = el('div', {class:'battle-card'}, [
-        el('div', {class:'battle-card-head'}, [
-          el('div', {style:'display:flex; align-items:center; gap:10px'}, [
-            el('img', {class:'sprite sprite-md', src:sprite(calc, r.effectiveSpecies||r.baseSpecies), alt:rosterLabel(r)}),
-            el('div', {}, [
-              el('div', {style:'font-weight:900'}, rosterLabel(r)),
-              el('div', {class:'muted small'}, `HP ${hp.toFixed(1)}%`),
-            ]),
-          ]),
-          pill(hp<=0 ? 'FAINT' : 'OK', hp<=0 ? 'bad' : 'good'),
-        ]),
-        el('div', {class:'battle-controls'}, [
-          el('div', {class:'muted small'}, 'Manual action (optional):'),
-          el('div', {style:'display:flex; gap:8px; flex-wrap:wrap; align-items:center'}, [moveSel, targetSel, autoBtn]),
-        ]),
-        el('div', {class:'battle-pp'}, [
-          el('div', {class:'muted small'}, 'PP'),
-          ppList,
-        ]),
-      ]);
-
-      atkWrap.appendChild(card);
-    }
-
-    // Defenders
-    const defWrap = el('div', {class:'battle-side'}, [
-      el('div', {class:'battle-side-title'}, 'Enemy side'),
-    ]);
-
-    for (const rk of (battle.def?.active||[])){
-      if (!rk) continue;
-      const sl = slotByKey.get(rk);
-      if (!sl) continue;
-      const hp = Number(battle.hpDef?.[rk] ?? 100);
-      const last = battle.lastActions?.def?.[rk] || null;
-      const incoming = last ? el('div', {class:'muted small'}, [
-        el('span', {}, `Incoming: ${last.move || '—'} → ${makeAtkLabel(last.target)}`),
-      ]) : el('div', {class:'muted small'}, 'Incoming: —');
-      if (last && last.move){
-        incoming.title = `${last.move} · ${last.minPct?.toFixed?.(1) ?? last.minPct}% min` + (last.chosenReason ? ` · chosen: ${last.chosenReason}` : '');
-      }
-
-      const card = el('div', {class:'battle-card'}, [
-        el('div', {class:'battle-card-head'}, [
-          el('div', {style:'display:flex; align-items:center; gap:10px'}, [
-            el('img', {class:'sprite sprite-md', src:sprite(calc, sl.defender), alt:sl.defender}),
-            el('div', {}, [
-              el('div', {style:'font-weight:900'}, `${sl.defender} · ${rk.startsWith(waveKey) ? rk.slice(waveKey.length) : rk}`),
-              el('div', {class:'muted small'}, `HP ${hp.toFixed(1)}% · Lv ${sl.level}`),
-            ]),
-          ]),
-          pill(hp<=0 ? 'FAINT' : 'OK', hp<=0 ? 'bad' : 'good'),
-        ]),
-        incoming,
-      ]);
-      defWrap.appendChild(card);
-    }
-
-    grid.appendChild(atkWrap);
-    grid.appendChild(defWrap);
-    panel.appendChild(grid);
-
-    // Claiming
-    if (battle.status === 'won' && !battle.claimed){
-      const claimBtn = el('button', {class:'btn'}, 'Claim defeated species');
-      claimBtn.addEventListener('click', ()=>{
-        store.update(s=>{
-          const w = s.wavePlans?.[waveKey];
-          if (!w) return;
-          const sbk = new Map((slots||[]).map(ss=>[ss.rowKey, ss]));
-          for (const rk of (w.defenders||[])){
-            const sl = sbk.get(rk);
-            if (!sl) continue;
-            const base = pokeApi.baseOfSync(sl.defender, s.baseCache||{});
-            s.unlocked[base] = true;
-            s.cleared[rk] = true;
-          }
-          s.battles[waveKey].claimed = true;
-        });
-      });
-      panel.appendChild(el('div', {style:'margin-top:10px; display:flex; justify-content:flex-end'}, [claimBtn]));
-    }
-
-    // Log
-    const log = el('div', {class:'battle-log'}, (battle.log||[]).slice(-10).map(line=> el('div', {class:'battle-log-line'}, line)));
-    panel.appendChild(el('div', {class:'panel-subtitle'}, 'Recent log'));
-    panel.appendChild(log);
-
-    return panel;
-  }
-
   // ---------------- Waves ----------------
 
   function renderWaves(state){
     tabWaves.innerHTML = '';
 
     const waves = groupBy(data.calcSlots, s => s.waveKey);
+    const waveKeys = Object.keys(waves).sort((a,b)=>waveOrderKey(a)-waveOrderKey(b));
 
-    // Rotate wave display order within each phase based on chosen start animal (Goat default).
-    const startAnimal = (state.settings && state.settings.startAnimal) ? state.settings.startAnimal : 'Goat';
-    const phase1Animals = Array.from({length:12}).map((_,i)=>{
-      const wk = `P1W${i+1}`;
-      return waves[wk]?.[0]?.animal || null;
-    });
-    const startIdx = Math.max(0, phase1Animals.indexOf(startAnimal));
-    const waveNums = Array.from({length:12}).map((_,i)=>i+1);
-    const rotatedNums = waveNums.slice(startIdx).concat(waveNums.slice(0,startIdx));
+    const startAnimal = state.settings?.startWaveAnimal || 'Goat';
 
-    const phaseWaveKeys = (phase)=> rotatedNums.map(n=>`P${phase}W${n}`).filter(k=>waves[k]);
+    const byPhase = {1:[],2:[],3:[]};
+    for (const wk of waveKeys){
+      const m = /^P(\d+)W(\d+)$/.exec(wk);
+      if (!m) continue;
+      const p = Number(m[1]);
+      if (byPhase[p]) byPhase[p].push(wk);
+    }
+    for (const p of [1,2,3]){
+      byPhase[p].sort((a,b)=>waveOrderKey(a)-waveOrderKey(b));
+    }
 
-    const phase1 = phaseWaveKeys(1);
-    const phase2 = phaseWaveKeys(2);
-    const phase3 = phaseWaveKeys(3);
+    function rotateToAnimal(list){
+      if (!Array.isArray(list) || !list.length) return [];
+      const idx = list.findIndex(wk => (waves[wk]?.[0]?.animal) === startAnimal);
+      if (idx <= 0) return list.slice();
+      return list.slice(idx).concat(list.slice(0, idx));
+    }
+
+    const phaseOrder = {
+      1: rotateToAnimal(byPhase[1]),
+      2: rotateToAnimal(byPhase[2]),
+      3: rotateToAnimal(byPhase[3]),
+    };
 
     const sections = [
-      {title:'Phase 1', phase:1, keys: phase1, bossAfter:true},
-      {title:'Phase 2 — Part 1', phase:2, keys: phase2.slice(0,6), bossAfter:true},
-      {title:'Phase 2 — Part 2', phase:2, keys: phase2.slice(6), bossAfter:true},
-      {title:'Phase 3 — Part 1', phase:3, keys: phase3.slice(0,6), bossAfter:true},
-      {title:'Phase 3 — Part 2', phase:3, keys: phase3.slice(6), bossAfter:true},
+      {title:'Phase 1', phase:1, startIdx:0, count:12, bossAfter:true},
+      {title:'Phase 2 — Part 1', phase:2, startIdx:0, count:6, bossAfter:true},
+      {title:'Phase 2 — Part 2', phase:2, startIdx:6, count:6, bossAfter:true},
+      {title:'Phase 3 — Part 1', phase:3, startIdx:0, count:6, bossAfter:true},
+      {title:'Phase 3 — Part 2', phase:3, startIdx:6, count:6, bossAfter:true},
     ];
 
     for (const sec of sections){
+      const list = phaseOrder[sec.phase] || [];
+      const inSec = list.slice(sec.startIdx, sec.startIdx + sec.count);
+
       tabWaves.appendChild(el('div', {}, [
         el('div', {class:'section-title'}, [
           el('div', {}, [
             el('div', {}, sec.title),
-            el('div', {class:'section-sub'}, `Start: ${startAnimal}`),
+            el('div', {class:'section-sub'}, `Run waves ${sec.startIdx+1}–${sec.startIdx+sec.count} · start: ${startAnimal}`),
           ]),
         ]),
       ]));
 
-      for (const wk of (sec.keys||[])){
-        tabWaves.appendChild(renderWaveCard(state, wk, waves[wk]));
+      for (let i=0;i<inSec.length;i++){
+        const wk = inSec[i];
+        const runWave = sec.startIdx + i + 1;
+        tabWaves.appendChild(renderWaveCard(state, wk, waves[wk], {runWave}));
       }
 
       if (sec.bossAfter){
@@ -657,10 +421,11 @@ export function startApp(ctx){
     }
   }
 
-  function renderWaveCard(state, waveKey, slots){
+  function renderWaveCard(state, waveKey, slots, meta){
     const expanded = !!state.ui.waveExpanded[waveKey];
     const first = slots[0];
-    const title = `${waveKey} • ${first.animal} • Lv ${first.level}`;
+    const runWave = Number(meta?.runWave) || Number(first.wave) || 1;
+    const title = `P${first.phase} • Wave ${runWave} • ${first.animal} • Lv ${first.level}`;
 
     const btn = el('button', {class:'btn-mini'}, expanded ? 'Collapse' : 'Expand');
     btn.addEventListener('click', ()=>{
@@ -671,7 +436,7 @@ export function startApp(ctx){
       el('div', {class:'wave-left'}, [
         el('div', {}, [
           el('div', {class:'wave-title'}, title),
-          el('div', {class:'wave-meta'}, `Phase ${first.phase} · Wave ${first.wave} · ${slots.length} defenders`),
+          el('div', {class:'wave-meta'}, `Phase ${first.phase} · Wave ${runWave} · ${slots.length} defenders · key ${waveKey}`),
         ]),
       ]),
       el('div', {class:'wave-actions'}, [btn]),
@@ -688,249 +453,7 @@ export function startApp(ctx){
     return el('div', {class:'wave-card' + (expanded ? ' expanded' : '')}, [head, body]);
   }
 
-  
-
-  // Simple per-wave fight tracker (4 fights per wave).
-  // Uses the same auto move selection logic as the fight plan.
-  function renderWaveFightsPanel(state, waveKey, slots, wp){
-    const phase = Number(slots[0]?.phase || 1);
-    const defLimit = phaseDefenderLimit(phase);
-    const slotByKey = new Map(slots.map(s=>[s.rowKey,s]));
-
-	    const planAttackers = (wp.attackerOrder || wp.attackerStart || []).slice(0,2);
-
-    const fights = Array.isArray(wp.fights) ? wp.fights : [];
-    const doneCount = fights.filter(f=>f && f.done).length;
-
-    const panel = el('div', {class:'panel'}, [
-      el('div', {class:'panel-title'}, `Wave fights — ${doneCount}/4 done`),
-      el('div', {class:'muted small'}, 'Quick tracker for the 4 in-game fights on this wave. Moves are auto-picked from your roster priorities. Use the Sim tab for full PP + turn-by-turn simulation.'),
-    ]);
-
-    const resetAll = el('button', {class:'btn-mini'}, 'Reset fights');
-    resetAll.addEventListener('click', ()=>{
-      store.update(s=>{
-        const w = s.wavePlans?.[waveKey];
-        if (!w || !Array.isArray(w.fights)) return;
-        for (const f of w.fights){
-          if (!f) continue;
-          f.done = false;
-          f.summary = null;
-        }
-      });
-    });
-    panel.appendChild(el('div', {style:'margin-top:10px; display:flex; justify-content:flex-end'}, [resetAll]));
-
-    const activeRoster = (state.roster||[]).filter(r=>r.active);
-    if (activeRoster.length < 2){
-      panel.appendChild(el('div', {class:'muted small', style:'margin-top:10px'}, 'Need at least 2 active roster mons to simulate fights.'));
-      return panel;
-    }
-
-    const rosterOpts = activeRoster
-      .map(r=>({id:r.id, label:rosterLabel(r)}))
-      .sort((a,b)=>a.label.localeCompare(b.label));
-
-    const bestMoveFor = (attId, defSlot)=>{
-      const r = byId(state.roster, attId);
-      if (!r || !defSlot) return null;
-      const atk = {
-        species:(r.effectiveSpecies||r.baseSpecies),
-        level: state.settings.claimedLevel,
-        ivAll: state.settings.claimedIV,
-        evAll: r.strength ? state.settings.strengthEV : state.settings.claimedEV,
-      };
-      const def = {species:defSlot.defender, level:defSlot.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
-      const res = calc.chooseBestMove({
-        data,
-        attacker: atk,
-        defender: def,
-        movePool: r.movePool||[],
-        settings: settingsForWave(state, wp, attId, defSlot.rowKey),
-        tags: defSlot.tags||[],
-      });
-      return res?.best || null;
-    };
-
-    const scoreTuple = (m0, m1)=>{
-      const ohko = (m0?.oneShot ? 1 : 0) + (m1?.oneShot ? 1 : 0);
-      const worstPrio = Math.max(m0?.prio ?? 9, m1?.prio ?? 9);
-      const avgPrio = ((m0?.prio ?? 9) + (m1?.prio ?? 9)) / 2;
-      const overkill = Math.abs((m0?.minPct ?? 0) - 100) + Math.abs((m1?.minPct ?? 0) - 100);
-      return {ohko, worstPrio, avgPrio, overkill};
-    };
-
-    const better = (a,b)=>{
-      if (a.ohko !== b.ohko) return a.ohko > b.ohko;
-      if (a.worstPrio !== b.worstPrio) return a.worstPrio < b.worstPrio;
-      if (a.avgPrio !== b.avgPrio) return a.avgPrio < b.avgPrio;
-      return a.overkill <= b.overkill;
-    };
-
-	    const fightRow = (i, fight)=>{
-      const row = el('div', {class:'fight-row'}, []);
-
-      const title = el('div', {style:'font-weight:900'}, `Fight ${i+1}`);
-
-	      // By default, fights follow the wave-level "Fight plan" starters.
-	      // If the user manually changes attackers for a fight, we lock that fight to its own pair.
-	      const lockedToPlan = (fight.lockToPlan !== false);
-	      const fallbackA = planAttackers[0] || rosterOpts[0]?.id || '';
-	      const fallbackB = planAttackers[1] || rosterOpts[1]?.id || rosterOpts[0]?.id || '';
-	      const curA = lockedToPlan ? (fallbackA) : (fight.attackers?.[0] || fallbackA);
-	      const curB = lockedToPlan ? (fallbackB) : (fight.attackers?.[1] || fallbackB);
-
-	      const aSel = el('select', {class:'sel-mini'}, rosterOpts.map(o=>el('option', {value:o.id, selected: String(curA)===String(o.id), disabled:String(o.id)===String(curB)}, o.label)));
-	      const bSel = el('select', {class:'sel-mini'}, rosterOpts.map(o=>el('option', {value:o.id, selected: String(curB)===String(o.id), disabled:String(o.id)===String(curA)}, o.label)));
-	      // Ensure the value is applied (browser may choose first enabled option otherwise)
-	      aSel.value = String(curA);
-	      bSel.value = String(curB);
-
-      const pairWrap = el('div', {style:'display:flex; gap:8px; flex-wrap:wrap; align-items:center'}, [
-        el('div', {class:'muted small'}, 'Attackers:'),
-        aSel,
-        el('span', {class:'muted small'}, '+'),
-        bSel,
-      ]);
-
-      const summaryWrap = el('div', {class:'muted small', style:'margin-top:6px'}, fight.summary ? fight.summary.text : 'Not simulated yet.');
-
-      const simulateBtn = el('button', {class:'btn-mini'}, fight.done ? 'Re-sim' : 'Simulate');
-      const resetBtn = el('button', {class:'btn-mini'}, 'Reset');
-
-      const pillEl = fight.done
-        ? pill(fight.summary?.ok ? 'OK' : 'RISK', fight.summary?.ok ? 'good' : 'warn')
-        : pill('PENDING','');
-
-	      const onSim = ()=>{
-	        const aId = aSel.value;
-	        const bId = bSel.value;
-        if (!aId || !bId || aId === bId){
-          alert('Choose two different attackers.');
-          return;
-        }
-
-        const defKeys = (wp.defenders||[]).slice(0, defLimit);
-        const defSlots = defKeys.map(rk=>slotByKey.get(baseDefKey(rk))).filter(Boolean);
-        if (defSlots.length < 2){
-          alert('Select at least 2 defenders for this wave first.');
-          return;
-        }
-
-        const d0 = defSlots[0];
-        const d1 = defSlots[1];
-
-        const a0 = bestMoveFor(aId, d0);
-        const a1 = bestMoveFor(aId, d1);
-        const b0 = bestMoveFor(bId, d0);
-        const b1 = bestMoveFor(bId, d1);
-
-        const opt1 = {a:{target:d0, best:a0}, b:{target:d1, best:b1}, tuple: scoreTuple(a0,b1)};
-        const opt2 = {a:{target:d1, best:a1}, b:{target:d0, best:b0}, tuple: scoreTuple(a1,b0)};
-        const chosen = better(opt1.tuple, opt2.tuple) ? opt1 : opt2;
-
-        // Bench coverage (3rd/4th)
-        let benchOk = true;
-        const benchLines = [];
-        for (const ds of defSlots.slice(2)){
-          const am = bestMoveFor(aId, ds);
-          const bm = bestMoveFor(bId, ds);
-          const ok = (am && am.oneShot) || (bm && bm.oneShot);
-          if (!ok) benchOk = false;
-          const who = (am && am.oneShot && (!bm || !bm.oneShot || (am.prio??9) <= (bm.prio??9))) ? 'A' : 'B';
-          const pick = who==='A' ? am : bm;
-          benchLines.push(`${ds.defender}: ${who} ${pick?.move||'—'} (P${pick?.prio||'?'} ${formatPct(pick?.minPct||0)})`);
-        }
-
-        const leadOk = !!(chosen.a.best?.oneShot && chosen.b.best?.oneShot);
-        const ok = leadOk && benchOk;
-
-        const prAvg = ((chosen.a.best?.prio ?? 9) + (chosen.b.best?.prio ?? 9)) / 2;
-
-        const text = [
-          `A → ${chosen.a.target.defender}: ${chosen.a.best?.move||'—'} (P${chosen.a.best?.prio||'?'} ${formatPct(chosen.a.best?.minPct||0)})`,
-          `B → ${chosen.b.target.defender}: ${chosen.b.best?.move||'—'} (P${chosen.b.best?.prio||'?'} ${formatPct(chosen.b.best?.minPct||0)})`,
-          `prioØ ${formatPrioAvg(prAvg)}`,
-          benchLines.length ? `Bench: ${benchLines.join(' · ')}` : null,
-        ].filter(Boolean).join(' | ');
-
-	        store.update(s=>{
-          const w = s.wavePlans?.[waveKey];
-          if (!w || !Array.isArray(w.fights)) return;
-          const f = w.fights[i];
-          if (!f) return;
-          f.attackers = [aId,bId];
-	          f.lockToPlan = false;
-          f.done = true;
-          f.summary = {ok, text};
-
-          // Auto-claim: simulating a fight means you will do it in-game; claim all selected defenders.
-          const baseCache = s.baseCache || {};
-          for (const rk of (w.defenders||[]).slice(0, defLimit)){
-            const sl = slotByKey.get(baseDefKey(rk));
-            if (!sl) continue;
-            const base = pokeApi.baseOfSync(sl.defender, baseCache);
-            s.unlocked[base] = true;
-            // Mark the base row as cleared so the wave list can show CLAIMED.
-            s.cleared[baseDefKey(rk)] = true;
-          }
-        });
-      };
-
-      simulateBtn.addEventListener('click', onSim);
-	      resetBtn.addEventListener('click', ()=>{
-        store.update(s=>{
-          const w = s.wavePlans?.[waveKey];
-          if (!w || !Array.isArray(w.fights)) return;
-          const f = w.fights[i];
-          if (!f) return;
-          f.done = false;
-          f.summary = null;
-	          // Reset back to plan-linked attackers.
-	          f.lockToPlan = true;
-        });
-      });
-
-	      aSel.addEventListener('change', ()=>{
-        store.update(s=>{
-          const w = s.wavePlans?.[waveKey];
-          if (!w || !Array.isArray(w.fights)) return;
-          const f = w.fights[i];
-          if (!f) return;
-	          f.attackers = [aSel.value, bSel.value];
-	          f.lockToPlan = false;
-        });
-      });
-	      bSel.addEventListener('change', ()=>{
-        store.update(s=>{
-          const w = s.wavePlans?.[waveKey];
-          if (!w || !Array.isArray(w.fights)) return;
-          const f = w.fights[i];
-          if (!f) return;
-	          f.attackers = [aSel.value, bSel.value];
-	          f.lockToPlan = false;
-        });
-      });
-
-      row.appendChild(el('div', {style:'display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap'}, [
-        el('div', {}, [title, pillEl]),
-        el('div', {style:'display:flex; gap:8px; align-items:center; flex-wrap:wrap'}, [simulateBtn, resetBtn]),
-      ]));
-      row.appendChild(pairWrap);
-      row.appendChild(summaryWrap);
-      return row;
-    };
-
-    for (let i=0;i<4;i++){
-      const f = fights[i] || {attackers:(wp.attackerStart||[]).slice(0,2), done:false, summary:null};
-      panel.appendChild(fightRow(i,f));
-      if (i<3) panel.appendChild(el('div', {class:'hr'}));
-    }
-
-    return panel;
-  }
-
-function renderWavePlanner(state, waveKey, slots, wp){
+  function renderWavePlanner(state, waveKey, slots, wp){
     if (!wp){
       // Rare: if wavePlans missing, normalize once
       store.update(s => { ensureWavePlan(data, s, waveKey, slots); });
@@ -943,7 +466,18 @@ function renderWavePlanner(state, waveKey, slots, wp){
 
     const slotByKey = new Map(slots.map(s=>[s.rowKey, s]));
 
-    const selectedDef = new Set((wp.defenders||[]).slice(0, defLimit));
+    // Enemy slots (duplicates allowed): the shrine can roll the same species multiple times in a fight.
+    const enemyKeys = (function(){
+      const raw = Array.isArray(wp.enemySlots)
+        ? wp.enemySlots
+        : (Array.isArray(wp.defenders) ? wp.defenders : []);
+      const out = raw.slice(0, defLimit).map(x=>x||null);
+      while (out.length < defLimit) out.push(null);
+      for (let i=0;i<out.length;i++){
+        if (out[i] && !slotByKey.has(out[i])) out[i] = null;
+      }
+      return out;
+    })();
 
     // Wave loot: fixed bundles. Selecting a loot item immediately adds it to the shared Bag.
     const lootPanel = el('div', {class:'panel', style:'margin-bottom:10px'}, [
@@ -1007,7 +541,12 @@ function renderWavePlanner(state, waveKey, slots, wp){
       store.update(s => {
         ensureWavePlan(data, s, waveKey, slots);
         const w = s.wavePlans[waveKey];
-        w.defenders = Array.from(selectedDef).slice(0, defLimit);
+        w.manualDefenders = true;
+
+        // Persist slots exactly as chosen (duplicates allowed).
+        w.enemySlots = enemyKeys.slice(0, defLimit);
+        w.defenders = w.enemySlots.filter(Boolean).slice(0, defLimit);
+
         w.defenderStart = w.defenders.slice(0,2);
         // Attackers are global (active roster). Keep existing starter picks if valid.
         w.manualOrder = false;
@@ -1026,6 +565,8 @@ function renderWavePlanner(state, waveKey, slots, wp){
     };
     const hpPctInput = (cur, onChange)=>{
       const inp = el('input', {type:'number', min:'1', max:'100', step:'1', value:String(cur ?? 100), class:'inp-mini'});
+      inp.addEventListener('pointerdown', (e)=> e.stopPropagation());
+      inp.addEventListener('click', (e)=> e.stopPropagation());
       inp.addEventListener('change', ()=> onChange(clampInt(inp.value,1,100)));
       return inp;
     };
@@ -1058,147 +599,134 @@ function renderWavePlanner(state, waveKey, slots, wp){
 
     // attacker mods are edited on the Roster tab
 
-    // Enemy picker (lead pair + optional reinforcements)
-    // Phase 1: limit is 2, swapping should be effortless. Duplicates are supported by rowKey.
-    // Phase 2/3: allow picking up to the phase limit (3/4) so the fight simulator can model reinforcements.
+    // Enemy picker
     const enemyList = el('div', {class:'pick-grid'});
 
-    const selected = Array.from({length:defLimit}).map((_,i)=> (wp.defenders||[])[i] || null);
-    const selectedKeys = selected.filter(Boolean);
-    const selectedBaseSet = new Set(selectedKeys.map(baseDefKey));
-
-    function setSelectedArr(next){
-      const arr = Array.isArray(next) ? next.slice(0, defLimit) : [];
-      const seen = new Set();
-      for (let i=0;i<arr.length;i++){
-        const k = arr[i] || null;
-        if (!k) { arr[i] = null; continue; }
-        if (seen.has(k)) arr[i] = null;
-        else seen.add(k);
-      }
-      while (arr.length < defLimit) arr.push(null);
-
-      store.update(s=>{
-        ensureWavePlan(data, s, waveKey, slots);
-        const w = s.wavePlans[waveKey];
-        w.defenders = arr.filter(Boolean).slice(0, defLimit);
-        w.defenderStart = w.defenders.slice(0,2);
-        w.manualOrder = false;
-        ensureWavePlan(data, s, waveKey, slots);
-      });
+    function enemyOptionLabel(s){
+      return `${s.defender} • Lv ${s.level} • #${s.slot}`;
     }
 
-    // Allow duplicates by offering "instance" options (S1, S1#2, S1#3, ... up to phase limit).
-    const optionEls = [];
-    for (const sl of slots){
-      for (let n=1; n<=defLimit; n++){
-        const rk = n === 1 ? sl.rowKey : `${sl.rowKey}#${n}`;
-        const label = battleLabelForRowKey({rowKey:rk, waveKey, defender:sl.defender, level:sl.level});
-        optionEls.push(el('option', {value:rk}, label));
-      }
+    function slotTag(i){
+      if (defLimit === 2) return i === 0 ? 'A' : 'B';
+      return String(i + 1);
     }
 
-    const slotLabelFor = (i)=>{
-      if (i === 0) return 'Enemy A';
-      if (i === 1) return 'Enemy B';
-      return `Bench ${i-1}`;
-    };
+    function tagsForRow(rowKey){
+      const tags = [];
+      for (let i=0;i<enemyKeys.length;i++){
+        if (enemyKeys[i] === rowKey) tags.push(slotTag(i));
+      }
+      return tags;
+    }
 
-    const makeSlot = (idx, curKey)=>{
-      const used = new Set(selectedKeys);
-      const sel = el('select', {class:'sel-mini', style:'min-width:270px'}, [
-        el('option', {value:''}, '— empty —'),
-        ...optionEls.map(o=>{
-          const clone = o.cloneNode(true);
-          const rk = clone.getAttribute('value');
-          if (rk === curKey) clone.setAttribute('selected','selected');
-          if (rk && rk !== curKey && used.has(rk)) clone.setAttribute('disabled','disabled');
-          return clone;
-        })
-      ]);
-      sel.addEventListener('change', ()=>{
-        const next = selected.slice();
-        next[idx] = sel.value || null;
-        setSelectedArr(next);
+    function setEnemySlot(idx, rowKey){
+      enemyKeys[idx] = rowKey || null;
+      commitSelected();
+    }
+
+    function fillNextEnemySlot(rowKey){
+      const empty = enemyKeys.findIndex(x=>!x);
+      const idx = (empty >= 0) ? empty : (enemyKeys.length - 1);
+      enemyKeys[idx] = rowKey;
+      commitSelected();
+    }
+
+    const selectedEnemiesPanel = (()=>{
+      const makeEnemySel = (idx)=>{
+        const value = enemyKeys[idx] || '';
+        const sel = el('select', {class:'sel-mini'}, [
+          el('option', {value:'', selected: !value}, '— empty —'),
+          ...slots.map(s=>el('option', {
+            value:s.rowKey,
+            selected:s.rowKey===value,
+          }, enemyOptionLabel(s))),
+        ]);
+        sel.addEventListener('change', ()=> setEnemySlot(idx, sel.value || null));
+        sel.addEventListener('pointerdown', (e)=> e.stopPropagation());
+        sel.addEventListener('click', (e)=> e.stopPropagation());
+        return sel;
+      };
+
+      const rows = [];
+      for (let i=0;i<defLimit;i++){
+        const label = (defLimit === 2) ? (i===0 ? 'Enemy A' : 'Enemy B') : `Enemy ${i+1}`;
+        const btn = el('button', {class:'btn-mini'}, 'Clear slot');
+        btn.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); setEnemySlot(i, null); });
+        rows.push(el('div', {class:'enemy-slot-row'}, [
+          el('div', {class:'lbl'}, label),
+          makeEnemySel(i),
+          btn,
+        ]));
+      }
+
+      const clearAll = el('button', {class:'btn-mini'}, 'Clear all');
+      clearAll.addEventListener('click', (e)=>{
+        e.preventDefault(); e.stopPropagation();
+        for (let i=0;i<enemyKeys.length;i++) enemyKeys[i] = null;
+        commitSelected();
       });
-      const clearBtn = el('button', {class:'btn-mini'}, 'Clear');
-      clearBtn.addEventListener('click', ()=>{
-        const next = selected.slice();
-        next[idx] = null;
-        setSelectedArr(next);
-      });
-      return el('div', {style:'display:flex; gap:8px; align-items:center; flex-wrap:wrap'}, [
-        el('span', {class:'muted small', style:'min-width:70px'}, slotLabelFor(idx)),
-        sel,
-        clearBtn,
+
+      return el('div', {class:'enemy-slots'}, [
+        el('div', {class:'muted small'}, `Selected enemies (${defLimit} slot${defLimit===1?'':'s'}). Duplicates are allowed. Click a row to fill the next empty slot.`),
+        ...rows,
+        el('div', {style:'display:flex; justify-content:flex-end;'}, [clearAll]),
       ]);
-    };
-
-    const clearAll = el('button', {class:'btn-mini'}, 'Clear all');
-    clearAll.addEventListener('click', ()=> setSelectedArr(new Array(defLimit).fill(null)));
-
-    const slotControls = el('div', {class:'panel', style:'margin-bottom:10px'}, [
-      el('div', {class:'panel-title'}, 'Selected enemies'),
-      el('div', {class:'muted small'}, `Pick up to ${defLimit} defenders for this wave (first two are the lead pair). Click from the list to toggle; duplicates are supported (by row).`),
-      ...Array.from({length:defLimit}).map((_,i)=> makeSlot(i, selected[i] || null)),
-      el('div', {style:'margin-top:8px; display:flex; justify-content:flex-end'}, [clearAll]),
-    ]);
+    })();
 
     for (const s of slots){
-      const isSelected = selectedBaseSet.has(s.rowKey);
+      const tags = tagsForRow(s.rowKey);
+      const checked = tags.length > 0;
 
       const base = pokeApi.baseOfSync(s.defender, state.baseCache||{});
       const isUnlocked = !!state.unlocked?.[base];
 
+
       const sp = el('img', {class:'sprite sprite-sm', src:sprite(calc, s.defender), alt:s.defender});
       sp.onerror = ()=> sp.style.opacity='0.25';
+      sp.addEventListener('pointerdown', (e)=> e.stopPropagation());
+      sp.addEventListener('click', (e)=>{ e.stopPropagation(); showOverviewForSlot(s); });
 
-      const row = el('div', {class:'pick-item' + (isUnlocked ? ' unlocked':'' ) + (isSelected ? ' selected':'' )}, [
+      const tagText = tags.join(',');
+      const leftControl = el('div', {class:'slotbadge' + (tagText ? ' on' : '')}, tagText || '');
+
+      const rowEl = el('div', {class:'pick-item' + (checked ? ' selected' : '') + (isUnlocked ? ' unlocked':'' )}, [
+        leftControl,
         sp,
         el('div', {class:'pick-meta'}, [
-          el('div', {class:'pick-title'}, `${s.defender} · ${s.rowKey.startsWith(waveKey) ? s.rowKey.slice(waveKey.length) : s.rowKey}`),
+          el('div', {class:'pick-title'}, s.defender),
           el('div', {class:'pick-sub'}, `Lv ${s.level}` + ((s.tags||[]).length ? ` · ${s.tags.join(',')}` : '')),
           buildDefModRow(s),
         ]),
+        (isUnlocked ? pill('Unlocked','good') : null),
       ]);
 
-      row.addEventListener('click', ()=>{
-        // Toggle selection; fill next empty slot (supports duplicates by rowKey).
-        const cur = (store.getState().wavePlans?.[waveKey]?.defenders || []).slice(0, defLimit);
-        const arr = Array.from({length:defLimit}).map((_,i)=> cur[i] || null);
-        const base = s.rowKey;
-        const indices = [];
-        for (let i=0;i<arr.length;i++) if (arr[i] && baseDefKey(arr[i]) === base) indices.push(i);
-        if (indices.length){
-          // clicking a selected enemy unselects the most recent instance
-          arr[indices[indices.length-1]] = null;
-          return setSelectedArr(arr);
-        }
-        // add next instance if possible
-        const empty = arr.indexOf(null);
-        const nextKey = base;
-        if (empty !== -1){
-          arr[empty] = nextKey;
-          return setSelectedArr(arr);
-        }
-        // full: replace last slot for quick swap
-        arr[defLimit-1] = nextKey;
-        return setSelectedArr(arr);
-      });
+      rowEl.addEventListener('click', ()=> fillNextEnemySlot(s.rowKey));
 
-      sp.addEventListener('click', (ev)=>{
-        ev.stopPropagation();
-        showOverviewForSlot(s);
-      });
-
-      enemyList.appendChild(row);
+      enemyList.appendChild(rowEl);
     }
 
     const activeRoster = state.roster.filter(r=>r.active).slice(0,16);
 
-    // Fight plan + suggestions (same as current v13 feature set)
+    const MAX_FIGHTS_PER_WAVE = 4;
+    const existingStack = (state.ui?.fightUndo && state.ui.fightUndo[waveKey]) ? state.ui.fightUndo[waveKey] : [];
+    const fightCount = Array.isArray(existingStack) ? existingStack.length : 0;
+
+    // Fight plan + suggestions
+    const fightBtn = el('button', {class:'btn-mini'}, 'Fight');
+    fightBtn.title = 'Simulate this wave fight: consumes PP, marks slots cleared, and unlocks base species.';
+    if (fightCount >= MAX_FIGHTS_PER_WAVE) fightBtn.disabled = true;
+
+    const undoBtn = el('button', {class:'btn-mini'}, 'Undo');
+    undoBtn.title = 'Undo the last Fight for this wave (restores PP, cleared flags, unlocks, and fight log).';
+    if (fightCount <= 0) undoBtn.disabled = true;
+
+    const countLabel = el('span', {class:'muted small'}, `Fights: ${fightCount}/${MAX_FIGHTS_PER_WAVE}`);
+
     const planEl = el('div', {class:'panel'}, [
-      el('div', {class:'panel-title'}, 'Fight plan'),
+      el('div', {style:'display:flex; align-items:center; justify-content:space-between; gap:10px'}, [
+        el('div', {class:'panel-title'}, 'Fight plan'),
+        el('div', {style:'display:flex; align-items:center; gap:8px'}, [countLabel, fightBtn, undoBtn]),
+      ]),
       el('div', {class:'muted small'}, 'Uses your ACTIVE roster from the Roster tab. Auto-match is always enabled. Use suggested lead pairs to quickly set starters.'),
     ]);
 
@@ -1268,162 +796,573 @@ function renderWavePlanner(state, waveKey, slots, wp){
     planEl.appendChild(row);
 
     const slotByKey2 = new Map(slots.map(s=>[s.rowKey,s]));
-    const selectedPlanKeys = (wp.defenders||[]).slice(0, defLimit);
-    const picked = selectedPlanKeys
-      .map(k=>({key:k, slot:slotByKey2.get(baseDefKey(k))}))
-      .filter(x=>x.slot);
-    const allDef = picked.map(x=>x.slot);
+    const allDef = (wp.enemySlots || wp.defenders || [])
+      .slice(0, defLimit)
+      .map(k=>{
+        const o = slotByKey2.get(k);
+        return o ? {...o} : null;
+      })
+      .filter(Boolean);
 
-    const startersOrdered = (wp.attackerOrder||wp.attackerStart||[]).slice(0,2).map(id=>byId(state.roster,id)).filter(Boolean);
-    const a0 = startersOrdered[0] || null;
-    const a1 = startersOrdered[1] || null;
+    const startersOrdered = (wp.attackerOrder||wp.attackerStart||[])
+      .slice(0,2)
+      .map(id=>byId(state.roster,id))
+      .filter(Boolean);
 
-    const bestMoveForMon = (att, defSlot)=>{
-      if (!att || !defSlot) return null;
-      const atk = {species:(att.effectiveSpecies||att.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: att.strength?state.settings.strengthEV:state.settings.claimedEV};
-      const def = {species:defSlot.defender, level:defSlot.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
-      return calc.chooseBestMove({data, attacker:atk, defender:def, movePool:att.movePool||[], settings: settingsForWave(state, wp, att.id, defSlot.rowKey), tags: defSlot.tags||[]}).best;
-    };
+    const showThreat = (state.settings?.threatModelEnabled ?? true);
 
-    const attackerActsFirst = (best)=>{
-      if (!best) return false;
-      const aSpe = Number(best.attackerSpe ?? 0);
-      const dSpe = Number(best.defenderSpe ?? 0);
-      if (aSpe > dSpe) return true;
-      if (aSpe < dSpe) return false;
-      // tie
-      return !(state.settings?.enemySpeedTieActsFirst ?? true);
-    };
-
-    const chooseLeadAssignment = (mA0,mA1,mB0,mB1)=>{
-      const tuple = (m0,m1)=>{
-        const ohko = (m0?.oneShot ? 1 : 0) + (m1?.oneShot ? 1 : 0);
-        const worstPrio = Math.max(m0?.prio ?? 9, m1?.prio ?? 9);
-        const avgPrio = ((m0?.prio ?? 9) + (m1?.prio ?? 9)) / 2;
-        const overkill = Math.abs((m0?.minPct ?? 0) - 100) + Math.abs((m1?.minPct ?? 0) - 100);
-        return {ohko, worstPrio, avgPrio, overkill};
-      };
-      const better = (x,y)=>{
-        if (x.ohko !== y.ohko) return x.ohko > y.ohko;
-        if (x.worstPrio !== y.worstPrio) return x.worstPrio < y.worstPrio;
-        if (x.avgPrio !== y.avgPrio) return x.avgPrio < y.avgPrio;
-        return x.overkill <= y.overkill;
-      };
-      const t1 = tuple(mA0,mB1);
-      const t2 = tuple(mA1,mB0);
-      return better(t1,t2) ? {swap:false, tuple:t1} : {swap:true, tuple:t2};
-    };
-
-    let startersClear = 0;
-    for (const ds of allDef){
-      const m0 = bestMoveForMon(a0, ds);
-      const m1 = bestMoveForMon(a1, ds);
-      if ((m0 && m0.oneShot) || (m1 && m1.oneShot)) startersClear += 1;
+    function threatTooltip(threat){
+      if (!threat) return '';
+      const mv = threat.move || '—';
+      const type = threat.moveType || '—';
+      const cat = threat.category || '—';
+      const min = formatPct(threat.minPct);
+      const reason = threat.reason || '';
+      const assumed = threat.assumed ? ' (assumed)' : '';
+      return `${mv}${assumed}
+${type} · ${cat}
+min: ${min}
+${reason}`;
     }
 
+    function defenderTargetPick(ds){
+      const a0 = startersOrdered[0] || null;
+      const a1 = startersOrdered[1] || null;
+      const t0 = a0 ? (enemyThreatForMatchup(data, state, wp, a0, ds) || assumedEnemyThreatForMatchup(data, state, wp, a0, ds)) : null;
+      const t1 = a1 ? (enemyThreatForMatchup(data, state, wp, a1, ds) || assumedEnemyThreatForMatchup(data, state, wp, a1, ds)) : null;
+
+      if (t0 && !t1) return {attacker:a0, threat:t0};
+      if (!t0 && t1) return {attacker:a1, threat:t1};
+      if (!t0 && !t1) return {attacker:null, threat:null};
+
+      const aMin = Number(t0.minPct)||0;
+      const bMin = Number(t1.minPct)||0;
+      const aMax = Number.isFinite(Number(t0.maxPct)) ? Number(t0.maxPct) : aMin;
+      const bMax = Number.isFinite(Number(t1.maxPct)) ? Number(t1.maxPct) : bMin;
+      const aAvg = (aMin + aMax) / 2;
+      const bAvg = (bMin + bMax) / 2;
+
+      // Defender targets the attacker it can damage the most: avg% → max% → min%.
+      if (aAvg !== bAvg) return aAvg > bAvg ? {attacker:a0, threat:t0} : {attacker:a1, threat:t1};
+      if (aMax !== bMax) return aMax > bMax ? {attacker:a0, threat:t0} : {attacker:a1, threat:t1};
+      if (aMin !== bMin) return aMin > bMin ? {attacker:a0, threat:t0} : {attacker:a1, threat:t1};
+      return {attacker:a0, threat:t0};
+    }
+function bestMoveFor(attackerMon, ds){
+      if (!attackerMon || !ds) return null;
+      const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
+      return calc.chooseBestMove({
+        data,
+        attacker:{
+          species:(attackerMon.effectiveSpecies||attackerMon.baseSpecies),
+          level: state.settings.claimedLevel,
+          ivAll: state.settings.claimedIV,
+          evAll: attackerMon.strength ? state.settings.strengthEV : state.settings.claimedEV,
+        },
+        defender:defObj,
+        movePool: attackerMon.movePool||[],
+        settings: settingsForWave(state, wp, attackerMon.id, ds.rowKey),
+        tags: ds.tags||[],
+      }).best;
+    }
+
+    function betterPick(aMon, aBest, bMon, bBest){
+      if (!aBest && !bBest) return {attacker:null, best:null};
+      if (aBest && !bBest) return {attacker:aMon, best:aBest};
+      if (!aBest && bBest) return {attacker:bMon, best:bBest};
+
+      const ao = aBest.oneShot ? 1 : 0;
+      const bo = bBest.oneShot ? 1 : 0;
+      if (ao !== bo) return ao > bo ? {attacker:aMon, best:aBest} : {attacker:bMon, best:bBest};
+
+      const ap = Number.isFinite(aBest.prio) ? aBest.prio : 3;
+      const bp = Number.isFinite(bBest.prio) ? bBest.prio : 3;
+      if (ap !== bp) return ap < bp ? {attacker:aMon, best:aBest} : {attacker:bMon, best:bBest};
+
+      const da = Math.abs((Number(aBest.minPct)||0) - 100);
+      const db = Math.abs((Number(bBest.minPct)||0) - 100);
+      if (da !== db) return da < db ? {attacker:aMon, best:aBest} : {attacker:bMon, best:bBest};
+
+      if (!!aBest.slower !== !!bBest.slower) return aBest.slower ? {attacker:bMon, best:bBest} : {attacker:aMon, best:aBest};
+      if (!!aBest.stab !== !!bBest.stab) return aBest.stab ? {attacker:aMon, best:aBest} : {attacker:bMon, best:bBest};
+
+      const am = Number(aBest.minPct)||0;
+      const bm = Number(bBest.minPct)||0;
+      if (am !== bm) return am > bm ? {attacker:aMon, best:aBest} : {attacker:bMon, best:bBest};
+
+      return String(aBest.move||'').localeCompare(String(bBest.move||'')) <= 0
+        ? {attacker:aMon, best:aBest}
+        : {attacker:bMon, best:bBest};
+    }
+
+
+    function ensureFightUndo(s){
+      s.ui = s.ui || {};
+      s.ui.fightUndo = s.ui.fightUndo || {};
+      if (!Array.isArray(s.ui.fightUndo[waveKey])) s.ui.fightUndo[waveKey] = [];
+      return s.ui.fightUndo[waveKey];
+    }
+
+    undoBtn.addEventListener('click', ()=>{
+      store.update(s=>{
+        const stack = ensureFightUndo(s);
+        const rec = stack.pop();
+        if (!rec) return;
+
+        s.cleared = s.cleared || {};
+        s.unlocked = s.unlocked || {};
+        s.ui = s.ui || {};
+        s.ui.fightLog = s.ui.fightLog || {};
+
+        // Restore PP
+        for (const p of (rec.ppPrev||[])){
+          const mon = byId(s.roster||[], p.attackerId);
+          if (!mon) continue;
+          const mv = (mon.movePool||[]).find(x=>x.name===p.move);
+          if (!mv) continue;
+          if (Number.isFinite(Number(p.prevPPMax))) mv.ppMax = Math.max(1, Math.floor(Number(p.prevPPMax)));
+          mv.pp = Number.isFinite(Number(p.prevPP)) ? Math.max(0, Math.floor(Number(p.prevPP))) : mv.pp;
+        }
+
+        // Restore cleared flags
+        for (const [rk, prev] of Object.entries(rec.clearedPrev||{})){
+          if (prev) s.cleared[rk] = true;
+          else delete s.cleared[rk];
+        }
+
+        // Restore unlocks
+        for (const [base, prev] of Object.entries(rec.unlockedPrev||{})){
+          if (prev) s.unlocked[base] = true;
+          else delete s.unlocked[base];
+        }
+
+        // Restore wave log
+        if (Array.isArray(rec.logPrev)) s.ui.fightLog[waveKey] = rec.logPrev.slice(0, 20);
+
+        // Revert completion reward (if this Fight granted one)
+        if (rec.reward){
+          const g = Math.max(0, Math.floor(Number(rec.reward.gold)||0));
+          if (g){
+            s.wallet = s.wallet || {};
+            s.wallet.gold = Math.max(0, Math.floor(Number(s.wallet.gold)||0) - g);
+          }
+          const items = rec.reward.items || {};
+          s.bag = s.bag || {};
+          for (const [k,v0] of Object.entries(items)){
+            const v = Math.max(0, Math.floor(Number(v0)||0));
+            if (!v) continue;
+            const cur = Number(s.bag[k]||0);
+            const next = cur - v;
+            if (next <= 0) delete s.bag[k];
+            else s.bag[k] = next;
+          }
+        }
+
+      });
+    });
+
+    // --- Fight simulation (very lightweight): consumes 1 PP from the chosen move(s),
+    // marks selected defender slots as cleared, and unlocks the base species.
+
+    fightBtn.addEventListener('click', ()=>{
+      const st0 = store.getState();
+      const stack0 = (st0.ui?.fightUndo && Array.isArray(st0.ui.fightUndo[waveKey])) ? st0.ui.fightUndo[waveKey] : [];
+      if (stack0.length >= MAX_FIGHTS_PER_WAVE){
+        alert(`This wave is capped at ${MAX_FIGHTS_PER_WAVE} fights. Use Undo if you need to change something.`);
+        return;
+      }
+
+      if (!allDef.length) {
+        alert('Select at least 1 enemy first.');
+        return;
+      }
+      if (!startersOrdered.length){
+        alert('You need at least 1 active roster mon.');
+        return;
+      }
+
+      // Build matchups to execute
+      const matchups = [];
+      if (defLimit === 2 && allDef.length === 2 && startersOrdered.length === 2){
+        const plan = bestAssignmentForWavePair(data, st0, wp, startersOrdered[0], startersOrdered[1], allDef[0], allDef[1]);
+        for (const a of (plan?.assign||[])){
+          if (a?.attacker && a?.defSlot && a?.best?.move) matchups.push({attackerId:a.attacker.id, attackerLabel:rosterLabel(a.attacker), defSlot:a.defSlot, move:a.best.move});
+        }
+      } else {
+        // 1v1 planning: for each selected enemy, pick better of the two starters.
+        for (const ds of allDef){
+          const a0 = startersOrdered[0] || null;
+          const a1 = startersOrdered[1] || null;
+          const b0 = bestMoveFor(a0, ds);
+          const b1 = bestMoveFor(a1, ds);
+          const pick = betterPick(a0, b0, a1, b1);
+          if (pick.attacker && pick.best?.move){
+            matchups.push({attackerId:pick.attacker.id, attackerLabel:rosterLabel(pick.attacker), defSlot:ds, move:pick.best.move});
+          }
+        }
+      }
+
+      if (!matchups.length){
+        alert('No valid matchups (missing move data or no usable moves).');
+        return;
+      }
+
+      const fightId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+      // Apply state changes + create undo record
+      store.update(s=>{
+        const stack = ensureFightUndo(s);
+        if (stack.length >= MAX_FIGHTS_PER_WAVE) return;
+
+        s.cleared = s.cleared || {};
+        s.unlocked = s.unlocked || {};
+        s.ui = s.ui || {};
+        s.ui.fightLog = s.ui.fightLog || {};
+
+        const prevLog = (s.ui.fightLog[waveKey] || []).slice();
+
+        const rec = {
+          id: fightId,
+          ppPrev: [],
+          clearedPrev: {},
+          unlockedPrev: {},
+          logPrev: prevLog,
+          matchups: matchups.map(m=>({rowKey:m.defSlot?.rowKey, defender:m.defSlot?.defender, attackerId:m.attackerId, move:m.move})),
+        };
+
+        const nextLog = prevLog.slice();
+
+        for (const m of matchups){
+          const mon = byId(s.roster||[], m.attackerId);
+          if (!mon) continue;
+          const mv = (mon.movePool||[]).find(x=>x.name === m.move);
+          if (mv){
+            const prevPPMax = Number.isFinite(Number(mv.ppMax)) ? Math.max(1, Math.floor(Number(mv.ppMax))) : 12;
+            const prevPP = Number.isFinite(Number(mv.pp)) ? Math.max(0, Math.floor(Number(mv.pp))) : prevPPMax;
+            rec.ppPrev.push({attackerId: mon.id, move: m.move, prevPP, prevPPMax});
+
+            mv.ppMax = prevPPMax;
+            mv.pp = prevPP;
+            if (mv.pp > 0) mv.pp -= 1;
+          }
+
+          // Cleared
+          const rk = m.defSlot.rowKey;
+          if (!(rk in rec.clearedPrev)) rec.clearedPrev[rk] = !!s.cleared[rk];
+          s.cleared[rk] = true;
+
+          // Unlock: only if we already have a known base mapping (avoid wrongly unlocking evo forms).
+          const norm = fixName(m.defSlot.defender);
+          const baseKnown = (s.baseCache||{})[norm] || null;
+          if (baseKnown){
+            if (!(baseKnown in rec.unlockedPrev)) rec.unlockedPrev[baseKnown] = !!s.unlocked[baseKnown];
+            s.unlocked[baseKnown] = true;
+          }
+
+          const ppStr = mv ? ` (PP ${mv.pp}/${mv.ppMax})` : '';
+          const line = `${m.defSlot.defender} ← ${m.attackerLabel}: ${m.move}${ppStr}`;
+          nextLog.unshift(line);
+        }
+
+        // Defender targeting + log: each enemy attacks the on-field attacker it can damage the most.
+        // IMPORTANT: if we (guaranteed) OHKO a defender before it can act, it should not show an attack line.
+        try{
+          const w = s.wavePlans?.[waveKey] || wp;
+          const onField = (w.attackerOrder || w.attackerStart || [])
+            .slice(0,2)
+            .map(id=>byId(s.roster||[], id))
+            .filter(Boolean);
+
+          const clampPrio = (p)=>{
+            const n = Number(p);
+            if (!Number.isFinite(n)) return 3;
+            return Math.max(1, Math.min(3, Math.floor(n)));
+          };
+
+          const avgPct = (t)=>{
+            const mi = Number(t?.minPct)||0;
+            const ma0 = Number(t?.maxPct);
+            const ma = Number.isFinite(ma0) ? ma0 : mi;
+            return (mi + ma) / 2;
+          };
+
+          const attackerActsBeforeEnemy = ({atkPrio, atkSpe, enemyPrio, enemySpe, enemyTieFirst})=>{
+            const ap = clampPrio(atkPrio);
+            const ep = clampPrio(enemyPrio);
+            if (ap !== ep) return ap < ep;
+            const as = Number(atkSpe)||0;
+            const es = Number(enemySpe)||0;
+            if (as !== es) return as > es;
+            return !enemyTieFirst; // tie → enemy first if configured
+          };
+
+          // Precompute our outgoing (per defender slot) so we can suppress phantom enemy attacks
+          const outByRowKey = {};
+          for (const m of (matchups||[])){
+            const rk = m?.defSlot?.rowKey;
+            if (!rk) continue;
+            const mon = byId(s.roster||[], m.attackerId);
+            if (!mon) continue;
+
+            const mvEntry = (mon.movePool||[]).find(x=>x && x.name===m.move) || null;
+            const atkPrio = clampPrio(mvEntry?.prio);
+
+            const atkObj = {
+              species: (mon.effectiveSpecies||mon.baseSpecies),
+              level: s.settings.claimedLevel,
+              ivAll: s.settings.claimedIV,
+              evAll: mon.strength ? s.settings.strengthEV : s.settings.claimedEV,
+            };
+            const defObj = {
+              species: m.defSlot.defender,
+              level: m.defSlot.level,
+              ivAll: s.settings.wildIV,
+              evAll: s.settings.wildEV,
+            };
+
+            const r = window.SHRINE_CALC.computeDamageRange({
+              data,
+              attacker: atkObj,
+              defender: defObj,
+              moveName: m.move,
+              settings: settingsForWave(s, w, mon.id, rk),
+              tags: m.defSlot.tags || [],
+            });
+
+            outByRowKey[rk] = {
+              oneShot: !!r?.oneShot,
+              atkPrio,
+              atkSpe: Number(r?.attackerSpe)||0,
+              defSpe: Number(r?.defenderSpe)||0,
+            };
+          }
+
+          const incoming = [];
+          for (const ds of (allDef||[])){
+            let best = null;
+            for (const a of onField){
+              const t = enemyThreatForMatchup(data, s, w, a, ds) || assumedEnemyThreatForMatchup(data, s, w, a, ds);
+              if (!t) continue;
+              if (!best) best = {attacker:a, threat:t};
+              else {
+                const aa = avgPct(t);
+                const bb = avgPct(best.threat);
+                if (aa > bb) best = {attacker:a, threat:t};
+                else if (aa === bb){
+                  const ax = Number(t.maxPct)||Number(t.minPct)||0;
+                  const bx = Number(best.threat.maxPct)||Number(best.threat.minPct)||0;
+                  if (ax > bx) best = {attacker:a, threat:t};
+                  else if (ax === bx){
+                    const am = Number(t.minPct)||0;
+                    const bm = Number(best.threat.minPct)||0;
+                    if (am > bm) best = {attacker:a, threat:t};
+                  }
+                }
+              }
+            }
+            if (best && best.threat){
+              const mv = best.threat.move || '—';
+
+              // Suppress the log line if we (guaranteed) OHKO this defender before it can act.
+              const out = outByRowKey[ds.rowKey] || null;
+              const enemyTieFirst = !!(s.settings?.enemySpeedTieActsFirst ?? true);
+
+              let suppress = false;
+              if (out && out.oneShot){
+                const enemyPrio = clampPrio(best.threat.prio ?? 2);
+                const enemySpe = Number(best.threat.attackerSpe)||out.defSpe||0;
+                const atkSpe = out.atkSpe || Number(best.threat.defenderSpe)||0;
+
+                const attackerFirst = attackerActsBeforeEnemy({
+                  atkPrio: out.atkPrio,
+                  atkSpe,
+                  enemyPrio,
+                  enemySpe,
+                  enemyTieFirst,
+                });
+
+                if (attackerFirst) suppress = true;
+              }
+
+              if (!suppress){
+                incoming.push(`ENEMY ${ds.defender} → ${rosterLabel(best.attacker)}: ${mv} · ${formatPct(best.threat.minPct)} min`);
+              }
+            }
+          }
+
+          for (let i=incoming.length-1;i>=0;i--){
+            nextLog.unshift(incoming[i]);
+          }
+        }catch(e){ /* ignore */ }
+
+        s.ui.fightLog[waveKey] = nextLog.slice(0, 20);
+        stack.push(rec);
+
+        // Wave 12 (Phase 1) completion reward: after the 4th Fight, grant 10 gold + 1 Revive.
+        if (waveKey === 'P1W12' && stack.length === MAX_FIGHTS_PER_WAVE){
+          const rewardGold = 10;
+          const rewardItem = 'Revive';
+
+          rec.reward = {gold: rewardGold, items: {[rewardItem]: 1}};
+
+          s.wallet = s.wallet || {};
+          s.wallet.gold = Math.max(0, Math.floor(Number(s.wallet.gold)||0)) + rewardGold;
+
+          s.bag = s.bag || {};
+          s.bag[rewardItem] = (Number(s.bag[rewardItem]||0) + 1);
+        }
+
+      });
+
+      // Resolve bases async so unlock sticks to true BASE species.
+      for (const m of matchups){
+        const rk = m.defSlot.rowKey;
+        pokeApi.resolveBaseSpecies(m.defSlot.defender, store.getState().baseCache||{})
+          .then(({base:resolved, updates})=>{
+            store.update(st=>{
+              st.baseCache = {...(st.baseCache||{}), ...(updates||{})};
+              // Only unlock if this fight still exists AND the slot is still cleared (undo-safe).
+              if (!st.cleared?.[rk]) return;
+              const stack = (st.ui?.fightUndo && Array.isArray(st.ui.fightUndo[waveKey])) ? st.ui.fightUndo[waveKey] : [];
+              const rec = stack.find(x=>x && x.id===fightId);
+              if (!rec) return;
+              if (resolved){
+                if (!(resolved in rec.unlockedPrev)) rec.unlockedPrev[resolved] = !!st.unlocked?.[resolved];
+                st.unlocked[resolved] = true;
+              }
+            });
+          })
+          .catch(()=>{});
+      }
+    });
+
+	    let startersClear = 0;
     const planTable = el('div', {class:'plan'});
 
-    const lead0 = picked[0]?.slot || null;
-    const lead1 = picked[1]?.slot || null;
+    if (!allDef.length){
+      planTable.appendChild(el('div', {class:'muted small', style:'padding:10px 0'}, 'Select enemies to see the fight plan.'));
+    } else if (defLimit === 2 && allDef.length === 2 && startersOrdered.length === 2){
+      const a0 = startersOrdered[0];
+      const a1 = startersOrdered[1];
+      const plan = bestAssignmentForWavePair(data, state, wp, a0, a1, allDef[0], allDef[1]);
+      const assigned = (plan?.assign||[]);
+      startersClear = plan?.meta?.ohko ?? 0;
 
-    if (a0 && a1 && lead0 && lead1){
-      const mA0 = bestMoveForMon(a0, lead0);
-      const mA1 = bestMoveForMon(a0, lead1);
-      const mB0 = bestMoveForMon(a1, lead0);
-      const mB1 = bestMoveForMon(a1, lead1);
-      const chosen = chooseLeadAssignment(mA0,mA1,mB0,mB1);
-      const left = chosen.swap ? {att:a0, def:lead1, best:mA1} : {att:a0, def:lead0, best:mA0};
-      const right = chosen.swap ? {att:a1, def:lead0, best:mB0} : {att:a1, def:lead1, best:mB1};
-      const prAvg = ((left.best?.prio ?? 9) + (right.best?.prio ?? 9)) / 2;
+      for (const ds of allDef){
+        const pick = assigned.find(x=>x.defSlot === ds) || {attacker:null, best:null};
+        const oneShot = !!pick.best?.oneShot;
 
-      const line = (x)=>{
-        const out = x.best ? `${rosterLabel(x.att)} → ${x.def.defender}: ${x.best.move} (P${x.best.prio} · ${formatPct(x.best.minPct)} min)` : `${rosterLabel(x.att)} → ${x.def.defender}: —`;
-        return el('div', {class:'plan-line'}, [
-          el('div', {class:'plan-left'}, [el('strong', {}, x.def.defender), el('span', {class:'muted'}, ` · Lv ${x.def.level}`)]),
+        const tp = defenderTargetPick(ds);
+        const threat = tp.threat;
+
+        const inPill = (showThreat && threat)
+          ? pill(threat.oneShot ? 'IN OHKO' : `IN ${formatPct(threat.minPct)}`, threat.oneShot ? 'bad' : 'warn')
+          : null;
+        if (inPill) inPill.title = threatTooltip(threat);
+
+        const targetPill = (showThreat && threat && tp.attacker)
+          ? pill(`→ ${rosterLabel(tp.attacker)}`, 'warn')
+          : null;
+
+        const firstPill = (showThreat && threat && threat.enemyActsFirst)
+          ? pill('ENEMY FIRST','warn')
+          : null;
+
+        planTable.appendChild(el('div', {class:'plan-line'}, [
+          el('div', {class:'plan-left'}, [
+            el('strong', {}, ds.defender),
+            el('span', {class:'muted'}, ` · Lv ${ds.level}`),
+          ]),
           el('div', {class:'plan-right'}, [
-            el('span', {}, out),
-            x.best?.oneShot ? pill('OHKO','good') : pill('NO','bad'),
-          ])
-        ]);
-      };
-
-      planTable.appendChild(el('div', {class:'muted small', style:'margin:6px 0 10px'}, `Lead pair plan · prioØ ${formatPrioAvg(prAvg)}`));
-      planTable.appendChild(line(left));
-      planTable.appendChild(line(right));
-
-    // Incoming preview: show the predicted enemy move even if it would not land in reality
-    // (e.g. you act first and OHKO). This helps verify logic and catch misplays.
-    const incomingRow = (defSlot, myAttack)=>{
-      if (!defSlot) return null;
-      const best = myAttack?.best || null;
-      const prevented = !!(best && best.oneShot && attackerActsFirst(best));
-
-        const t0 = enemyThreatForMatchup(data, state, wp, a0, defSlot) || assumedEnemyThreatForMatchup(data, state, wp, a0, defSlot);
-        const t1 = enemyThreatForMatchup(data, state, wp, a1, defSlot) || assumedEnemyThreatForMatchup(data, state, wp, a1, defSlot);
-        const pick = (x,y)=>{
-          if (!x && !y) return null;
-          if (x && !y) return {th:x, target: rosterLabel(a0)};
-          if (!x && y) return {th:y, target: rosterLabel(a1)};
-          const dx = Number(x.minPct||0);
-          const dy = Number(y.minPct||0);
-          if (dx !== dy){
-            return dx > dy ? {th:x, target: rosterLabel(a0)} : {th:y, target: rosterLabel(a1)};
-          }
-          const cx = Number(x.ohkoChance||0);
-          const cy = Number(y.ohkoChance||0);
-          if (cx !== cy){
-            return cx > cy ? {th:x, target: rosterLabel(a0)} : {th:y, target: rosterLabel(a1)};
-          }
-          return {th:x, target: rosterLabel(a0)};
-        };
-        const pickRes = pick(t0,t1);
-        if (!pickRes) return null;
-        const th = pickRes.th;
-        const target = pickRes.target;
-        const p = pill(th.oneShot ? 'IN OHKO' : `IN ${formatPct(th.minPct)}`, th.oneShot ? 'bad' : 'warn');
-        if (prevented) p.style.opacity = '0.55';
-        const why = th.chosenReason === 'ohkoChance' ? 'chosen: OHKO chance' : (th.chosenReason === 'maxDamage' ? 'chosen: max damage' : '');
-        p.title = `Incoming: ${th.move} · ${th.moveType} · ${th.category} · ${formatPct(th.minPct)} min`
-          + (why ? ` · ${why}` : '')
-          + (th.assumed ? ' (assumed)' : '')
-          + (prevented ? ' · NOTE: this would be prevented by your faster OHKO' : '');
-        return el('div', {class:'muted small', style:'margin-top:6px'}, [`${defSlot.defender} incoming → ${target}: `, p]);
-      };
-
-      const inc0 = incomingRow(left.def, left);
-      const inc1 = incomingRow(right.def, right);
-      if (inc0) planTable.appendChild(inc0);
-      if (inc1) planTable.appendChild(inc1);
-
-      // Bench coverage
-      const bench = picked.slice(2).map(x=>x.slot);
-      if (bench.length){
-        const benchLines = [];
-        for (const ds of bench){
-          const am = bestMoveForMon(a0, ds);
-          const bm = bestMoveForMon(a1, ds);
-          const pick = (am && am.oneShot && (!bm || !bm.oneShot || (am.prio??9) <= (bm.prio??9))) ? {who:rosterLabel(a0), m:am} : {who:rosterLabel(a1), m:bm};
-          benchLines.push(`${ds.defender}: ${pick.who} ${pick.m?.move||'—'} (P${pick.m?.prio||'?'} ${formatPct(pick.m?.minPct||0)})`);
-        }
-        planTable.appendChild(el('div', {class:'muted small', style:'margin-top:8px'}, `Bench: ${benchLines.join(' · ')}`));
+            pick.best
+              ? el('span', {}, `${pick.attacker ? rosterLabel(pick.attacker) : '—'}: ${pick.best.move} (P${pick.best.prio}) · ${formatPct(pick.best.minPct)} min`)
+              : el('span', {class:'muted'}, 'No move data'),
+            oneShot ? pill('OHKO','good') : pill('NO','bad'),
+            inPill,
+            targetPill,
+            firstPill,
+            (threat?.diesBeforeMove ? pill('DIES','bad') : null),
+            (!oneShot ? pill('SWITCH','warn') : null),
+          ]),
+        ]));
       }
     } else {
-      planTable.appendChild(el('div', {class:'muted small'}, 'Select 2 enemies and ensure 2 active starters are available to build a lead-pair plan.'));
+      for (const ds of allDef){
+        const a0 = startersOrdered[0];
+        const a1 = startersOrdered[1];
+        const b0 = a0 ? bestMoveFor(a0, ds) : null;
+        const b1 = a1 ? bestMoveFor(a1, ds) : null;
+
+        const pick = betterPick(a0, b0, a1, b1);
+        const oneShot = !!pick.best?.oneShot;
+        if (oneShot) startersClear += 1;
+
+        const tp = defenderTargetPick(ds);
+        const threat = tp.threat;
+
+        const inPill = (showThreat && threat)
+          ? pill(threat.oneShot ? 'IN OHKO' : `IN ${formatPct(threat.minPct)}`, threat.oneShot ? 'bad' : 'warn')
+          : null;
+        if (inPill) inPill.title = threatTooltip(threat);
+
+        const targetPill = (showThreat && threat && tp.attacker)
+          ? pill(`→ ${rosterLabel(tp.attacker)}`, 'warn')
+          : null;
+
+        const firstPill = (showThreat && threat && threat.enemyActsFirst)
+          ? pill('ENEMY FIRST','warn')
+          : null;
+
+        planTable.appendChild(el('div', {class:'plan-line'}, [
+          el('div', {class:'plan-left'}, [
+            el('strong', {}, ds.defender),
+            el('span', {class:'muted'}, ` · Lv ${ds.level}`),
+          ]),
+          el('div', {class:'plan-right'}, [
+            pick.best
+              ? el('span', {}, `${pick.attacker ? rosterLabel(pick.attacker) : '—'}: ${pick.best.move} (P${pick.best.prio}) · ${formatPct(pick.best.minPct)} min`)
+              : el('span', {class:'muted'}, 'No move data'),
+            oneShot ? pill('OHKO','good') : pill('NO','bad'),
+            inPill,
+            targetPill,
+            firstPill,
+            (threat?.diesBeforeMove ? pill('DIES','bad') : null),
+            (!oneShot ? pill('SWITCH','warn') : null),
+          ]),
+        ]));
+      }
     }
 
-    planEl.appendChild(el('div', {class:'muted small'}, `Starters have OHKO coverage on ${startersClear}/${allDef.length} selected defenders.`));
+    planEl.appendChild(el('div', {class:'muted small'}, `Starters clear ${startersClear}/${allDef.length} without switching.`));
     planEl.appendChild(planTable);
 
+    // Fight log (last 20 actions)
+    const log = (state.ui?.fightLog && state.ui.fightLog[waveKey]) ? state.ui.fightLog[waveKey] : [];
+    if (Array.isArray(log) && log.length){
+      const logWrap = el('div', {style:'margin-top:10px'}, [
+        el('div', {class:'panel-subtitle'}, 'Fight log'),
+        el('div', {class:'muted small'}, 'Newest first. Clicking Fight appends entries and consumes PP.'),
+      ]);
+      const ul = el('div', {class:'small', style:'margin-top:6px; display:flex; flex-direction:column; gap:4px;'});
+      for (const line of log.slice(0, 10)){
+        ul.appendChild(el('div', {class:'muted'}, line));
+      }
+      logWrap.appendChild(ul);
+      planEl.appendChild(logWrap);
+    }
+
     // Suggested lead pairs
+
     const suggWrap = el('div', {class:'panel'}, [
       el('div', {class:'panel-title'}, 'Suggested lead pairs'),
     ]);
 
     const suggList = el('div', {class:'suggestions'});
     const atkMons = activeRoster.map(r=>r).filter(Boolean);
-    const defStarters = (wp.defenderStart||[]).slice(0,2).map(k=>slotByKey2.get(baseDefKey(k))).filter(Boolean);
-    const d0 = defStarters[0];
-    const d1 = defStarters[1];
+
+    // Suggestions are based on the two active enemies (2v2). With free targeting, we score both target assignments.
+    const d0 = allDef[0] || null;
+    const d1 = allDef[1] || null;
 
     if (atkMons.length >= 2 && d0 && d1){
       const pairs = [];
@@ -1432,87 +1371,53 @@ function renderWavePlanner(state, waveKey, slots, wp){
           const a = atkMons[i];
           const b = atkMons[j];
 
-          const defLeft = {species:d0.defender, level:d0.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
-          const defRight = {species:d1.defender, level:d1.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
+          const plan = bestAssignmentForWavePair(data, state, wp, a, b, d0, d1);
+          if (!plan) continue;
 
-          // Targeting assumption: either starter can hit either lead defender.
-          const bestA0 = calc.chooseBestMove({
-            data,
-            attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV},
-            defender:defLeft,
-            movePool:a.movePool||[],
-            settings: settingsForWave(state, wp, a.id, d0.rowKey),
-            tags: d0.tags||[],
-          }).best;
-          const bestA1 = calc.chooseBestMove({
-            data,
-            attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV},
-            defender:defRight,
-            movePool:a.movePool||[],
-            settings: settingsForWave(state, wp, a.id, d1.rowKey),
-            tags: d1.tags||[],
-          }).best;
-          const bestB0 = calc.chooseBestMove({
-            data,
-            attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV},
-            defender:defLeft,
-            movePool:b.movePool||[],
-            settings: settingsForWave(state, wp, b.id, d0.rowKey),
-            tags: d0.tags||[],
-          }).best;
-          const bestB1 = calc.chooseBestMove({
-            data,
-            attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV},
-            defender:defRight,
-            movePool:b.movePool||[],
-            settings: settingsForWave(state, wp, b.id, d1.rowKey),
-            tags: d1.tags||[],
-          }).best;
-
-          const tuple = (m0,m1)=>{
-            const bothOhko = (m0?.oneShot && m1?.oneShot) ? 2 : ((m0?.oneShot || m1?.oneShot) ? 1 : 0);
-            const worstPrio = Math.max(m0?.prio ?? 9, m1?.prio ?? 9);
-            const prioAvg = ((m0?.prio ?? 9) + (m1?.prio ?? 9)) / 2;
-            const overkill = Math.abs((m0?.minPct ?? 0) - 100) + Math.abs((m1?.minPct ?? 0) - 100);
-            return {bothOhko, worstPrio, prioAvg, overkill};
-          };
-          const t1 = tuple(bestA0, bestB1);
-          const t2 = tuple(bestA1, bestB0);
-          const better = (x,y)=>{
-            if (x.bothOhko !== y.bothOhko) return x.bothOhko > y.bothOhko;
-            if (x.worstPrio !== y.worstPrio) return x.worstPrio < y.worstPrio;
-            if (x.prioAvg !== y.prioAvg) return x.prioAvg < y.prioAvg;
-            return x.overkill <= y.overkill;
-          };
-          const lead = better(t1,t2) ? t1 : t2;
-
-          const ohkoPairs = lead.bothOhko;
-          const prioAvg = lead.prioAvg;
+          // How many selected defenders can be OHKO'd by at least one of the two starters?
           let clearAll = 0;
           for (const ds of allDef){
-            const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
-            const b0 = calc.chooseBestMove({data, attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool:a.movePool||[], settings: settingsForWave(state, wp, a.id, ds.rowKey), tags: ds.tags||[]}).best;
-            const b1 = calc.chooseBestMove({data, attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool:b.movePool||[], settings: settingsForWave(state, wp, b.id, ds.rowKey), tags: ds.tags||[]}).best;
+            const b0 = bestMoveFor(a, ds);
+            const b1 = bestMoveFor(b, ds);
             if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) clearAll += 1;
           }
 
-          pairs.push({a,b, ohkoPairs, prioAvg, clearAll});
+          pairs.push({a, b, meta: plan.meta, assign: plan.assign, clearAll});
         }
       }
 
       pairs.sort((x,y)=>{
+        const a = x.meta || {};
+        const b = y.meta || {};
+        if ((a.ohko||0) !== (b.ohko||0)) return (b.ohko||0) - (a.ohko||0);
+        if ((a.prioWorst||9) !== (b.prioWorst||9)) return (a.prioWorst||9) - (b.prioWorst||9);
+        if ((a.prioSum||999) !== (b.prioSum||999)) return (a.prioSum||999) - (b.prioSum||999);
+        if ((a.distSum||9999) !== (b.distSum||9999)) return (a.distSum||9999) - (b.distSum||9999);
+        if ((a.deathPenalty||0) !== (b.deathPenalty||0)) return (a.deathPenalty||0) - (b.deathPenalty||0);
+        if ((a.slowerCount||0) !== (b.slowerCount||0)) return (a.slowerCount||0) - (b.slowerCount||0);
+        if ((a.stabCount||0) !== (b.stabCount||0)) return (b.stabCount||0) - (a.stabCount||0);
         if (x.clearAll !== y.clearAll) return y.clearAll - x.clearAll;
-        if (x.ohkoPairs !== y.ohkoPairs) return y.ohkoPairs - x.ohkoPairs;
-        return x.prioAvg - y.prioAvg;
+        return `${rosterLabel(x.a)}+${rosterLabel(x.b)}`.localeCompare(`${rosterLabel(y.a)}+${rosterLabel(y.b)}`);
       });
 
       for (const p of pairs.slice(0,12)){
+        const meta = p.meta || {};
         const chipEl = el('div', {class:'chip'}, [
           el('strong', {}, `${rosterLabel(p.a)} + ${rosterLabel(p.b)}`),
-          el('span', {class:'muted'}, ` · OHKO ${p.ohkoPairs}/2`),
+          el('span', {class:'muted'}, ` · OHKO ${meta.ohko ?? 0}/2`),
+          el('span', {class:'muted'}, ` · prio P${meta.prioWorst ?? '?'}`),
           el('span', {class:'muted'}, ` · clear ${p.clearAll}/${allDef.length}`),
-          el('span', {class:'muted'}, ` · prioØ ${formatPrioAvg(p.prioAvg)}`),
         ]);
+
+        // Hover details: show chosen target assignment + move details.
+        const lines = [];
+        for (const x of (p.assign || [])){
+          const mv = x.best ? `${x.best.move} (P${x.best.prio}) · ${formatPct(x.best.minPct)} min` : '—';
+          lines.push(`${rosterLabel(x.attacker)} → ${x.defSlot?.defender || '—'}: ${mv}`);
+        }
+        lines.push(`OHKO: ${meta.ohko ?? 0}/2 · prioWorst: P${meta.prioWorst ?? '?'} · overkill: ${Number(meta.distSum||0).toFixed(1)}`);
+        chipEl.title = lines.join('\n');
+
         chipEl.addEventListener('click', ()=>{
           store.update(st=>{
             const w = st.wavePlans[waveKey];
@@ -1526,20 +1431,22 @@ function renderWavePlanner(state, waveKey, slots, wp){
         suggList.appendChild(chipEl);
       }
     } else {
-      suggList.appendChild(el('div', {class:'muted small'}, 'Need at least 2 ACTIVE roster mons and 2 selected defenders to see suggestions.'));
+      suggList.appendChild(el('div', {class:'muted small'}, 'Need at least 2 ACTIVE roster mons and 2 selected enemies to see suggestions.'));
     }
 
     suggWrap.appendChild(suggList);
-    const enemyPanel = el('div', {class:'panel'}, [
-      el('div', {class:'panel-title'}, `Enemies (Phase ${phase})`),
-      slotControls,
-      enemyList,
-    ]);
+
+    const enemyPanelChildren = [
+      el('div', {class:'panel-title'}, `Enemies (${defLimit} slot${defLimit===1?'':'s'} · duplicates allowed)`),
+    ];
+    if (selectedEnemiesPanel) enemyPanelChildren.push(selectedEnemiesPanel);
+    enemyPanelChildren.push(enemyList);
+
+    const enemyPanel = el('div', {class:'panel'}, enemyPanelChildren);
 
     const rightCol = el('div', {class:'planner-stack'}, [
       planEl,
       suggWrap,
-      renderWaveFightsPanel(state, waveKey, slots, wp),
     ]);
 
     return el('div', {}, [
@@ -1556,201 +1463,236 @@ function renderWavePlanner(state, waveKey, slots, wp){
   function renderBag(state){
     tabBag.innerHTML = '';
 
-    const used = computeRosterUsage(state);
-    const bagNames = Object.keys(state.bag||{});
+    const sellPrice = (itemName)=>{
+      const name = String(itemName||'');
+      if (!name) return 0;
+      // Sell prices (early economy; will be expanded later)
+      if (name === 'Evo Charm') return 8;
+      if (name === 'Strength Charm') return 6;
+      if (name.startsWith('Rare Candy')) return 0;
 
-    const isPlate = (n)=> typeof n === 'string' && n.endsWith(' Plate');
-    const isGem = (n)=> typeof n === 'string' && n.endsWith(' Gem');
-    const isCharm = (n)=> n === 'Evo Charm' || n === 'Strength Charm';
-    const isConsumable = (n)=> n === 'Rare Candy';
-
-    const sections = [
-      {title:'Charms', filter:isCharm},
-      {title:'Hold items', filter:(n)=>!isCharm(n) && !isPlate(n) && !isGem(n) && !isConsumable(n)},
-      {title:'Plates', filter:isPlate},
-      {title:'Gems', filter:isGem},
-      {title:'Consumables', filter:isConsumable},
-    ];
-
-    const bagPanel = el('div', {class:'panel'}, [
-      el('div', {class:'panel-title'}, 'Bag'),
-      el('div', {class:'muted small'}, 'Shared team bag. Charms + held items consume from shared totals.'),
-    ]);
-
-    const headerRow = el('div', {class:'bag-row bag-head'}, [
-      el('div', {}, 'Item'),
-      el('div', {class:'bag-num'}, 'Total'),
-      el('div', {class:'bag-num'}, 'Used'),
-      el('div', {class:'bag-num'}, 'Avail'),
-    ]);
-    bagPanel.appendChild(headerRow);
-
-    const makeRow = (name)=>{
-      const qty = Number(state.bag[name]) || 0;
-      const u = Number(used[name]||0);
-      const avail = qty - u;
-      return el('div', {class:'bag-row'}, [
-        el('div', {class:'bag-item'}, name),
-        el('div', {class:'bag-num'}, String(qty)),
-        el('div', {class:'bag-num'}, String(u)),
-        el('div', {class:'bag-num'}, el('span', {class: avail < 0 ? 'pill bad' : 'pill good'}, avail < 0 ? `-${Math.abs(avail)}` : String(avail))),
-      ]);
+      if (name === 'Copper Coin') return 1;
+      if (isGem(name)) return 1;
+      if (isPlate(name)) return 5;
+      // Placeholder default; we'll refine the exact economy later.
+      return 8;
     };
 
-    if (!bagNames.length){
-      bagPanel.appendChild(el('div', {class:'muted'}, 'No items yet.'));
-    } else {
-      for (const sec of sections){
-        const list = bagNames.filter(sec.filter).sort((a,b)=>a.localeCompare(b));
-        if (!list.length) continue;
-        bagPanel.appendChild(el('div', {class:'panel-subtitle', style:'margin-top:12px'}, sec.title));
-        for (const n of list){
-          bagPanel.appendChild(makeRow(n));
-        }
-      }
+    const buyPrice = (itemName)=>{
+      const key = normalizeBagKey(itemName) || String(itemName||'');
+      if (!key) return 0;
+      // Coins are loot-only.
+      if (key === 'Copper Coin') return 0;
+      // Placeholder shop prices: buy = 2x sell (matches charms: 16/12).
+      if (key === 'Rare Candy') return 16;
+      const s = sellPrice(key);
+      return (s > 0) ? (s * 2) : 0;
+    };
+
+    function ensureBagUndo(s){
+      s.ui = s.ui || {};
+      if (!Array.isArray(s.ui.bagUndo)) s.ui.bagUndo = [];
+      return s.ui.bagUndo;
     }
 
-    // Politoed shop
-    const shop = state.shop || {gold:0, ledger:[]};
-    const gold = Number(shop.gold||0);
-    const ledger = Array.isArray(shop.ledger) ? shop.ledger : [];
-
-    const shopPanel = el('div', {class:'panel'}, [
-      el('div', {class:'panel-title'}, 'Politoed shop'),
-      el('div', {class:'muted small'}, 'Buy/sell bag items for placeholder prices. You can only sell AVAILABLE quantity (not equipped). Undo reverts the last transaction.'),
-      el('div', {class:'shop-top'}, [
-        el('div', {class:'shop-balance'}, ['Gold: ', el('span', {class:'pill good'}, String(gold))]),
-        (function(){
-          const b = el('button', {class:'btn-mini', disabled: ledger.length===0}, 'Undo');
-          b.addEventListener('click', ()=>{
-            store.update(s=>{
-              s.shop = s.shop || {gold:0, ledger:[]};
-              const led = s.shop.ledger || [];
-              const tx = led.pop();
-              if (!tx) return;
-              const delta = Number(tx.goldDelta||0);
-              s.shop.gold = Number(s.shop.gold||0) - delta;
-              s.bag = s.bag || {};
-              const cur = Number(s.bag[tx.item]||0);
-              const next = cur + (tx.type==='sell' ? tx.qty : -tx.qty);
-              if (next <= 0) delete s.bag[tx.item];
-              else s.bag[tx.item] = next;
-              enforceBagConstraints(data, s, applyCharmRulesSync);
-            });
-          });
-          return b;
-        })(),
-      ]),
+    const right = el('div', {class:'panel'}, [
+      el('div', {class:'panel-title'}, 'Bag'),
+      el('div', {class:'muted small'}, 'Shared team bag. Items come from Wave loot. Charms + held items consume from shared totals.'),
     ]);
 
-    // Buy form
-    const shopKeys = Array.from(new Set(ITEM_CATALOG
-      .map(n=>lootBundle(n))
-      .filter(Boolean)
-      .map(b=>b.key)
-      .filter(Boolean)
-    )).sort((a,b)=>a.localeCompare(b));
+    const walletRow = el('div', {class:'kv', style:'margin-top:8px'}, [
+      el('div', {class:'k'}, 'Gold'),
+      el('div', {}, String(Math.max(0, Math.floor(Number(state.wallet?.gold)||0)))),
+    ]);
+    right.appendChild(walletRow);
 
-    const buySel = el('select', {class:'sel-mini', style:'min-width:260px'}, shopKeys.map(k=> el('option', {value:k}, `${k} — ${priceOfItem(k)}g`)));
-    const buyQty = el('input', {type:'number', class:'inp-mini', min:'1', step:'1', value:'1', style:'width:90px'});
-    const buyBtn = el('button', {class:'btn-mini'}, 'Buy');
-
-    buyBtn.addEventListener('click', ()=>{
-      const item = buySel.value;
-      const qty = clampInt(buyQty.value, 1, 9999);
-      const price = priceOfItem(item);
-      const cost = price * qty;
+    const bagUndoBtn = el('button', {class:'btn-mini'}, 'Undo last bag action');
+    const bagUndoStack = Array.isArray(state.ui?.bagUndo) ? state.ui.bagUndo : [];
+    if (!bagUndoStack.length) bagUndoBtn.disabled = true;
+    bagUndoBtn.addEventListener('click', ()=>{
       store.update(s=>{
-        s.shop = s.shop || {gold:0, ledger:[]};
-        const g = Number(s.shop.gold||0);
-        if (cost > g){
-          alert('Not enough gold.');
-          return;
+        const st = ensureBagUndo(s);
+        const rec = st.pop();
+        if (!rec) return;
+
+        const invBag = -Number(rec.bagDelta||0);
+        const invGold = -Number(rec.goldDelta||0);
+        const item = String(rec.item||'');
+        if (item){
+          s.bag = s.bag || {};
+          const cur = Number(s.bag[item]||0);
+          const next = cur + invBag;
+          if (next <= 0) delete s.bag[item];
+          else s.bag[item] = next;
         }
-        s.shop.gold = g - cost;
-        s.shop.ledger = s.shop.ledger || [];
-        s.shop.ledger.push({ts:Date.now(), type:'buy', item, qty, goldDelta:-cost});
-        s.bag = s.bag || {};
-        s.bag[item] = Number(s.bag[item]||0) + qty;
+
+        s.wallet = s.wallet || {};
+        s.wallet.gold = Math.max(0, Math.floor(Number(s.wallet.gold)||0) + invGold);
+
+        // Restore any roster item that was cleared by a bag "Use" action
+        if (Array.isArray(rec.rosterRestore)){
+          for (const rr of rec.rosterRestore){
+            const mon = byId(s.roster||[], rr.id);
+            if (!mon) continue;
+            // Only restore if the slot is empty; don't overwrite a new assignment.
+            if (!mon.item) mon.item = rr.prevItem || null;
+          }
+        }
+
+        enforceBagConstraints(data, s, applyCharmRulesSync);
       });
     });
 
-    shopPanel.appendChild(el('div', {class:'panel-subtitle', style:'margin-top:10px'}, 'Buy'));
-    shopPanel.appendChild(el('div', {style:'display:flex; gap:8px; flex-wrap:wrap; align-items:center'}, [
-      buySel,
-      el('span', {class:'muted small'}, 'Qty'),
-      buyQty,
-      buyBtn,
-    ]));
+    right.appendChild(el('div', {style:'margin-top:8px; display:flex; justify-content:flex-end;'}, [bagUndoBtn]));
 
-    // Sell table
-    shopPanel.appendChild(el('div', {class:'panel-subtitle', style:'margin-top:14px'}, 'Sell from bag'));
-
-    const sellHead = el('div', {class:'shop-row shop-head'}, [
-      el('div', {class:'shop-item'}, 'Item'),
-      el('div', {class:'shop-num'}, 'Avail'),
-      el('div', {class:'shop-num'}, 'Price'),
-      el('div', {class:'shop-actions'}, 'Action'),
+    const tbl = el('table', {class:'bag-table'}, [
+      el('thead', {}, el('tr', {}, [
+        el('th', {}, 'Item'),
+        el('th', {}, 'Total'),
+        el('th', {}, 'Used'),
+        el('th', {}, 'Avail'),
+        el('th', {}, 'Use'),
+        el('th', {}, 'Sell'),
+      ])),
+      el('tbody'),
     ]);
-    shopPanel.appendChild(sellHead);
 
-    const namesSorted = bagNames.slice().sort((a,b)=>a.localeCompare(b));
-    if (!namesSorted.length){
-      shopPanel.appendChild(el('div', {class:'muted small', style:'margin-top:8px'}, 'No items to sell yet.'));
+    const tbody = tbl.querySelector('tbody');
+    const used = computeRosterUsage(state);
+    const names = Object.keys(state.bag||{}).sort((a,b)=>a.localeCompare(b));
+    if (!names.length){
+      tbody.appendChild(el('tr', {}, [
+        el('td', {colspan:'6', class:'muted'}, 'No items yet.'),
+      ]));
     } else {
-      for (const name of namesSorted){
-        const total = Number(state.bag[name]||0);
+      for (const name of names){
+        const qty = Number(state.bag[name]) || 0;
         const u = Number(used[name]||0);
-        const avail = Math.max(0, total - u);
-        const price = priceOfItem(name);
+        const avail = qty - u;
 
-        const qtyInp = el('input', {type:'number', class:'inp-mini', min:'1', step:'1', value:'1', style:'width:70px'});
-        const sellBtn = el('button', {class:'btn-mini', disabled: avail<=0}, 'Sell');
-        sellBtn.addEventListener('click', ()=>{
-          const qty = clampInt(qtyInp.value, 1, avail);
-          if (qty <= 0) return;
-          const gain = price * qty;
+        const canUse = (isGem(name) || name === 'Air Balloon' || name === 'Revive');
+        const use1 = el('button', {class:'btn-mini'}, 'Use 1');
+        if (!canUse || qty <= 0) use1.disabled = true;
+        use1.title = canUse ? 'Consume 1 (undoable). For held items, this also clears it from the roster.' : 'Not usable';
+        use1.addEventListener('click', ()=>{
+          if (!canUse) return;
           store.update(s=>{
-            s.shop = s.shop || {gold:0, ledger:[]};
-            s.shop.gold = Number(s.shop.gold||0) + gain;
-            s.shop.ledger = s.shop.ledger || [];
-            s.shop.ledger.push({ts:Date.now(), type:'sell', item:name, qty, goldDelta: gain});
-            s.bag = s.bag || {};
-            const next = Number(s.bag[name]||0) - qty;
+            const undo = ensureBagUndo(s);
+            const have = Number(s.bag?.[name]||0);
+            if (have <= 0) return;
+
+            // If this is a held item, clear it from the current holder (if any) before consuming.
+            const rosterRestore = [];
+            const holder = (s.roster||[]).find(r=>r && r.item === name);
+            if (holder){
+              rosterRestore.push({id: holder.id, prevItem: name});
+              holder.item = null;
+            }
+
+            const next = have - 1;
             if (next <= 0) delete s.bag[name];
             else s.bag[name] = next;
+
+            undo.push({type:'use', item:name, qty:1, bagDelta:-1, goldDelta:0, rosterRestore, at:Date.now()});
+            if (undo.length > 50) undo.splice(0, undo.length - 50);
+
             enforceBagConstraints(data, s, applyCharmRulesSync);
           });
         });
 
-        shopPanel.appendChild(el('div', {class:'shop-row'}, [
-          el('div', {class:'shop-item'}, name),
-          el('div', {class:'shop-num'}, String(avail)),
-          el('div', {class:'shop-num'}, `${price}g`),
-          el('div', {class:'shop-actions'}, [
-            el('span', {class:'muted small'}, 'Qty'),
-            qtyInp,
-            sellBtn,
-          ]),
+        const sell1 = el('button', {class:'btn-mini'}, 'Sell 1');
+        const price = sellPrice(name);
+        if (!(price > 0) || avail <= 0) sell1.disabled = true;
+        sell1.title = (price > 0) ? `${price} gold` : 'Not sellable';
+        sell1.addEventListener('click', ()=>{
+          if (!(price > 0)) return;
+          store.update(s=>{
+            const undo = ensureBagUndo(s);
+            const used2 = computeRosterUsage(s);
+            const have = Number(s.bag?.[name]||0);
+            const u2 = Number(used2?.[name]||0);
+            const a2 = have - u2;
+            if (a2 <= 0) return;
+            const next = have - 1;
+            if (next <= 0) delete s.bag[name];
+            else s.bag[name] = next;
+            s.wallet = s.wallet || {};
+            s.wallet.gold = Math.max(0, Math.floor(Number(s.wallet.gold)||0)) + price;
+
+            undo.push({type:'sell', item:name, qty:1, bagDelta:-1, goldDelta:+price, at:Date.now()});
+            if (undo.length > 50) undo.splice(0, undo.length - 50);
+
+            enforceBagConstraints(data, s, applyCharmRulesSync);
+          });
+        });
+
+        tbody.appendChild(el('tr', {}, [
+          el('td', {}, name),
+          el('td', {}, String(qty)),
+          el('td', {}, String(u)),
+          el('td', {}, el('span', {class: avail < 0 ? 'pill bad' : 'pill good'}, avail < 0 ? `-${Math.abs(avail)}` : String(avail))),
+          el('td', {}, use1),
+          el('td', {}, sell1),
         ]));
       }
     }
 
-    // Ledger preview
-    shopPanel.appendChild(el('div', {class:'panel-subtitle', style:'margin-top:14px'}, 'Recent transactions'));
-    const ledgerBox = el('div', {class:'shop-ledger'}, []);
-    const recent = ledger.slice(-8).reverse();
-    if (!recent.length){
-      ledgerBox.appendChild(el('div', {class:'muted small'}, 'No transactions yet.'));
-    } else {
-      for (const tx of recent){
-        const sign = tx.goldDelta >= 0 ? '+' : '';
-        ledgerBox.appendChild(el('div', {class:'shop-ledger-row'}, `${tx.type.toUpperCase()} ${tx.item} x${tx.qty} (${sign}${tx.goldDelta}g)`));
-      }
-    }
-    shopPanel.appendChild(ledgerBox);
+    right.appendChild(tbl);
 
-    tabBag.appendChild(el('div', {class:'bag-layout'}, [bagPanel, shopPanel]));
+
+    const shop = el('div', {class:'panel', style:'margin-top:12px'}, [
+      el('div', {class:'panel-title'}, "Politoed's Shop"),
+      el('div', {class:'muted small'}, 'Buy items with gold. Prices are placeholders for now (buy = 2× sell; gems/coins simplified).'),
+    ]);
+
+    const shopList = el('div', {class:'shop-grid'});
+
+    const shopItems = uniq(ITEM_CATALOG.map(x=>normalizeBagKey(x)).filter(Boolean))
+      .filter(x=>x !== 'Copper Coin')
+      .sort((a,b)=>String(a).localeCompare(String(b)));
+
+    const goldNow = Math.max(0, Math.floor(Number(state.wallet?.gold)||0));
+    for (const name of shopItems){
+      const price = buyPrice(name);
+      const buyBtn = el('button', {class:'btn-mini'}, 'Buy');
+      if (!(price > 0) || goldNow < price) buyBtn.disabled = true;
+
+      buyBtn.addEventListener('click', ()=>{
+        store.update(s=>{
+          const undo = ensureBagUndo(s);
+          const gold = Math.max(0, Math.floor(Number(s.wallet?.gold)||0));
+          const cost = buyPrice(name);
+          if (!(cost > 0)) return;
+          if (gold < cost){
+            alert('Not enough gold.');
+            return;
+          }
+
+          s.wallet = s.wallet || {};
+          s.wallet.gold = gold - cost;
+          s.bag = s.bag || {};
+          const cur = Number(s.bag[name]||0);
+          s.bag[name] = cur + 1;
+
+          undo.push({type:'buy', item:name, qty:1, bagDelta:+1, goldDelta:-cost, at:Date.now()});
+          if (undo.length > 50) undo.splice(0, undo.length - 50);
+
+          enforceBagConstraints(data, s, applyCharmRulesSync);
+        });
+      });
+
+      const row = el('div', {class:'shop-row'}, [
+        el('div', {}, name),
+        el('div', {class:'muted small'}, (price > 0) ? `price: ${price}g` : 'price: —'),
+        buyBtn,
+      ]);
+      shopList.appendChild(row);
+    }
+    shop.appendChild(shopList);
+
+    right.appendChild(shop);
+
+    tabBag.appendChild(right);
   }
 
   // ---------------- Roster ----------------
@@ -1841,15 +1783,31 @@ function renderWavePlanner(state, waveKey, slots, wp){
     const spImg = el('img', {class:'sprite sprite-lg', src:sprite(calc, eff), alt:eff});
     spImg.onerror = ()=> spImg.style.opacity = '0.25';
 
-    const openDex = ()=>{
-      const base = r.baseSpecies;
+    const title = el('div', {style:'display:flex; align-items:center; justify-content:space-between; gap:10px'}, [
+      el('div', {style:'display:flex; align-items:center; gap:12px'}, [
+        spImg,
+        el('div', {}, [
+          el('div', {class:'ov-title'}, rosterLabel(r)),
+          el('div', {class:'muted small'}, `Ability: ${r.ability || '—'} · Moves: ${(r.movePool||[]).length}`),
+        ]),
+      ]),
+      el('div', {style:'display:flex; gap:8px'}, [
+        el('button', {class:'btn-mini'}, 'Dex'),
+        el('button', {class:'btn-mini'}, 'Remove'),
+      ]),
+    ]);
+
+    // Dex shortcut
+    title.querySelectorAll('button')[0].addEventListener('click', ()=>{
+      const base = pokeApi.baseOfSync(r.baseSpecies, store.getState().baseCache||{});
       store.update(s=>{
         s.ui.tab = 'unlocked';
-        // Remember where we came from so the Dex back button can return.
-        s.ui.dexReturnTab = 'roster';
+        s.ui.dexReturn = {tab:'roster', selectedRosterId: r.id};
         s.ui.dexDetailBase = base;
-        s.ui.dexSelectedForm = base;
+        s.ui.dexSelectedForm = eff;
+        s.ui.dexDefenderLevel = null;
       });
+      // Fill evo line async
       pokeApi.resolveEvoLine(base, store.getState().baseCache||{})
         .then(({base:resolved, line, updates})=>{
           store.update(st=>{
@@ -1861,30 +1819,10 @@ function renderWavePlanner(state, waveKey, slots, wp){
           });
         })
         .catch(()=>{});
-    };
+    });
 
-    spImg.addEventListener('click', openDex);
-
-    const dexBtn = el('button', {class:'btn-mini'}, 'Dex');
-    dexBtn.addEventListener('click', openDex);
-
-    const removeBtn = el('button', {class:'btn-mini btn-danger'}, 'Remove');
-
-    const title = el('div', {style:'display:flex; align-items:center; justify-content:space-between; gap:10px'}, [
-      el('div', {style:'display:flex; align-items:center; gap:12px'}, [
-        spImg,
-        el('div', {}, [
-          el('div', {class:'ov-title'}, rosterLabel(r)),
-          el('div', {class:'muted small'}, `Ability: ${r.ability || '—'} · Moves: ${(r.movePool||[]).length}`),
-        ]),
-      ]),
-      el('div', {style:'display:flex; gap:8px; align-items:center'}, [
-        dexBtn,
-        removeBtn,
-      ]),
-    ]);
-
-    removeBtn.addEventListener('click', ()=>{
+    // Remove
+    title.querySelectorAll('button')[1].addEventListener('click', ()=>{
       if (!confirm(`Remove ${rosterLabel(r)} from roster?`)) return;
       store.update(s=>{
         const removedId = r.id;
@@ -1907,9 +1845,9 @@ function renderWavePlanner(state, waveKey, slots, wp){
     });
 
     const starter = isStarterSpecies(r.baseSpecies);
-    const evoAvail = availableCount(state, 'Evo Charm') + (r.evo ? 1 : 0);
+    const evoAvail = availableCount(state, 'Evo Charm');
     // Starters: Strength is forced/free (does not consume bag), so availability gating is only for non-starters.
-    const strAvail = starter ? 9999 : (availableCount(state, 'Strength Charm') + (r.strength ? 1 : 0));
+    const strAvail = starter ? 9999 : availableCount(state, 'Strength Charm');
 
     const charms = el('div', {}, [
       el('div', {class:'panel-subtitle'}, 'Charms (consume from shared Bag)'),
@@ -1989,7 +1927,11 @@ function renderWavePlanner(state, waveKey, slots, wp){
       el('div', {class:'muted small'}, 'Held items consume from the shared Bag totals. If none are available, they cannot be equipped.'),
       (function(){
         const used = computeRosterUsage(state);
-        const bagNames = Object.keys(state.bag||{}).sort((a,b)=>a.localeCompare(b));
+        const allBag = Object.keys(state.bag||{}).sort((a,b)=>a.localeCompare(b));
+        // Held items should not include charms or consumables.
+        const bagNames = allBag.filter(n => n !== 'Evo Charm' && n !== 'Strength Charm' && n !== 'Rare Candy' && n !== 'Copper Coin' && n !== 'Revive');
+        // Ensure current item is selectable even if it isn't in the normal held-item list.
+        if (r.item && !bagNames.includes(r.item)) bagNames.unshift(r.item);
         const sel = el('select', {}, [
           el('option', {value:''}, '— none —'),
           ...bagNames.map(n=>{
@@ -2052,7 +1994,6 @@ function renderWavePlanner(state, waveKey, slots, wp){
     ]);
 
     modsSec.appendChild(rowMods);
-    // (Reset modifiers removed — users can adjust chips directly.)
 
     // Move pool list
     const mp = el('div', {}, [
@@ -2097,6 +2038,21 @@ function renderWavePlanner(state, waveKey, slots, wp){
         });
       });
 
+      const ppMax = Number.isFinite(Number(m.ppMax)) ? Math.max(1, Math.floor(Number(m.ppMax))) : 12;
+      const ppInp = el('input', {type:'number', min:'0', max:String(ppMax), step:'1', value:String(Number.isFinite(Number(m.pp)) ? Number(m.pp) : ppMax), class:'inp-mini', style:'width:76px'});
+      ppInp.title = 'PP remaining';
+      ppInp.addEventListener('change', ()=>{
+        const next = clampInt(ppInp.value, 0, ppMax);
+        store.update(s=>{
+          const cur = byId(s.roster, r.id);
+          if (!cur) return;
+          const mm = (cur.movePool||[]).find(x=>x.name===m.name);
+          if (!mm) return;
+          mm.ppMax = ppMax;
+          mm.pp = next;
+        });
+      });
+
       mpList.appendChild(el('div', {class:'row'}, [
         el('div', {class:'row-left'}, [
           el('div', {}, [
@@ -2106,6 +2062,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
         ]),
         el('div', {class:'row-right'}, [
           prioSel,
+          ppInp,
           el('label', {class:'check', style:'margin:0'}, [useChk, el('span', {}, 'use')]),
           rmBtn,
         ]),
@@ -2133,7 +2090,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
         if ((cur.movePool||[]).some(x=>x.name===mv)) return;
         const species = cur.effectiveSpecies || cur.baseSpecies;
         const prio = defaultPrioForMove(data, species, mv);
-        cur.movePool.push({name: mv, prio, use:true, source:'tm'});
+        cur.movePool.push({name: mv, prio, use:true, ppMax:12, pp:12, source:'tm'});
       });
     });
 
@@ -2193,50 +2150,23 @@ function renderWavePlanner(state, waveKey, slots, wp){
       });
 
       const editBtn = el('button', {class:'btn-mini'}, 'Edit');
-
-      const dexBtnRow = el('button', {class:'btn-mini'}, 'Dex');
-      dexBtnRow.addEventListener('click', (ev)=>{ ev.stopPropagation(); openDex(); });
       editBtn.addEventListener('click', ()=>{
         store.update(s=>{ s.ui.selectedRosterId = r.id; });
       });
-
-      const openDex = ()=>{
-        const base = r.baseSpecies;
-        store.update(s=>{
-          s.ui.tab = 'unlocked';
-          s.ui.dexDetailBase = base;
-          s.ui.dexSelectedForm = base;
-        });
-        pokeApi.resolveEvoLine(base, store.getState().baseCache||{})
-          .then(({base:resolved, line, updates})=>{
-            store.update(st=>{
-              st.baseCache = {...(st.baseCache||{}), ...(updates||{})};
-              st.evoLineCache = st.evoLineCache || {};
-              st.evoLineCache[resolved] = Array.isArray(line) && line.length ? line : [resolved];
-              if (st.ui.dexDetailBase === base) st.ui.dexDetailBase = resolved;
-              if (!st.ui.dexSelectedForm || st.ui.dexSelectedForm === base) st.ui.dexSelectedForm = resolved;
-            });
-          })
-          .catch(()=>{});
-      };
-      img.addEventListener('click', openDex);
 
       const rowEl = el('div', {class:'row'}, [
         el('div', {class:'row-left'}, [
           img,
           el('div', {}, [
-            el('div', {class:'row-title', style:'cursor:pointer'}, label),
+            el('div', {class:'row-title'}, label),
             el('div', {class:'row-sub'}, r.ability ? `Ability: ${r.ability}` : 'Ability: —'),
           ]),
         ]),
         el('div', {class:'row-right'}, [
           el('label', {class:'check', style:'margin:0'}, [activeChk, el('span', {}, 'active')]),
-          dexBtnRow,
           editBtn,
         ]),
       ]);
-
-      rowEl.querySelector('.row-title')?.addEventListener('click', openDex);
 
       listBody.appendChild(rowEl);
     }
@@ -2253,33 +2183,16 @@ function renderWavePlanner(state, waveKey, slots, wp){
     $('#btnAddRoster', tabRoster).addEventListener('click', ()=> openAddRosterModal(state));
   }
 
-
-  function typeClass(t){
-    return 'type-' + String(t||'').replace(/[^A-Za-z0-9]/g,'');
-  }
-  function renderTypeChips(types){
-    const arr = Array.isArray(types) ? types : (types ? String(types).split('/').map(s=>s.trim()).filter(Boolean) : []);
-    const wrap = el('div', {class:'typechips'});
-    for (const t of arr){
-      wrap.appendChild(el('span', {class:'typechip ' + typeClass(t)}, t));
-    }
-    return wrap;
-  }
-
   // ---------------- Unlocked (Pokédex) ----------------
 
   function renderUnlocked(state){
     tabUnlocked.innerHTML = '';
-    // Build Pokédex base list from wave defenders (so everything that appears in waves is shown).
-    const waveInfoByBase = new Map();
-    for (const sl of (data.calcSlots||[])){
-      const base = pokeApi.baseOfSync(sl.defender, state.baseCache||{});
-      const cur = waveInfoByBase.get(base) || {levels:new Set(), forms:new Set()};
-      cur.levels.add(Number(sl.level)||0);
-      cur.forms.add(sl.defender);
-      waveInfoByBase.set(base, cur);
-    }
-    const baseListAll = Array.from(waveInfoByBase.keys()).sort((a,b)=>a.localeCompare(b));
+
+    // Pokédex should at least include everything that appears in the shrine waves.
+    const claimable = uniq([
+      ...Object.keys(data.claimedSets || {}),
+      ...speciesListFromSlots(data.calcSlots || []),
+    ]).sort((a,b)=>a.localeCompare(b));
     const q = (state.ui.searchUnlocked || '').toLowerCase().trim();
 
     // Detail view (layer/page)
@@ -2288,51 +2201,82 @@ function renderWavePlanner(state, waveKey, slots, wp){
       const locked = !state.unlocked?.[base];
       const line = (state.evoLineCache && state.evoLineCache[base]) ? state.evoLineCache[base] : [base];
       const selected = state.ui.dexSelectedForm || line[0] || base;
-      const lvlOptions = Array.from((waveInfoByBase.get(base)?.levels || new Set())).filter(x=>Number.isFinite(Number(x)) && Number(x)>0).sort((a,b)=>a-b);
-      const savedLvl = Number(state.ui.dexDefenderLevelByBase?.[base] || 0);
-      const lvl = (lvlOptions.length ? (lvlOptions.includes(savedLvl) ? savedLvl : lvlOptions[0]) : Number(state.settings.claimedLevel || 50));
 
-      const backBtn = el('button', {class:'btn-mini'}, '← Back');
+      // Defender levels should come from where this species appears in waves.
+      const rawLvls = (data.calcSlots||[])
+        .filter(s => fixName(s.defender) === fixName(selected) || fixName(s.defender) === fixName(base))
+        .map(s => Number(s.level))
+        .filter(v => Number.isFinite(v) && v > 0);
+      const levels = uniq(rawLvls).sort((a,b)=>a-b);
+      const fallbackLvl = Number(state.settings.claimedLevel || 50);
+      const preferred = Number(state.ui.dexDefenderLevel);
+      const lvl = (levels.length && levels.includes(preferred))
+        ? preferred
+        : (levels.length ? levels[levels.length-1] : fallbackLvl);
+
+      // Claimed set move/ability inheritance:
+      // If an evolution has no explicit entry in claimedSets.json, inherit base's entry.
+      const resolveClaimedSet = (b, sp)=>{
+        const s = fixName(sp);
+        const bb = fixName(b);
+        return data.claimedSets?.[s] || data.claimedSets?.[bb] || null;
+      };
+
+      const dexObj = data.dex?.[selected] || null;
+      const typesArr = (dexObj && Array.isArray(dexObj.types)) ? dexObj.types : [];
+      const typesStr = typesArr.length ? typesArr.join(' / ') : '—';
+      const baseStats = dexObj?.base || null;
+      const bst = (dexObj && (typeof dexObj.bst === 'number'))
+        ? dexObj.bst
+        : (baseStats ? (baseStats.hp||0)+(baseStats.atk||0)+(baseStats.def||0)+(baseStats.spa||0)+(baseStats.spd||0)+(baseStats.spe||0) : 0);
+
+      const claimed = resolveClaimedSet(base, selected);
+      const ability = claimed?.ability || '—';
+      const moves = Array.isArray(claimed?.moves) ? claimed.moves : [];
+
+      const ret = state.ui?.dexReturn || null;
+      const backLabel = (ret && ret.tab === 'roster') ? '← Back to Roster' : '← Back to Pokédex';
+      const backBtn = el('button', {class:'btn-mini'}, backLabel);
       backBtn.addEventListener('click', ()=>{
         store.update(s=>{
-          const ret = s.ui.dexReturnTab || 'unlocked';
+          const r0 = s.ui?.dexReturn || null;
           s.ui.dexDetailBase = null;
           s.ui.dexSelectedForm = null;
-          s.ui.dexReturnTab = null;
-          // Return to the originating tab (Roster -> Dex -> Back should return to Roster).
-          if (ret) s.ui.tab = ret;
+          s.ui.dexDefenderLevel = null;
+          s.ui.dexReturn = null;
+
+          if (r0 && r0.tab === 'roster'){
+            s.ui.tab = 'roster';
+            if (r0.selectedRosterId) s.ui.selectedRosterId = r0.selectedRosterId;
+          }
         });
       });
 
-      const head = el('div', {style:'display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap'}, [
-        el('div', {style:'display:flex; align-items:center; gap:10px; flex-wrap:wrap'}, [
+      const lvlSel = (levels.length > 1) ? (function(){
+        const sel = el('select', {class:'sel-mini'}, levels.map(v => el('option', {value:String(v), selected:Number(v)===Number(lvl)}, String(v))));
+        sel.addEventListener('change', ()=>{
+          const v = Number(sel.value);
+          store.update(s=>{ s.ui.dexDefenderLevel = Number.isFinite(v) ? v : null; });
+        });
+        return sel;
+      })() : null;
+
+      const head = el('div', {class:'dex-detail-head'}, [
+        el('div', {class:'dex-detail-head-left'}, [
           backBtn,
           el('div', {class:'panel-title'}, base),
           pill(locked ? 'Locked' : 'Unlocked', locked ? 'bad' : 'good'),
         ]),
-        (function(){
-          if (lvlOptions.length <= 1){
-            return el('div', {class:'muted small'}, `One-shot info uses your LIVE active roster. Defender level: ${lvl}.`);
-          }
-          const sel = el('select', {class:'sel-mini'}, lvlOptions.map(v=> el('option', {value:String(v), selected:Number(v)===Number(lvl)}, `Lv ${v}`)));
-          sel.addEventListener('change', ()=>{
-            store.update(s=>{
-              s.ui.dexDefenderLevelByBase = s.ui.dexDefenderLevelByBase || {};
-              s.ui.dexDefenderLevelByBase[base] = Number(sel.value)||lvlOptions[0];
-            });
-          });
-          return el('div', {style:'display:flex; align-items:center; gap:10px; flex-wrap:wrap'}, [
-            el('div', {class:'muted small'}, 'One-shot info uses your LIVE active roster.'),
-            el('div', {class:'muted small'}, 'Defender level:'),
-            sel,
-          ]);
-        })(),
+        el('div', {style:'display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;'}, [
+          el('div', {class:'muted small'}, 'Defender level:'),
+          lvlSel || el('div', {class:'muted small'}, String(lvl)),
+        ]),
       ]);
 
       const evoRow = el('div', {class:'dex-evo-row'});
       for (const sp of line){
         const btn = el('button', {class:'dex-form' + (sp===selected ? ' active' : '')}, [
-          el('img', {class:'sprite sprite-md', src:sprite(calc, sp), alt:sp}),
+          el('img', {class:'sprite sprite-lg', src:sprite(calc, sp), alt:sp}),
           el('div', {class:'dex-form-name'}, sp),
         ]);
         btn.addEventListener('click', ()=>{
@@ -2341,31 +2285,50 @@ function renderWavePlanner(state, waveKey, slots, wp){
         evoRow.appendChild(btn);
       }
 
-      const info = (function(){
-        const d = data.dex?.[selected];
-        const typesArr = (d && Array.isArray(d.types)) ? d.types : [];
-        const types = typesArr.length ? typesArr.join(' / ') : '—';
-        const baseStats = d?.base || {};
-        const bst = (d && (d.bst || ((baseStats.hp||0)+(baseStats.atk||0)+(baseStats.def||0)+(baseStats.spa||0)+(baseStats.spd||0)+(baseStats.spe||0)))) || 0;
-        // Move data inheritance: if this form has no moveset, inherit from base.
-        const moves = (data.claimedSets?.[selected]?.moves && data.claimedSets[selected].moves.length)
-          ? data.claimedSets[selected].moves
-          : (data.claimedSets?.[base]?.moves || []);
-        return el('div', {class:'panel', style:'margin-top:12px'}, [
-          el('div', {class:'panel-title'}, 'Info'),
-          el('div', {style:'display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:10px'}, [
-            el('img', {class:'sprite sprite-lg', src:sprite(calc, selected), alt:selected}),
-            el('div', {}, [
-              el('div', {style:'font-weight:900; font-size:18px'}, selected),
-              typesArr.length ? renderTypeChips(typesArr) : el('div', {class:'muted small'}, types),
+      const statGrid = (function(){
+        const order = [
+          ['HP','hp'],
+          ['Atk','atk'],
+          ['Def','def'],
+          ['SpA','spa'],
+          ['SpD','spd'],
+          ['Spe','spe'],
+        ];
+        const g = el('div', {class:'dex-stats'});
+        for (const [lab,key] of order){
+          g.appendChild(el('div', {class:`dex-stat dex-stat-${key}`}, [
+            el('div', {class:'dex-stat-k'}, lab),
+            el('div', {class:'dex-stat-v'}, baseStats ? String(baseStats[key] ?? '—') : '—'),
+          ]));
+        }
+        return g;
+      })();
+
+      const moveBadges = el('div', {class:'dex-moves'},
+        moves.length ? moves.map(m => el('span', {class:'dex-move'}, m)) : [el('div', {class:'muted'}, '—')]
+      );
+
+      const info = el('div', {class:'panel', style:'margin-top:12px'}, [
+        el('div', {class:'dex-hero'}, [
+          el('img', {class:'sprite sprite-xl', src:sprite(calc, selected), alt:selected}),
+          el('div', {class:'dex-hero-meta'}, [
+            el('div', {class:'dex-hero-title'}, selected),
+            (selected !== base) ? el('div', {class:'dex-hero-sub'}, `Base: ${base}`) : el('div', {class:'dex-hero-sub'}, ' '),
+            el('div', {class:'dex-hero-badges'}, [
+              ...typesArr.map(t => pill(t)),
+              pill(`BST ${bst}`,'warn'),
             ]),
           ]),
-          el('div', {class:'kv'}, [el('div',{class:'k'},'Types'), typesArr.length ? renderTypeChips(typesArr) : el('div',{},types)]),
-          el('div', {class:'kv'}, [el('div',{class:'k'},'BST'), el('div',{},String(bst))]),
-          el('div', {class:'kv'}, [el('div',{class:'k'},'Base stats'), el('div',{}, `HP ${baseStats.hp ?? '—'} · Atk ${baseStats.atk ?? '—'} · Def ${baseStats.def ?? '—'} · SpA ${baseStats.spa ?? '—'} · SpD ${baseStats.spd ?? '—'} · Spe ${baseStats.spe ?? '—'}`)]),
-          el('div', {class:'kv'}, [el('div',{class:'k'},'Moveset'), el('div',{}, moves.length ? moves.join(', ') : '—')]),
-        ]);
-      })();
+        ]),
+        el('div', {class:'hr'}),
+        el('div', {class:'kv'}, [el('div',{class:'k'},'Types'), el('div',{},typesStr)]),
+        el('div', {class:'kv'}, [el('div',{class:'k'},'Ability'), el('div',{},ability)]),
+        el('div', {class:'kv'}, [el('div',{class:'k'},'BST'), el('div',{},String(bst))]),
+        el('div', {class:'panel-subtitle', style:'margin-top:10px'}, 'Base stats'),
+        statGrid,
+        el('div', {class:'panel-subtitle', style:'margin-top:10px'}, 'Moveset'),
+        moveBadges,
+      ]);
 
       const tablePanel = el('div', {class:'panel', style:'margin-top:12px'}, [
         el('div', {class:'panel-title'}, `One-shot vs active roster — ${selected}`),
@@ -2389,6 +2352,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
     const wrap = el('div', {class:'panel'}, [
       el('div', {class:'panel-title'}, 'Pokédex'),
       el('div', {class:'muted small'}, 'Shows whether a BASE species is unlocked (claiming is done from Waves). Click a base species to open its evolution line.'),
+      el('div', {class:'muted small', id:'dexResolveHint'}, ''),
       el('div', {class:'field'}, [
         el('label', {}, 'Search'),
         el('input', {type:'text', id:'searchUnlocked', placeholder:'Search…', value: state.ui.searchUnlocked || ''}),
@@ -2401,39 +2365,73 @@ function renderWavePlanner(state, waveKey, slots, wp){
     const grid = $('#dexGrid', wrap);
     const search = $('#searchUnlocked', wrap);
 
-    const filtered = baseListAll.filter(sp => !q || sp.toLowerCase().includes(q));
+    const resolveHint = $('#dexResolveHint', wrap);
 
-    // Best-effort base resolution for visible rows (fills cache over time)
-    prefetchBaseForSpeciesList(filtered.slice(0, 50));
+    const filtered = claimable.filter(sp => !q || sp.toLowerCase().includes(q));
 
-    const baseList = filtered;
+    // Best-effort base resolution for visible rows (we only show BASE forms in the grid).
+    // We also include base forms for wave-only species (evo-only appearances).
+    prefetchBaseForSpeciesList(filtered.slice(0, 1200));
+
+    const baseSet = new Map();
+    const unresolvedList = [];
+
+    // Anything already unlocked should be a BASE species. If it isn't, map it back to its base.
+    for (const k of Object.keys(state.unlocked||{})){
+      if (!state.unlocked[k]) continue;
+      const norm = fixName(k);
+      const base = (state.baseCache||{})[norm] || null;
+      if (base){
+        baseSet.set(base, true);
+      } else if (data.claimedSets?.[k]){
+        // If we have a claimed-set entry, treat it as a base (good enough until base resolves).
+        baseSet.set(k, true);
+      } else {
+        unresolvedList.push(k);
+      }
+    }
+
+    // Add bases for any visible species list entries (from waves + claimed sets).
+    for (const sp of filtered){
+      const norm = fixName(sp);
+      const base = (state.baseCache||{})[norm] || null;
+      if (base){
+        baseSet.set(base, true);
+      } else {
+        unresolvedList.push(sp);
+      }
+    }
+
+    const unresolved = uniq(unresolvedList.map(x=>fixName(x)))
+      .filter(n => !(state.baseCache||{})[n]).length;
+
+    // Kick base resolves for anything we still don't know.
+    if (unresolvedList.length){
+      prefetchBaseForSpeciesList(uniq(unresolvedList).slice(0, 1200));
+    }
+
+    if (resolveHint){
+      resolveHint.textContent = unresolved ? `Resolving base forms… (${unresolved} not resolved yet)` : '';
+    }
+
+    const baseList = Array.from(baseSet.keys()).sort((a,b)=>a.localeCompare(b));
     grid.innerHTML = '';
     for (const base of baseList){
       const locked = !state.unlocked?.[base];
-      const d = data.dex?.[base] || null;
-      const types = d?.types || [];
-      const lvlSet = waveInfoByBase.get(base)?.levels || new Set();
-      const lvls = Array.from(lvlSet).filter(x=>Number.isFinite(Number(x)) && Number(x)>0).sort((a,b)=>a-b);
-      const lvlLabel = lvls.length ? (lvls.length===1 ? `Lv ${lvls[0]}` : `Lv ${lvls[0]}–${lvls[lvls.length-1]}`) : '';
-
-      const img = el('img', {class:'sprite sprite-md dex-sprite', src:sprite(calc, base), alt:base});
-      img.onerror = ()=> img.style.opacity='0.25';
-
+      const d = data.dex?.[base];
+      const t = (d && Array.isArray(d.types) && d.types.length) ? d.types.join(' / ') : '';
       const card = el('button', {class:'dex-card' + (locked ? ' locked' : ' unlocked')}, [
-        el('div', {class:'dex-top'}, [
-          img,
-          el('div', {class:'dex-meta'}, [
-            el('div', {class:'dex-name'}, base),
-            lvlLabel ? el('div', {class:'dex-levels'}, lvlLabel) : null,
-            types && types.length ? renderTypeChips(types) : el('div', {class:'muted small'}, '—'),
-          ]),
-          el('div', {class:'dex-tag ' + (locked ? 'bad' : 'good')}, locked ? 'Locked' : 'Unlocked'),
+        el('img', {class:'sprite sprite-xl', src:sprite(calc, base), alt:base}),
+        el('div', {class:'dex-meta'}, [
+          el('div', {class:'dex-name'}, base),
+          t ? el('div', {class:'dex-sub'}, t) : null,
         ]),
+        pill(locked ? 'Locked' : 'Unlocked', locked ? 'bad' : 'good'),
       ]);
 
       card.addEventListener('click', ()=>{
         // Open detail immediately; evo line fills async.
-        store.update(s=>{ s.ui.dexReturnTab = 'unlocked'; s.ui.dexDetailBase = base; s.ui.dexSelectedForm = base; });
+        store.update(s=>{ s.ui.dexReturn = null; s.ui.dexDetailBase = base; s.ui.dexSelectedForm = base; s.ui.dexDefenderLevel = null; });
         pokeApi.resolveEvoLine(base, store.getState().baseCache||{})
           .then(({base:resolved, line, updates})=>{
             store.update(st=>{
@@ -2455,65 +2453,14 @@ function renderWavePlanner(state, waveKey, slots, wp){
     });
   }
 
-
-  // ---------------- Sim (full battle simulator) ----------------
-
-  function renderSim(state){
-    tabSim.innerHTML = '';
-
-    const wavesByKey = groupBy(data.calcSlots, s=>s.waveKey);
-    const waveKeys = Object.keys(wavesByKey).sort((a,b)=>waveOrderKey(a)-waveOrderKey(b));
-
-    const curKey = state.ui.simWaveKey && wavesByKey[state.ui.simWaveKey] ? state.ui.simWaveKey : (waveKeys[0] || null);
-
-    const sel = el('select', {style:'min-width:220px'}, [
-      ...waveKeys.map(k=>{
-        const first = wavesByKey[k]?.[0];
-        const label = first ? `${k} • ${first.animal} • Lv ${first.level}` : k;
-        return el('option', {value:k, selected:k===curKey}, label);
-      })
-    ]);
-
-    sel.addEventListener('change', ()=>{
-      store.update(s=>{ s.ui.simWaveKey = sel.value; });
-    });
-
-    const head = el('div', {class:'panel'}, [
-      el('div', {class:'panel-title'}, 'Simulator'),
-      el('div', {class:'muted small'}, 'Full step-by-step simulator (PP + manual moves/targets). In Waves, keep it simple — here you can deep-dive any matchup.'),
-      el('div', {style:'display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px'}, [
-        el('div', {class:'field', style:'margin:0'}, [el('label', {}, 'Wave'), sel]),
-        (function(){
-          const b = el('button', {class:'btn-mini'}, 'Open in Waves');
-          b.addEventListener('click', ()=>{
-            store.update(s=>{ s.ui.tab='waves'; s.ui.waveExpanded[curKey]=true; });
-          });
-          return b;
-        })(),
-      ]),
-    ]);
-
-    tabSim.appendChild(head);
-
-    if (!curKey){
-      tabSim.appendChild(el('div', {class:'muted'}, 'No wave data.'));
-      return;
-    }
-
-    const slots = wavesByKey[curKey] || [];
-    ensureWavePlan(data, state, curKey, slots);
-    const wp = store.getState().wavePlans?.[curKey];
-
-    // Reuse the existing detailed battle panel
-    tabSim.appendChild(renderBattlePanel(store.getState(), curKey, slots, wp));
-  }
-
   // ---------------- Settings ----------------
 
   function renderSettings(state){
     tabSettings.innerHTML = '';
 
     const s = state.settings || {};
+
+    const animals = uniq((data.calcSlots||[]).map(x=>x.animal)).sort((a,b)=>String(a).localeCompare(String(b)));
 
     const fieldNum = (label, value, opts, onChange)=>{
       const o = opts || {};
@@ -2523,6 +2470,12 @@ function renderWavePlanner(state, waveKey, slots, wp){
         onChange(v);
       });
       return el('div', {class:'field'}, [el('label', {}, label), inp]);
+    };
+
+    const fieldSel = (label, value, options, onChange)=>{
+      const sel = el('select', {}, (options||[]).map(o=>el('option', {value:o, selected:String(o)===String(value)}, String(o))));
+      sel.addEventListener('change', ()=> onChange(sel.value));
+      return el('div', {class:'field'}, [el('label', {}, label), sel]);
     };
 
     const fieldCheck = (label, checked, onChange)=>{
@@ -2554,6 +2507,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
     // Calc + roster constants
     const pCalc = panel('Global calc constants', [
       el('div', {class:'muted small'}, 'These affect damage calcs everywhere (Waves + Overview).'),
+      fieldSel('Start wave type', s.startWaveAnimal || 'Goat', animals.length ? animals : ['Goat'], v=>store.update(st=>{st.settings.startWaveAnimal=v;})),
       fieldNum('Claimed level', s.claimedLevel, {min:1,max:100,step:1}, v=>store.update(st=>{st.settings.claimedLevel=v;})),
       fieldNum('Claimed IV (all stats)', s.claimedIV, {min:0,max:31,step:1}, v=>store.update(st=>{st.settings.claimedIV=v;})),
       fieldNum('Claimed EV (all stats)', s.claimedEV, {min:0,max:252,step:1}, v=>store.update(st=>{st.settings.claimedEV=v;})),
@@ -2638,40 +2592,21 @@ function renderWavePlanner(state, waveKey, slots, wp){
       })(),
     ]);
 
-
-
-    // Run order
-    const pRun = (function(){
-      // Determine animal order from Phase 1 wave list
-      const byWave = {};
-      for (const sl of (data.calcSlots||[])){
-        if (Number(sl.phase)!==1) continue;
-        if (Number(sl.slot)!==1) continue;
-        byWave[Number(sl.wave)] = sl.animal;
-      }
-      const animals = Array.from({length:12}).map((_,i)=>byWave[i+1]).filter(Boolean);
-      const cur = s.startAnimal || 'Goat';
-      const sel = el('select', {style:'min-width:220px'}, animals.map(a=>el('option', {value:a, selected:a===cur}, a)));
-      sel.addEventListener('change', ()=> store.update(st=>{ st.settings.startAnimal = sel.value; }));
-      return panel('Run settings', [
-        el('div', {class:'muted small'}, 'Choose which animal wave is shown first. This rotates wave order within each phase (data unchanged).'),
-        el('div', {class:'field'}, [el('label', {}, 'Start wave'), sel]),
-      ]);
-    })();
-
-    const pAbout = panel('Credits & Impressum', [
-      el('div', {class:'panel-subtitle'}, 'Credits'),
-      el('div', {class:'muted small'}, 'Pokémon © Nintendo / Creatures Inc. / GAME FREAK inc. Sprites and names are property of their respective owners.'),
-      el('div', {class:'muted small'}, 'Damage logic based on the public PokeMMO calc by c4vv (Gen 5).'),
-      el('div', {class:'muted small'}, 'Evolution/base mapping uses PokeAPI where available.'),
-      el('div', {class:'hr'}),
-      el('div', {class:'panel-subtitle'}, 'Impressum'),
-      el('div', {class:'muted small'}, 'Private community tool for Team MÜSH. Non-commercial. No affiliation with Nintendo / GAME FREAK / Creatures.'),
-      el('div', {class:'muted small'}, 'Contact: PaulusTFT (update as needed).'),
+    const pCredits = panel('Credits / Impressum', [
+      el('div', {class:'muted small'}, 'Attributions and thanks.'),
+      el('div', {class:'credits-list'}, [
+        el('div', {}, [el('strong', {}, 'Damage calc reference:'), el('span', {}, ' c4vv’s PokeMMO Damage Calc (Gen 5) — '), el('a', {href:'https://c4vv.github.io/pokemmo-damage-calc/?gen=5', target:'_blank', rel:'noopener'}, 'link')]),
+        el('div', {}, [el('strong', {}, 'Data contributions:'), el('span', {}, ' [MÜSH] Alphy')]),
+        el('div', {}, [el('strong', {}, 'Groundwork:'), el('span', {}, ' [MÜSH] TTVxSenseiNESS and RuthlessZ (LNY Event 2024 & 2025)')]),
+        el('div', {}, [el('strong', {}, 'Sprites:'), el('span', {}, ' Pokémon Database (pokemondb.net / img.pokemondb.net)')]),
+        el('div', {}, [el('strong', {}, 'Pokédex / evolutions:'), el('span', {}, ' PokéAPI')]),
+        el('div', {class:'muted small', style:'margin-top:6px'}, 'Pokémon is © Nintendo / Creatures Inc. / GAME FREAK inc. This is an unofficial fan tool.'),
+      ]),
     ]);
+
     tabSettings.appendChild(el('div', {class:'settings-grid'}, [
       el('div', {class:'settings-col'}, [pCalc, pMove]),
-      el('div', {class:'settings-col'}, [pThreat, pRun, pDefaultsAtk, pDefaultsDef, pTools, pAbout]),
+      el('div', {class:'settings-col'}, [pThreat, pDefaultsAtk, pDefaultsDef, pTools, pCredits]),
     ]));
   }
 
@@ -2688,7 +2623,6 @@ function renderWavePlanner(state, waveKey, slots, wp){
     else if (state.ui.tab === 'roster') renderRoster(state);
     else if (state.ui.tab === 'bag') renderBag(state);
     else if (state.ui.tab === 'settings') renderSettings(state);
-    else if (state.ui.tab === 'sim') renderSim(state);
     else if (state.ui.tab === 'unlocked') renderUnlocked(state);
   }
 
