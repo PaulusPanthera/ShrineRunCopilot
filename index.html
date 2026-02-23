@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Abundant Shrine — Roster Planner</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand" id="brand">
+      <div class="brand-title" id="brandTitle">Abundant Shrine <span class="muted">— Roster Planner</span></div>
+      <div class="brand-sub muted">by [MÜSH] PaulusTFT</div>
+    </div>
+
+    <nav class="tabs tabs-top" aria-label="Main">
+      <button class="tab active" data-tab="waves">Waves</button>
+      <button class="tab" data-tab="roster">Roster</button>
+      <button class="tab" data-tab="bag">Bag</button>
+      <button class="tab" data-tab="unlocked">Unlocked <span id="unlockedCount" class="badge">0</span></button>
+    </nav>
+    <div class="top-actions">
+      <button id="btnExport" class="btn">Export</button>
+      <button id="btnImport" class="btn">Import</button>
+      <button id="btnReset" class="btn btn-danger">Reset</button>
+      <input id="fileImport" type="file" accept="application/json" hidden />
+    </div>
+  </header>
+
+  <main class="layout layout-single">
+<section class="content">
+      <section id="attackOverview" class="panel overview hidden">
+        <div class="overview-head">
+          <div class="overview-left">
+            <img id="ovSprite" class="sprite sprite-xl" alt="" />
+            <div>
+              <div id="ovTitle" class="ov-title">Select a defender</div>
+              <div id="ovMeta" class="muted small"></div>
+            </div>
+          </div>
+          <div class="overview-right">
+            <div id="ovHint" class="muted small">Click a defender (Waves) or a species (Unlocked) to see one-shot info from your active roster.</div>
+          </div>
+        </div>
+        <div id="ovBody" class="overview-body"></div>
+      </section>
+
+      <section id="tabWaves" class="tabpage"></section>
+      <section id="tabRoster" class="tabpage hidden"></section>
+      <section id="tabBag" class="tabpage hidden"></section>
+      <section id="tabUnlocked" class="tabpage hidden"></section>
+    </section>
+  </main>
+
+  <!-- Hidden Easter egg mini-game: click title 7x -->
+  <div id="eggModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="eggTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <div id="eggTitle" class="modal-title">Wild Encounter!</div>
+          <div class="muted small">Click the Poké Ball as many times as you can in 15 seconds.</div>
+        </div>
+        <button id="eggClose" class="btn btn-mini">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="egg-stats">
+          <div>Time: <span id="eggTime">15</span>s</div>
+          <div>Score: <span id="eggScore">0</span></div>
+          <div class="muted">Best: <span id="eggBest">0</span></div>
+        </div>
+        <div id="eggArena" class="egg-arena">
+          <button id="eggBall" class="egg-ball" aria-label="Pokeball"></button>
+        </div>
+        <div class="muted small">Tip: This is just for fun — your shrine data is untouched.</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="calc.js" defer></script>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
