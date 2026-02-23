@@ -1,0 +1,143 @@
+// js/domain/roster.js
+// v13 — roster entry construction + charm rules
+
+import { EVO_OVERRIDES, EVO_PRESET } from '../services/pokeApi.js';
+
+export const STARTERS = new Set(['Cobalion','Keldeo','Terrakion','Virizion']);
+
+export function isStarterSpecies(species){
+  return STARTERS.has(species);
+}
+
+function uniq(arr){
+  return Array.from(new Set(arr));
+}
+
+export function moveInfo(data, moveName){
+  if (!moveName) return null;
+  return data.moves?.[moveName] || null;
+}
+
+export function isStabMove(data, species, moveName){
+  const d = data.dex?.[species];
+  const mi = moveInfo(data, moveName);
+  if (!d || !mi) return false;
+  return Array.isArray(d.types) && d.types.includes(mi.type);
+}
+
+// Priority tiers:
+//   P1 = preferred (weak filler; low BP, usually non-STAB)
+//   P2 = normal
+//   P3 = "nukes" (only used if P1/P2 can't OHKO)
+export function defaultPrioForMove(data, species, moveName){
+  const mi = moveInfo(data, moveName);
+  // Missing/unknown move data in the sheet (custom shrine moves) => treat as utility.
+  if (!mi || !mi.type || !mi.category || !mi.power) return 1;
+
+  const cat = String(mi.category);
+  const bp = Number(mi.power) || 0;
+  if (!(cat === 'Physical' || cat === 'Special') || bp <= 0) return 1;
+
+  const stab = isStabMove(data, species, moveName);
+  const t = String(mi.type);
+
+  // Ground rule (requested):
+  // - P3 ONLY for strong STAB Fighting/Bug moves
+  // - P2 for most remaining STAB and strong coverage
+  // - P1 for utility + weakest + most non-STAB filler
+  if (stab && (t === 'Fighting' || t === 'Bug') && bp >= 80) return 3;
+
+  // "Main" STAB moves
+  if (stab && bp >= 70) return 2;
+
+  // Strong non-STAB coverage (e.g. Megahorn on Virizion)
+  if (!stab && bp >= 100) return 2;
+
+  // Everything else (weak / utility / niche coverage)
+  return 1;
+}
+
+export function buildDefaultMovePool(data, species, moveNames, source='base'){
+  const uniqueMoves = uniq((moveNames||[]).filter(Boolean));
+  return uniqueMoves.map(m => ({
+    name: m,
+    prio: defaultPrioForMove(data, species, m),
+    use: true,
+    source,
+  }));
+}
+
+export function makeRosterEntryFromClaimedSet(data, species){
+  const set = data.claimedSets?.[species] || {ability:'', moves:[]};
+  const id = `r_${species}_${Math.random().toString(16).slice(2,9)}`;
+  const entry = {
+    id,
+    baseSpecies: species,
+    effectiveSpecies: species,
+    active: true,
+    evo: false,
+    // Starters: Strength charm is forced ON by default.
+    strength: isStarterSpecies(species) ? true : false,
+    ability: set.ability || '',
+    movePool: buildDefaultMovePool(data, species, set.moves || [], 'base'),
+    item: null,
+  };
+  return entry;
+}
+
+export function getEvoTarget(data, base, evoCache){
+  if (!base || isStarterSpecies(base)) return null;
+
+  const override = EVO_OVERRIDES[base];
+  if (override && data.dex?.[override]) return override;
+
+  const preset = EVO_PRESET[base];
+  if (preset && data.dex?.[preset]) return preset;
+
+  const cached = evoCache?.[base];
+  if (cached && data.dex?.[cached]) return cached;
+
+  return null;
+}
+
+// Apply alpha charm rules synchronously.
+// Returns {needsEvoResolve:boolean, evoBase:string|null}
+export function applyCharmRulesSync(data, state, entry){
+  const base = entry.baseSpecies;
+
+  // Starters: Evo unavailable; Strength is forced ON (does NOT consume the shared bag).
+  if (isStarterSpecies(base)){
+    entry.evo = false;
+    entry.strength = true;
+    entry.effectiveSpecies = base;
+    return {needsEvoResolve:false, evoBase:null};
+  }
+
+  // Strength charm toggles EV rule only; doesn't change species
+  const evoCache = state.evoCache || {};
+
+  if (entry.evo){
+    const t = getEvoTarget(data, base, evoCache);
+    if (t){
+      entry.effectiveSpecies = t;
+      return {needsEvoResolve:false, evoBase:null};
+    }
+    entry.effectiveSpecies = base;
+    return {needsEvoResolve:true, evoBase: base};
+  }
+
+  entry.effectiveSpecies = base;
+  return {needsEvoResolve:false, evoBase:null};
+}
+
+// Ensure movePool priorities are exactly 1/2/3.
+export function normalizeMovePool(entry){
+  entry.movePool = entry.movePool || [];
+  for (const mv of entry.movePool){
+    const p = Number(mv.prio);
+    if (p === 1 || p === 2 || p === 3) mv.prio = p;
+    else if (p === 3.0) mv.prio = 1;
+    else if (p === 2.5) mv.prio = 2;
+    else mv.prio = 2;
+  }
+}

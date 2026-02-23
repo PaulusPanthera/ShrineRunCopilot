@@ -62,6 +62,48 @@
     return stages[String(s)] ?? stages[s] ?? 1;
   }
 
+  // --- Items (small, opinionated set) ---
+  // Items are passed through settings.attackerItem / settings.defenderItem.
+  // This keeps calc deterministic without needing a full battle simulator.
+
+  function itemSpeedMult(item){
+    if (!item) return 1;
+    if (item === 'Choice Scarf') return 1.5;
+    return 1;
+  }
+
+  function itemOffenseMult(item, moveType, category, eff){
+    if (!item) return 1;
+    let m = 1;
+    // Type boosts
+    if (typeof item === 'string' && item.endsWith(' Plate')){
+      const t = item.replace(/ Plate$/, '');
+      if (t && t === moveType) m *= 1.2;
+    }
+    if (typeof item === 'string' && item.endsWith(' Gem')){
+      const t = item.replace(/ Gem$/, '');
+      if (t && t === moveType) m *= 1.3; // modeled as always-on for planning
+    }
+
+    // Category boosts
+    if (item === 'Muscle Band' && category === 'Physical') m *= 1.1;
+    if (item === 'Wise Glasses' && category === 'Special') m *= 1.1;
+    if (item === 'Choice Band' && category === 'Physical') m *= 1.5;
+    if (item === 'Choice Specs' && category === 'Special') m *= 1.5;
+    if (item === 'Life Orb') m *= 1.3;
+    if (item === 'Expert Belt' && (eff ?? 1) > 1) m *= 1.2;
+
+    return m;
+  }
+
+  function applyDefensiveItemMult(item, category, D){
+    if (!item) return D;
+    if (item === 'Assault Vest' && category === 'Special'){
+      return Math.max(1, Math.floor(D * 1.5));
+    }
+    return D;
+  }
+
   function computeDamageRange({data, attacker, defender, moveName, settings, tags}){
     const {dex, moves, typing, rules, stages} = data;
     const mv = moves[moveName];
@@ -107,7 +149,8 @@
       : statOther(defMon.base.def, levelDef, defIV, defEV);
 
     const defStage = isSpecial ? (settings.enemySpdStage ?? 0) : (settings.enemyDefStage ?? 0);
-    const D = Math.max(1, Math.floor(D0 * stageMultiplier(stages, defStage)));
+    let D = Math.max(1, Math.floor(D0 * stageMultiplier(stages, defStage)));
+    D = applyDefensiveItemMult(settings.defenderItem, mv.category, D);
 
     // Base damage (Gen5-ish rounding)
     const power = mv.power;
@@ -123,7 +166,8 @@
 
     const other = settings.otherMult ?? 1;
 
-    const modifier = stabMult * eff * hhMult * other;
+    const itemMult = itemOffenseMult(settings.attackerItem, mv.type, mv.category, eff);
+    const modifier = stabMult * eff * hhMult * other * itemMult;
 
     dmg = Math.floor(dmg * modifier);
 
@@ -143,8 +187,8 @@
     // Speed (for warnings / planning)
     const atkSpe0 = statOther(atkMon.base.spe, L, atkIV, atkEV);
     const defSpe0 = statOther(defMon.base.spe, levelDef, defIV, defEV);
-    const atkSpe = Math.floor(atkSpe0 * stageMultiplier(stages, settings.speStage ?? 0));
-    const defSpe = Math.floor(defSpe0 * stageMultiplier(stages, settings.enemySpeStage ?? 0));
+    const atkSpe = Math.floor(atkSpe0 * stageMultiplier(stages, settings.speStage ?? 0) * itemSpeedMult(settings.attackerItem));
+    const defSpe = Math.floor(defSpe0 * stageMultiplier(stages, settings.enemySpeStage ?? 0) * itemSpeedMult(settings.defenderItem));
 
     return {
       ok:true,
@@ -211,7 +255,8 @@
       : statOther(defMon.base.def, levelDef, defIV, defEV);
 
     const defStage = isSpecial ? (settings.enemySpdStage ?? 0) : (settings.enemyDefStage ?? 0);
-    const D = Math.max(1, Math.floor(D0 * stageMultiplier(stages, defStage)));
+    let D = Math.max(1, Math.floor(D0 * stageMultiplier(stages, defStage)));
+    D = applyDefensiveItemMult(settings.defenderItem, category, D);
 
     // Base damage
     const base1 = Math.floor((2 * L) / 5) + 2;
@@ -222,7 +267,8 @@
     const eff = getEffectiveness(typing.chart, moveType, defMon.types || []);
     const hhMult = ((tags||[]).includes('HH') ? rules.HelpingHand_Mult : 1);
     const other = settings.otherMult ?? 1;
-    const modifier = stabMult * eff * hhMult * other;
+    const itemMult = itemOffenseMult(settings.attackerItem, moveType, category, eff);
+    const modifier = stabMult * eff * hhMult * other * itemMult;
     dmg = Math.floor(dmg * modifier);
 
     const min = Math.floor(dmg * rules.RandMin);
@@ -240,8 +286,8 @@
     // Speed
     const atkSpe0 = statOther(atkMon.base.spe, L, atkIV, atkEV);
     const defSpe0 = statOther(defMon.base.spe, levelDef, defIV, defEV);
-    const atkSpe = Math.floor(atkSpe0 * stageMultiplier(stages, settings.speStage ?? 0));
-    const defSpe = Math.floor(defSpe0 * stageMultiplier(stages, settings.enemySpeStage ?? 0));
+    const atkSpe = Math.floor(atkSpe0 * stageMultiplier(stages, settings.speStage ?? 0) * itemSpeedMult(settings.attackerItem));
+    const defSpe = Math.floor(defSpe0 * stageMultiplier(stages, settings.enemySpeStage ?? 0) * itemSpeedMult(settings.defenderItem));
 
     return {
       ok:true,
