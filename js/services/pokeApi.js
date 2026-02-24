@@ -65,6 +65,56 @@ export function createPokeApi(data){
     return await r.json();
   }
 
+  // --- Public PokeAPI fetch helpers (used by Pokédex UI)
+  async function fetchSpecies(slugOrId){
+    const slug = String(slugOrId||'').trim();
+    if (!slug) throw new Error('fetchSpecies: missing slug');
+    return await fetchJson(`https://pokeapi.co/api/v2/pokemon-species/${slug}`);
+  }
+
+  async function fetchPokemon(slugOrId){
+    const slug = String(slugOrId||'').trim();
+    if (!slug) throw new Error('fetchPokemon: missing slug');
+    return await fetchJson(`https://pokeapi.co/api/v2/pokemon/${slug}`);
+  }
+
+  function titleCaseName(apiName){
+    const raw = String(apiName||'').trim();
+    if (!raw) return raw;
+    // PokeAPI uses "mr-mime" etc; keep hyphens, capitalize each segment.
+    return raw.split('-').map(s => s ? (s[0].toUpperCase()+s.slice(1)) : s).join('-');
+  }
+
+  function bestDexKeyForApiName(apiName){
+    return apiNameToDexKey(apiName) || titleCaseName(apiName);
+  }
+
+  function flattenEvoChainNonBaby(chain){
+    // Returns [{apiName,is_baby}...] in a stable traversal order.
+    const out = [];
+    const walk = (node)=>{
+      if (!node) return;
+      const apiName = node?.species?.name || null;
+      if (apiName) out.push({ apiName, is_baby: !!node.is_baby });
+      if (Array.isArray(node.evolves_to)) for (const c of node.evolves_to) walk(c);
+    };
+    walk(chain);
+    return out;
+  }
+
+  function findFirstNonBabyApiName(chainRoot){
+    // BFS by depth: pick the first node that isn't marked as baby.
+    const q = [];
+    if (chainRoot) q.push(chainRoot);
+    while (q.length){
+      const n = q.shift();
+      if (!n) continue;
+      if (!n.is_baby && n?.species?.name) return n.species.name;
+      if (Array.isArray(n.evolves_to)) q.push(...n.evolves_to);
+    }
+    return chainRoot?.species?.name || null;
+  }
+
   // Pure sync base mapping if cached/overridden.
   function baseOfSync(species, baseCache){
     const s = fixName(species);
@@ -117,6 +167,54 @@ export function createPokeApi(data){
       }
       updates[s] = rootDex;
       return { base: rootDex, updates };
+    }catch(e){
+      return cacheSelf(s);
+    }
+  }
+
+  // Resolve base, but skipping baby forms (Igglybuff -> Jigglypuff, etc).
+  // Returns { base, line:[dexOrDisplayNames...], updates:{[speciesOrLineName]:base} }
+  async function resolveBaseNonBaby(species, baseCache={}){
+    const s = fixName(species);
+    const o = BASE_OVERRIDES[s];
+    if (o && data.dex[o]){
+      return { base: o, line: [o], updates: { [s]: o } };
+    }
+
+    const cached = baseCache[s];
+    if (cached && data.dex[cached]){
+      return { base: cached, line: [cached], updates: { [s]: cached } };
+    }
+
+    const updates = {};
+    const cacheSelf = (base)=>{
+      updates[s] = base;
+      return { base, line: [base], updates };
+    };
+
+    try{
+      const slug = toApiSlug(s);
+      const spJson = await fetchSpecies(slug);
+      if (!spJson?.evolution_chain?.url) return cacheSelf(s);
+      const chJson = await fetchJson(spJson.evolution_chain.url);
+
+      const baseApi = findFirstNonBabyApiName(chJson.chain);
+      const baseName = bestDexKeyForApiName(baseApi) || s;
+
+      // Build non-baby line from chain
+      const flat = flattenEvoChainNonBaby(chJson.chain)
+        .filter(x => !x.is_baby)
+        .map(x => bestDexKeyForApiName(x.apiName))
+        .filter(Boolean);
+      const line = Array.from(new Set(flat.length ? flat : [baseName]));
+
+      // Update mapping for all known names in this chain to the non-baby base.
+      for (const nm of line){
+        updates[fixName(nm)] = baseName;
+      }
+      updates[s] = baseName;
+
+      return { base: baseName, line, updates };
     }catch(e){
       return cacheSelf(s);
     }
@@ -222,10 +320,51 @@ export function createPokeApi(data){
     }
   }
 
+  // Full evo line (non-baby) for any species, plus non-baby base.
+  // Returns { base, line:[names...], updates }
+  async function resolveEvoLineNonBaby(species, baseCache={}){
+    const s = fixName(species);
+
+    // First: resolve non-baby base (fast path uses cache/overrides).
+    const { base, updates } = await resolveBaseNonBaby(s, baseCache);
+    const root = base || s;
+
+    // Second: always attempt to fetch the full non-baby line for the resolved base.
+    // This avoids the "cached base => line [base]" pitfall.
+    try{
+      const slug = toApiSlug(root);
+      const spJson = await fetchSpecies(slug);
+      if (!spJson?.evolution_chain?.url){
+        return { base: root, line: [root], updates: updates || { [s]: root } };
+      }
+      const chJson = await fetchJson(spJson.evolution_chain.url);
+
+      const flat = flattenEvoChainNonBaby(chJson.chain)
+        .filter(x => !x.is_baby)
+        .map(x => bestDexKeyForApiName(x.apiName))
+        .filter(Boolean);
+      const line = Array.from(new Set(flat.length ? flat : [root]));
+
+      // Ensure base mapping for everything we discovered.
+      const upd = updates || {};
+      for (const nm of line) upd[fixName(nm)] = root;
+      upd[s] = root;
+
+      return { base: root, line, updates: upd };
+    }catch(e){
+      return { base: root, line: [root], updates: updates || { [s]: root } };
+    }
+  }
+
   return {
+    toApiSlug,
     baseOfSync,
     resolveBaseSpecies,
+    resolveBaseNonBaby,
     resolveEvoTarget,
     resolveEvoLine,
+    resolveEvoLineNonBaby,
+    fetchSpecies,
+    fetchPokemon,
   };
 }

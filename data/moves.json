@@ -491,13 +491,13 @@
   },
   "Healing Wind": {
     "name": "Healing Wind",
-    "type": null,
-    "category": null,
-    "power": null,
+    "type": "Normal",
+    "category": "Status",
+    "power": 0,
     "uses": null,
     "targets": null,
     "accuracy": 100.0,
-    "notes": "Needs data (custom Shrine move or name mismatch)."
+    "notes": "Shrine: removes status effects from the party."
   },
   "Helping Hand": {
     "name": "Helping Hand",
@@ -691,13 +691,13 @@
   },
   "Joyous Cheer": {
     "name": "Joyous Cheer",
-    "type": null,
-    "category": null,
-    "power": null,
+    "type": "Normal",
+    "category": "Status",
+    "power": 0,
     "uses": null,
     "targets": null,
     "accuracy": 100.0,
-    "notes": "Needs data (custom Shrine move or name mismatch)."
+    "notes": "Shrine: heals the whole party by 25% HP."
   },
   "Jump Kick": {
     "name": "Jump Kick",
@@ -749,6 +749,14 @@
     "accuracy": 100.0,
     "notes": null
   },
+  "Low Kick": {
+    "name": "Low Kick",
+    "type": "Fighting",
+    "category": "Physical",
+    "power": 80,
+    "notes": "Power varies by target weight (Gen 5: 20–120). Shrine default: 100 acc / 12 PP.",
+    "accuracy": 100
+  },
   "Mega Kick": {
     "name": "Mega Kick",
     "type": "Normal",
@@ -771,13 +779,13 @@
   },
   "Mending Prayer": {
     "name": "Mending Prayer",
-    "type": null,
-    "category": null,
-    "power": null,
+    "type": "Normal",
+    "category": "Status",
+    "power": 0,
     "uses": null,
     "targets": null,
     "accuracy": 100.0,
-    "notes": "Needs data (custom Shrine move or name mismatch)."
+    "notes": "Shrine: fully heals one ally."
   },
   "Metal Claw": {
     "name": "Metal Claw",
@@ -841,13 +849,13 @@
   },
   "Protective Aura": {
     "name": "Protective Aura",
-    "type": null,
-    "category": null,
-    "power": null,
+    "type": "Normal",
+    "category": "Status",
+    "power": 0,
     "uses": null,
     "targets": null,
     "accuracy": 100.0,
-    "notes": "Needs data (custom Shrine move or name mismatch)."
+    "notes": "Shrine: protective buff (reduces damage taken)."
   },
   "Provoke": {
     "name": "Provoke",
@@ -1089,16 +1097,6 @@
     "accuracy": 100.0,
     "notes": null
   },
-  "ThunderPunch": {
-    "name": "ThunderPunch",
-    "type": null,
-    "category": null,
-    "power": null,
-    "uses": null,
-    "targets": null,
-    "accuracy": 100.0,
-    "notes": "Needs data (custom Shrine move or name mismatch)."
-  },
   "Thunderbold": {
     "name": "Thunderbold",
     "type": null,
@@ -1118,6 +1116,16 @@
     "targets": "SpD",
     "accuracy": 100.0,
     "notes": null
+  },
+  "ThunderPunch": {
+    "name": "ThunderPunch",
+    "type": null,
+    "category": null,
+    "power": null,
+    "uses": null,
+    "targets": null,
+    "accuracy": 100.0,
+    "notes": "Needs data (custom Shrine move or name mismatch)."
   },
   "Toxic": {
     "name": "Toxic",
@@ -1148,6 +1156,14 @@
     "targets": "Def",
     "accuracy": 100.0,
     "notes": null
+  },
+  "Water Pledge": {
+    "name": "Water Pledge",
+    "type": "Water",
+    "category": "Special",
+    "power": 80,
+    "notes": "Shrine default: 100 acc / 12 PP.",
+    "accuracy": 100
   },
   "Water Pulse": {
     "name": "Water Pulse",
@@ -1218,5 +1234,35 @@
     "targets": "Def",
     "accuracy": 100.0,
     "notes": null
+  },
+  "U-turn": {
+    "name": "U-turn",
+    "type": "Bug",
+    "category": "Physical",
+    "power": 70,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 100,
+    "notes": null
+  },
+  "Steel Wing": {
+    "name": "Steel Wing",
+    "type": "Steel",
+    "category": "Physical",
+    "power": 70,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 90,
+    "notes": null
+  },
+  "Fire Fang": {
+    "name": "Fire Fang",
+    "type": "Fire",
+    "category": "Physical",
+    "power": 65,
+    "uses": "Atk",
+    "targets": "Def",
+    "accuracy": 95,
+    "notes": "10% burn, 10% flinch."
   }
 }

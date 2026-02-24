@@ -1,6 +1,5 @@
 // js/domain/items.js
-// v2.0.0-beta
-// Shared item catalog + simple effect helpers (PokeMMO / Gen5-ish)
+// v13 — shared item catalog + simple effect helpers (PokeMMO / Gen5-ish)
 
 // Starters have Strength Charm forced ON, but it does NOT consume the shared bag.
 import { isStarterSpecies } from './roster.js';
@@ -22,7 +21,7 @@ export const CORE_ITEMS = [
   'Choice Scarf',
   'Assault Vest',
   'Focus Sash',
-  'Air Balloon',
+  'Copper Coin',
 ];
 
 export function plateName(type){
@@ -38,8 +37,7 @@ export function buildItemCatalog(){
   const gems = TYPES_NO_FAIRY.map(gemName);
   const charms = ['Evo Charm','Strength Charm'];
   const rareCandy = ['Rare Candy','Rare Candy x2'];
-  const currency = ['Copper Coin'];
-  const utility = ['Revive'];
+  const coins = ['Copper Coin','Copper Coin x5'];
 
   // Default “wave loot” pool.
   return [
@@ -48,8 +46,7 @@ export function buildItemCatalog(){
     ...charms,
     ...CORE_ITEMS,
     ...rareCandy,
-    ...utility,
-    ...currency,
+    ...coins,
   ];
 }
 
@@ -82,18 +79,11 @@ export function gemType(item){
 export function lootBundle(itemName){
   const name = String(itemName || '').trim();
   if (!name) return null;
-
-  // Fixed bundles
   if (name === 'Rare Candy x2') return {key:'Rare Candy', qty:2};
   if (name === 'Rare Candy') return {key:'Rare Candy', qty:1};
-
-  // Loot bundles
+  if (name === 'Copper Coin x5') return {key:'Copper Coin', qty:5};
+  if (name === 'Copper Coin') return {key:'Copper Coin', qty:1};
   if (isGem(name)) return {key:name, qty:5};
-  // Copper Coins are found like gems (bundle of 5)
-  if (name === 'Copper Coin') return {key:name, qty:5};
-  // Air Balloon can be found as a bundle of 5
-  if (name === 'Air Balloon') return {key:name, qty:5};
-
   return {key:name, qty:1};
 }
 
@@ -165,3 +155,36 @@ export function enforceBagConstraints(data, state, applyCharmRulesSync){
   dropFromRoster((r)=>!!r.evo, (r)=>{ r.evo = false; }, 'Evo Charm');
   dropFromRoster((r)=>!!r.strength && !isStarterSpecies(r.baseSpecies), (r)=>{ r.strength = false; }, 'Strength Charm');
 }
+
+// --- Politoed shop placeholder prices ---
+// Prices are temporary until proven otherwise.
+// Rules:
+// - Gems: 1 gold
+// - Copper Coin: 1 gold
+// - Plates: 5 gold
+// - Evo Charm: 16 gold
+// - Strength Charm: 12 gold
+// - Most other items: 8 / 12 / 16
+export function priceOfItem(item){
+  const name = String(item||'').trim();
+  if (!name) return 0;
+  if (name === 'Evo Charm') return 16;
+  if (name === 'Strength Charm') return 12;
+  if (name === 'Copper Coin') return 1;
+  if (isGem(name)) return 1;
+  if (isPlate(name)) return 5;
+  if (name === 'Rare Candy') return 8;
+
+  // Common holds
+  if (name === 'Leftovers') return 12;
+  if (name === 'Expert Belt') return 12;
+  if (name === 'Muscle Band') return 12;
+  if (name === 'Wise Glasses') return 12;
+  if (name === 'Assault Vest') return 16;
+  if (name === 'Focus Sash') return 16;
+  if (name === 'Life Orb') return 16;
+  if (name.startsWith('Choice ')) return 16;
+
+  return 12;
+}
+

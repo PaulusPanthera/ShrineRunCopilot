@@ -49,7 +49,7 @@
     "ability": "Iron Fist",
     "moves": [
       "Flamethrower",
-      "Hidden Power (Ground)",
+      "Hidden Power (Fighting)",
       "Fake Out",
       "Fake Tears"
     ]
@@ -329,6 +329,28 @@
       "Joyous Cheer"
     ]
   },
+  "Panpour": {
+    "species": "Panpour",
+    "canClaim": 1,
+    "ability": "Torrent",
+    "moves": [
+      "Water Pledge",
+      "Acrobatics",
+      "Hidden Power (Dragon)",
+      "Ice Beam"
+    ]
+  },
+  "Pansage": {
+    "species": "Pansage",
+    "canClaim": 1,
+    "ability": "Overgrow",
+    "moves": [
+      "Grass Pledge",
+      "Acrobatics",
+      "Hidden Power (Rock)",
+      "Low Kick"
+    ]
+  },
   "Pansear": {
     "species": "Pansear",
     "canClaim": 1,
@@ -365,7 +387,7 @@
   "Piplup": {
     "species": "Piplup",
     "canClaim": 1,
-    "ability": "Competitve",
+    "ability": "Competitive",
     "moves": [
       "Scald",
       "Hidden Power (Steel)",
@@ -593,6 +615,17 @@
       "Mending Prayer"
     ]
   },
+  "Torchic": {
+    "species": "Torchic",
+    "canClaim": 1,
+    "ability": "Blaze",
+    "moves": [
+      "Fire Pledge",
+      "Hidden Power (Fighting)",
+      "Bounce",
+      "Helping Hand"
+    ]
+  },
   "Totodile": {
     "species": "Totodile",
     "canClaim": 1,
@@ -635,6 +668,61 @@
       "Flamethrower",
       "Ice Beam",
       "Provoke"
+    ]
+  },
+  "Pidgey": {
+    "species": "Pidgey",
+    "canClaim": 1,
+    "ability": "Big Pecks",
+    "moves": [
+      "Brave Bird",
+      "Return",
+      "U-turn",
+      "Steel Wing"
+    ]
+  },
+  "Growlithe": {
+    "species": "Growlithe",
+    "canClaim": 1,
+    "ability": "Intimidate",
+    "moves": [
+      "Flamethrower",
+      "Wild Charge",
+      "Close Combat",
+      "Helping Hand"
+    ]
+  },
+  "Snubbull": {
+    "species": "Snubbull",
+    "canClaim": 1,
+    "ability": "Intimidate",
+    "moves": [
+      "Double-Edge",
+      "Earthquake",
+      "Ice Punch",
+      "Lovely Kiss"
+    ]
+  },
+  "Lillipup": {
+    "species": "Lillipup",
+    "canClaim": 1,
+    "ability": "Vital Spirit",
+    "moves": [
+      "Return",
+      "Crunch",
+      "Wild Charge",
+      "Fire Fang"
+    ]
+  },
+  "Munna": {
+    "species": "Munna",
+    "canClaim": 1,
+    "ability": "Telepathy",
+    "moves": [
+      "Psychic",
+      "Shadow Ball",
+      "Signal Beam",
+      "Mending Prayer"
     ]
   }
 }

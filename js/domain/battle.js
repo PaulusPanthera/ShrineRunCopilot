@@ -18,6 +18,10 @@ function uniq(arr){
   return out;
 }
 
+function baseDefKey(k){
+  return String(k || '').split('#')[0];
+}
+
 function clampPct(x){
   const n = Number(x);
   if (!Number.isFinite(n)) return 0;
@@ -106,17 +110,31 @@ function slotSuffix(rowKey, waveKey){
   return m ? m[0] : rowKey;
 }
 
-function pickAutoActionForAttacker({data, calc, state, wp, waveKey, attackerId, activeDefSlots}){
+function pickAutoActionForAttacker({data, calc, state, wp, waveKey, attackerId, activeDefSlots, excludeInstKeys}){
   const r = byId(state.roster, attackerId);
   if (!r) return null;
 
+  const exclude = new Set((excludeInstKeys||[]).filter(Boolean));
+
   // Candidate moves: enabled + have PP
-  const pool = (r.movePool||[]).filter(m => m && m.use !== false && hasPP(state, attackerId, m.name));
+  let pool = (r.movePool||[]).filter(m => m && m.use !== false && hasPP(state, attackerId, m.name));
+
+  // Optional forced move override (set in Fight plan).
+  const forcedName = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[attackerId] || null) : null;
+  if (forcedName){
+    const forcedPool = pool.filter(m => m && m.name === forcedName);
+    if (forcedPool.length) pool = forcedPool;
+  }
+
   if (!pool.length) return null;
 
   // Try every target, take best move per target, then pick best overall.
   const candidates = [];
-  for (const ds of (activeDefSlots||[])){
+  const defList = (activeDefSlots||[]);
+  const filtered = exclude.size ? defList.filter(ds => !exclude.has(ds?._instKey || ds?.rowKey)) : defList;
+  const targets = (filtered.length ? filtered : defList);
+
+  for (const ds of targets){
     const defObj = defenderObj(state, ds);
     const sW = settingsForWave(state, wp, attackerId, ds.rowKey);
     const atk = attackerObj(state, r);
@@ -133,7 +151,9 @@ function pickAutoActionForAttacker({data, calc, state, wp, waveKey, attackerId, 
     const b = res.best;
     candidates.push({
       attackerId,
-      targetRowKey: ds.rowKey,
+      // targetRowKey must reference the active instance key (base#N) so HP tracking stays correct.
+      targetRowKey: ds._instKey || ds.rowKey,
+      targetBaseRowKey: ds._baseRowKey || ds.rowKey,
       move: b.move,
       prio: b.prio ?? 9,
       minPct: Number(b.minPct)||0,
@@ -209,6 +229,7 @@ function pickEnemyAction({data, state, wp, attackerIds, defSlot}){
       maxPct: Number(t.maxPct)||Number(t.minPct)||0,
       oneShot: !!t.oneShot,
       ohkoChance: Number(t.ohkoChance)||0,
+      aoe: !!t.aoe,
       enemyActsFirst: !!t.enemyActsFirst,
       enemySpe: Number(t.attackerSpe)||0,
       targetSpe: Number(t.defenderSpe)||0,
@@ -238,9 +259,23 @@ export function initBattleForWave({data, calc, state, waveKey, slots}){
   if (!wp) return null;
 
   const slotByKey = new Map((slots||[]).map(s=>[s.rowKey,s]));
-  const defSlots = (wp.defenders||[]).map(k=>slotByKey.get(k)).filter(Boolean);
-  const defActive = defSlots.slice(0,2).map(s=>s.rowKey);
-  const defBench = defSlots.slice(2).map(s=>s.rowKey);
+
+  // Allow duplicate defenders by expanding repeated base rowKeys into instance keys (#2/#3/...)
+  // while still resolving stats/moves off the base rowKey.
+  const baseCounts = {};
+  const defKeys = (wp.defenders||[])
+    .filter(Boolean)
+    .map(raw=>{
+      const base = baseDefKey(raw);
+      baseCounts[base] = (baseCounts[base] || 0) + 1;
+      const n = baseCounts[base];
+      return n === 1 ? base : `${base}#${n}`;
+    });
+
+  const defSlots = defKeys.map(k=>slotByKey.get(baseDefKey(k))).filter(Boolean);
+  // We keep battle keys as the expanded instance keys (base#N).
+  const defActive = defKeys.slice(0,2);
+  const defBench = defKeys.slice(2);
 
   const attackerIds = (wp.attackerOrder||wp.attackerStart||wp.attackers||[]).slice(0,16).filter(Boolean);
   const atkActive = uniq(attackerIds.slice(0,2));
@@ -266,6 +301,7 @@ export function initBattleForWave({data, calc, state, waveKey, slots}){
     hpDef,
     manual: {}, // attackerId -> {move,targetRowKey}
     lastActions: {atk:{}, def:{}},
+    history: [], // list of {side:'atk'|'def', actorId?, actorKey?, move, prio?, aoe?, target?}
     log: [`Fight started (${waveKey}).`],
     pending: null, // {side:'atk'|'def', slotIndex:number}
     claimed: false,
@@ -350,7 +386,13 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
 
   const activeAtkIds = (battle.atk.active||[]).filter(Boolean).filter(id => (battle.hpAtk[id] ?? 0) > 0);
   const activeDefKeys = (battle.def.active||[]).filter(Boolean).filter(rk => (battle.hpDef[rk] ?? 0) > 0);
-  const activeDefSlots = activeDefKeys.map(rk=>slotByKey.get(rk)).filter(Boolean);
+  const activeDefSlots = activeDefKeys.map(rk=>{
+    const baseKey = baseDefKey(rk);
+    const sl = slotByKey.get(baseKey);
+    if (!sl) return null;
+    // Keep instance key separate from base rowKey so we can track HP per-instance (#1/#2/...).
+    return {...sl, _instKey: rk, _baseRowKey: baseKey};
+  }).filter(Boolean);
 
   // Victory checks
   if (!activeDefKeys.length){
@@ -364,16 +406,41 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
     return;
   }
 
+  // Hard safety cap to avoid infinite loops when targeting/PP gets weird.
+  battle.turnCount = (battle.turnCount || 0) + 1;
+  const turnCap = Number(state.settings?.battleTurnCap) || 50;
+  if (battle.turnCount > turnCap){
+    battle.status = 'stalled';
+    battle.log.push(`Turn limit reached (${turnCap}).`);
+    return;
+  }
+
   const actions = [];
 
   // Attacker actions
+  // If only 1 enemy is alive, only one attacker needs to spend PP (the best one), unless the other is manual.
+  const onlyOneEnemy = (activeDefSlots.length === 1);
+  const attackerChoices = [];
+
+  // In 2v2, avoid wasting the second attacker on the same already-targeted defender when another defender is alive.
+  // We treat instance keys (base#N) as unique targets.
+  const reservedTargets = new Set();
+
   for (const id of activeAtkIds){
     const manual = battle.manual?.[id];
     let pick = null;
     if (manual && manual.move && manual.targetRowKey){
       // Respect manual unless move has no PP.
-      if (hasPP(state, id, manual.move) && activeDefKeys.includes(manual.targetRowKey)){
-        pick = {attackerId:id, targetRowKey:manual.targetRowKey, move:manual.move, source:'manual'};
+      // Manual targets may be base rowKeys; resolve to the currently-active instance key (base#N).
+      let targetInst = null;
+      if (activeDefKeys.includes(manual.targetRowKey)){
+        targetInst = manual.targetRowKey;
+      } else {
+        const wantBase = baseDefKey(manual.targetRowKey);
+        targetInst = activeDefKeys.find(k => baseDefKey(k) === wantBase) || null;
+      }
+      if (targetInst && hasPP(state, id, manual.move)){
+        pick = {attackerId:id, targetRowKey:targetInst, targetBaseRowKey: baseDefKey(targetInst), move:manual.move, source:'manual'};
       }
     }
     if (!pick){
@@ -384,30 +451,79 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
     }
     if (!pick) continue;
 
-    const defSlot = slotByKey.get(pick.targetRowKey);
+    // If this is an auto pick and we have multiple defenders alive, try to pick an untargeted defender.
+    // This prevents the common case where both attackers choose defender #1 when the matchup is identical.
+    if (pick.source === 'auto' && !onlyOneEnemy && activeDefSlots.length > 1){
+      const instKey = pick.targetRowKey;
+      if (instKey && reservedTargets.has(instKey)){
+        const alt = pickAutoActionForAttacker({
+          data, calc, state, wp, waveKey,
+          attackerId: id,
+          activeDefSlots,
+          excludeInstKeys: [...reservedTargets],
+        });
+        if (alt){
+          pick = {...alt, source:'auto'};
+        }
+      }
+    }
+
+    const targetKey = pick.targetRowKey; // instance key (base#N)
+    const targetBaseRowKey = pick.targetBaseRowKey || baseDefKey(targetKey);
+    const defSlot = slotByKey.get(targetBaseRowKey);
     if (!defSlot) continue;
 
     const rr = computeRangeForAttack({data, calc, state, wp, attackerId:id, defSlot, moveName:pick.move});
     if (!rr) continue;
 
-    actions.push({
+    const actObj = {
       side:'atk',
       actorId:id,
-      targetKey: pick.targetRowKey,
+      targetKey,
+      targetBaseRowKey,
       move: pick.move,
+      prio: pick.prio ?? 9,
       minPct: Number(rr.minPct)||0,
       moveType: rr.moveType,
       category: rr.category,
       actorSpe: Number(rr.attackerSpe)||0,
       targetSpe: Number(rr.defenderSpe)||0,
-    });
+      source: pick.source,
+    };
 
-    battle.lastActions.atk[id] = {move: pick.move, target: pick.targetRowKey, minPct: Number(rr.minPct)||0, source: pick.source};
+    if (onlyOneEnemy && pick.source !== 'manual'){
+      attackerChoices.push(actObj);
+    } else {
+      actions.push(actObj);
+    }
+
+    if (!onlyOneEnemy && actObj.targetKey){
+      reservedTargets.add(actObj.targetKey);
+    }
+
+    battle.lastActions.atk[id] = {move: pick.move, target: pick.targetRowKey, prio: pick.prio ?? 9, minPct: Number(rr.minPct)||0, source: pick.source};
+  }
+
+  if (onlyOneEnemy && attackerChoices.length){
+    // Choose best action among attackers: OHKO, then lower prio, then closer-to-100 for OHKO.
+    attackerChoices.sort((a,b)=>{
+      const ao = ((a.minPct||0) >= (battle.hpDef[a.targetKey] ?? 100)) ? 1 : 0;
+      const bo = ((b.minPct||0) >= (battle.hpDef[b.targetKey] ?? 100)) ? 1 : 0;
+      if (ao !== bo) return bo-ao;
+      if ((a.prio??9) !== (b.prio??9)) return (a.prio??9) - (b.prio??9);
+      if (ao && bo){
+        const ak = Math.abs((a.minPct||0)-100);
+        const bk = Math.abs((b.minPct||0)-100);
+        if (ak !== bk) return ak-bk;
+      }
+      return (b.minPct||0) - (a.minPct||0);
+    });
+    actions.push(attackerChoices[0]);
   }
 
   // Defender actions (enemy hits you): choose best target across active attackers.
   for (const rk of activeDefKeys){
-    const defSlot = slotByKey.get(rk);
+    const defSlot = slotByKey.get(baseDefKey(rk));
     if (!defSlot) continue;
 
     const enemyPick = pickEnemyAction({data, state, wp, attackerIds: activeAtkIds, defSlot});
@@ -424,6 +540,7 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
       category: enemyPick.category,
       actorSpe: enemyPick.enemySpe,
       targetSpe: enemyPick.targetSpe,
+      aoe: !!enemyPick.aoe,
       chosenReason: enemyPick.chosenReason,
       ohkoChance: enemyPick.ohkoChance,
     });
@@ -448,35 +565,60 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
   for (const act of actions){
     if (act.side === 'atk'){
       const id = act.actorId;
-      const rk = act.targetKey;
+      let rk = act.targetKey;
       if (!id || !rk) continue;
       if ((battle.hpAtk[id] ?? 0) <= 0) continue; // fainted before acting
-      if ((battle.hpDef[rk] ?? 0) <= 0) continue;
+
+      // If the chosen target fainted earlier in the same turn, redirect to a remaining alive defender.
+      // This matches in-game behavior and prevents wasting an action on a dead slot.
+      if ((battle.hpDef[rk] ?? 0) <= 0){
+        const altKey = (battle.def.active||[]).filter(Boolean).find(k => (battle.hpDef[k] ?? 0) > 0);
+        if (!altKey) continue;
+        rk = altKey;
+        // Recompute minPct vs redirected target (species can differ).
+        const baseKey = baseDefKey(rk);
+        const defSlot = slotByKey.get(baseKey);
+        if (!defSlot) continue;
+        const rr = computeRangeForAttack({data, calc, state, wp, attackerId:id, defSlot, moveName:act.move});
+        if (!rr) continue;
+        act.minPct = Number(rr.minPct)||0;
+        act.targetKey = rk;
+        act.targetBaseRowKey = baseKey;
+      }
 
       const dmg = clampPct(act.minPct);
       battle.hpDef[rk] = clampPct((battle.hpDef[rk] ?? 0) - dmg);
+      const ppBefore = getPP(state, id, act.move);
       decPP(state, id, act.move);
-      turnLog.push(`${byId(state.roster,id)?.baseSpecies || 'Attacker'} used ${act.move} → ${slotByKey.get(rk)?.defender || rk} (${dmg.toFixed(1)}%).`);
+      const ppAfter = getPP(state, id, act.move);
+      const defName = slotByKey.get(baseDefKey(rk))?.defender || rk;
+      turnLog.push(`${byId(state.roster,id)?.baseSpecies || 'Attacker'} used ${act.move} (P${act.prio ?? '?'}) → ${defName} (${dmg.toFixed(1)}% · PP ${ppAfter.cur}/${ppAfter.max}).`);
+      battle.history.push({side:'atk', actorId:id, move: act.move, prio: act.prio ?? 9, targetKey: rk});
       if ((battle.hpDef[rk] ?? 0) <= 0){
         // remove from active slot
         const idx = battle.def.active.indexOf(rk);
         if (idx !== -1) battle.def.active[idx] = null;
-        turnLog.push(`${slotByKey.get(rk)?.defender || rk} fainted.`);
+        turnLog.push(`${defName} fainted.`);
       }
     } else {
       const rk = act.actorKey;
       const id = act.targetId;
       if (!rk || !id) continue;
       if ((battle.hpDef[rk] ?? 0) <= 0) continue;
-      if ((battle.hpAtk[id] ?? 0) <= 0) continue;
-
+      // AoE moves hit BOTH active attackers.
+      const targetIds = act.aoe ? (battle.atk.active||[]).filter(Boolean) : [id];
       const dmg = clampPct(act.minPct);
-      battle.hpAtk[id] = clampPct((battle.hpAtk[id] ?? 0) - dmg);
-      turnLog.push(`${slotByKey.get(rk)?.defender || rk} used ${act.move} → ${byId(state.roster,id)?.baseSpecies || id} (${dmg.toFixed(1)}%).`);
-      if ((battle.hpAtk[id] ?? 0) <= 0){
-        const idx = battle.atk.active.indexOf(id);
-        if (idx !== -1) battle.atk.active[idx] = null;
-        turnLog.push(`${byId(state.roster,id)?.baseSpecies || id} fainted.`);
+      for (const tid of targetIds){
+        if ((battle.hpAtk[tid] ?? 0) <= 0) continue;
+        battle.hpAtk[tid] = clampPct((battle.hpAtk[tid] ?? 0) - dmg);
+        const defName = slotByKey.get(baseDefKey(rk))?.defender || rk;
+        turnLog.push(`${defName} used ${act.move}${act.aoe ? ' (AOE)' : ''} → ${byId(state.roster,tid)?.baseSpecies || tid} (${dmg.toFixed(1)}%).`);
+        battle.history.push({side:'def', actorKey: rk, move: act.move, aoe: !!act.aoe, targetId: tid});
+        if ((battle.hpAtk[tid] ?? 0) <= 0){
+          const idx = battle.atk.active.indexOf(tid);
+          if (idx !== -1) battle.atk.active[idx] = null;
+          turnLog.push(`${byId(state.roster,tid)?.baseSpecies || tid} fainted.`);
+        }
       }
     }
   }
@@ -505,6 +647,10 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
 }
 
 export function battleLabelForRowKey({rowKey, waveKey, defender, level}){
-  const suf = slotSuffix(rowKey, waveKey);
-  return `${defender} · Lv ${level}` + (suf ? ` · ${suf}` : '');
+  // UI label for defender instance keys.
+  // Display as a simple instance number (#1/#2/...) instead of raw rowKey suffixes.
+  const parts = String(rowKey || '').split('#');
+  const n = (parts.length > 1) ? Number(parts[1] || 1) : 1;
+  const inst = Number.isFinite(n) ? n : 1;
+  return `${defender} · Lv ${level} · #${inst}`;
 }

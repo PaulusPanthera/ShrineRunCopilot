@@ -318,13 +318,7 @@
 
   function pickCandidateMoves(movePool){
     // movePool: [{name, prio, use}]
-    const enabled = (movePool || []).filter(m => {
-      if (!m || !m.use || !m.name) return false;
-      // PP support (planner default is 12 for every move): if pp is present, it must be > 0.
-      const pp = (m.pp === undefined || m.pp === null) ? null : Number(m.pp);
-      if (pp === null) return true;
-      return Number.isFinite(pp) ? (pp > 0) : true;
-    });
+    const enabled = (movePool || []).filter(m => m && m.use && m.name);
     // Lower number means more preferred (P1 > P2 > P3)
     enabled.sort((a,b) => (normPrio(a.prio) - normPrio(b.prio)) || a.name.localeCompare(b.name));
     return enabled;

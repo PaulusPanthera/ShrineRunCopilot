@@ -2,6 +2,7 @@
 // v13 — roster entry construction + charm rules
 
 import { EVO_OVERRIDES, EVO_PRESET } from '../services/pokeApi.js';
+import { applyMovesetOverrides, defaultNatureForSpecies } from './shrineRules.js';
 
 export const STARTERS = new Set(['Cobalion','Keldeo','Terrakion','Virizion']);
 
@@ -72,6 +73,7 @@ export function buildDefaultMovePool(data, species, moveNames, source='base'){
 
 export function makeRosterEntryFromClaimedSet(data, species){
   const set = data.claimedSets?.[species] || {ability:'', moves:[]};
+  const fixedMoves = applyMovesetOverrides(species, Array.isArray(set.moves) ? set.moves : []);
   const id = `r_${species}_${Math.random().toString(16).slice(2,9)}`;
   const entry = {
     id,
@@ -79,10 +81,11 @@ export function makeRosterEntryFromClaimedSet(data, species){
     effectiveSpecies: species,
     active: true,
     evo: false,
+    nature: defaultNatureForSpecies(species),
     // Starters: Strength charm is forced ON by default.
     strength: isStarterSpecies(species) ? true : false,
     ability: set.ability || '',
-    movePool: buildDefaultMovePool(data, species, set.moves || [], 'base'),
+    movePool: buildDefaultMovePool(data, species, fixedMoves || [], 'base'),
     item: null,
   };
   return entry;
@@ -108,11 +111,52 @@ export function getEvoTarget(data, base, evoCache){
 export function applyCharmRulesSync(data, state, entry){
   const base = entry.baseSpecies;
 
+  // Apply rare, explicit moveset exceptions based on the *effective* species.
+  // This keeps the "4 hardcoded moves" rule intact when Evo charm changes species.
+  const applyEffectiveMoveset = ()=>{
+    const eff = entry.effectiveSpecies || entry.baseSpecies;
+    entry.movePool = entry.movePool || [];
+    const names = entry.movePool.map(m => m.name);
+    const overridden = applyMovesetOverrides(eff, names);
+    const looksBase = entry.movePool.length <= 4 && entry.movePool.every(m => (m.source || 'base') === 'base');
+
+    // If the override is a full 4-move set, only enforce it when the pool still looks "base".
+    if (looksBase && overridden && overridden.length === 4 && !overridden.every((v,i)=>v===names[i])){
+      const prev = new Map(entry.movePool.map(m => [m.name, m]));
+      const rebuilt = buildDefaultMovePool(data, eff, overridden, 'base');
+      // Preserve PP + use when the same move name exists.
+      for (const mv of rebuilt){
+        const old = prev.get(mv.name);
+        if (old){
+          mv.use = old.use;
+          mv.ppMax = Number.isFinite(Number(old.ppMax)) ? Number(old.ppMax) : mv.ppMax;
+          mv.pp = Number.isFinite(Number(old.pp)) ? Number(old.pp) : mv.pp;
+          mv.prio = Number.isFinite(Number(old.prio)) ? Number(old.prio) : mv.prio;
+        }
+      }
+      entry.movePool = rebuilt;
+      return;
+    }
+
+    // Otherwise, do safe in-place replacements (preserve PP/use) and recompute default prio.
+    if (overridden && overridden.length === names.length){
+      for (let i = 0; i < entry.movePool.length; i++){
+        const oldName = entry.movePool[i].name;
+        const newName = overridden[i];
+        if (newName && newName !== oldName){
+          entry.movePool[i].name = newName;
+          entry.movePool[i].prio = defaultPrioForMove(data, eff, newName);
+        }
+      }
+    }
+  };
+
   // Starters: Evo unavailable; Strength is forced ON (does NOT consume the shared bag).
   if (isStarterSpecies(base)){
     entry.evo = false;
     entry.strength = true;
     entry.effectiveSpecies = base;
+    applyEffectiveMoveset();
     return {needsEvoResolve:false, evoBase:null};
   }
 
@@ -123,13 +167,16 @@ export function applyCharmRulesSync(data, state, entry){
     const t = getEvoTarget(data, base, evoCache);
     if (t){
       entry.effectiveSpecies = t;
+      applyEffectiveMoveset();
       return {needsEvoResolve:false, evoBase:null};
     }
     entry.effectiveSpecies = base;
+    applyEffectiveMoveset();
     return {needsEvoResolve:true, evoBase: base};
   }
 
   entry.effectiveSpecies = base;
+  applyEffectiveMoveset();
   return {needsEvoResolve:false, evoBase:null};
 }
 

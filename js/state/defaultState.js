@@ -43,7 +43,6 @@ export function createDefaultState(data){
       stabBonus: 2,
       conservePower: true,
       hideCleared: false,
-      startWaveAnimal: 'Goat',
 
       claimedLevel: n(data?.rules?.Claimed_Level, 50),
       claimedIV: n(data?.rules?.Claimed_IV_All, 31),
@@ -54,6 +53,9 @@ export function createDefaultState(data){
       wildEV: n(data?.rules?.Wild_EV_Default, 0),
 
       otherMult: 1,
+
+      // Run order: which animal wave starts each phase (rotates wave display order only)
+      startAnimal: 'Goat',
     },
     unlocked: {},
     cleared: {},
@@ -63,14 +65,22 @@ export function createDefaultState(data){
       'Evo Charm': 2,
       'Strength Charm': 2,
     },
-    // Simple currency (sell loot for gold; shop later)
-    wallet: {
-      gold: 0,
-    },
     evoCache: {},
     baseCache: {},
     evoLineCache: {},
     wavePlans: {},
+    // Battle simulator state per waveKey
+    battles: {},
+    // Persistent PP tracking for roster moves (id -> moveName -> {cur,max})
+    pp: {},
+
+    // Pokédex live caches (PokeAPI)
+    dexMetaCache: {},
+    dexApiCache: {},
+    dexMoveCache: {},
+
+    // Politoed shop (buy/sell bag items)
+    shop: { gold: 0, ledger: [] },
     ui: {
       tab: 'waves',
       waveExpanded: {},
@@ -79,12 +89,11 @@ export function createDefaultState(data){
       searchUnlocked: '',
       dexDetailBase: null,
       dexSelectedForm: null,
-      dexDefenderLevel: null,
+      dexReturnTab: null,
+      simWaveKey: null,
+      dexDefenderLevelByBase: {},
       attackOverview: null, // {defender, level, tags, source}
       overviewCollapsed: true,
-      fightLog: {},
-      fightUndo: {},
-      bagUndo: [],
     },
   };
 }
