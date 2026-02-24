@@ -2,6 +2,7 @@
 // v13 — load static json data (no build step)
 
 import { fixName } from './nameFixes.js';
+import { fixMoveName } from './moveFixes.js';
 
 async function fetchJson(path){
   const r = await fetch(path);
@@ -30,6 +31,14 @@ export async function loadData(){
     fetchJson('data/claimedSets.json'),
     fetchJsonOptional('data/waveLoot.json', {}),
   ]);
+
+
+  // Normalize move names inside claimedSets so the app uses canonical names everywhere.
+  for (const [sp, obj] of Object.entries(claimedSets||{})){
+    if (!obj || typeof obj !== 'object') continue;
+    if (Array.isArray(obj.moves)) obj.moves = obj.moves.map(fixMoveName);
+    if (typeof obj.ability === 'string') obj.ability = obj.ability.trim();
+  }
 
   // Apply name fixes to calc slots
   const fixedSlots = (calcSlots || []).map(x => ({

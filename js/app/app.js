@@ -2,10 +2,11 @@
 // Abundant Shrine — Roster Planner (alpha v13)
 // Professionalized module entry: data/services/state are external; this file focuses on UI + orchestration.
 
-import { $, $$, el, pill, formatPct, clampInt, sprite } from '../ui/dom.js';
+import { $, $$, el, pill, formatPct, clampInt, sprite, ensureFormFieldA11y } from '../ui/dom.js';
 import { fixName } from '../data/nameFixes.js';
 import {
   makeRosterEntryFromClaimedSet,
+  makeRosterEntryFromClaimedSetWithFallback,
   applyCharmRulesSync,
   normalizeMovePool,
   defaultPrioForMove,
@@ -89,6 +90,60 @@ export function startApp(ctx){
   const tabSim = $('#tabSim');
   const tabUnlocked = $('#tabUnlocked');
   const unlockedCountEl = $('#unlockedCount');
+
+  // ---------------- Phase completion rewards ----------------
+  // Awarded once per phase when ALL waves in that phase have 4/4 fights logged.
+  // (Extensible later — right now only Phase 1 is confirmed.)
+  const PHASE_COMPLETION_REWARDS = {
+    1: { gold: 10, items: { 'Revive': 1 } },
+  };
+
+  const waveKeysByPhase = (()=>{
+    const m = new Map();
+    for (const sl of (data.calcSlots||[])){
+      const p = Number(sl.phase||0);
+      const wk = String(sl.waveKey||'').trim();
+      if (!p || !wk) continue;
+      if (!m.has(p)) m.set(p, new Set());
+      m.get(p).add(wk);
+    }
+    const out = new Map();
+    for (const [p,set] of m.entries()) out.set(p, Array.from(set).sort((a,b)=>waveOrderKey(a)-waveOrderKey(b)));
+    return out;
+  })();
+
+  const isWaveComplete = (st, wk)=>{
+    const w = st.wavePlans?.[wk];
+    return Array.isArray(w?.fightLog) && w.fightLog.length >= 4;
+  };
+
+  function maybeAwardPhaseReward(st, phase){
+    const rew = PHASE_COMPLETION_REWARDS[Number(phase)];
+    if (!rew) return;
+
+    st.phaseRewardsClaimed = st.phaseRewardsClaimed || {};
+    if (st.phaseRewardsClaimed[String(phase)]) return;
+
+    const keys = waveKeysByPhase.get(Number(phase)) || [];
+    if (!keys.length) return;
+    if (!keys.every(wk=>isWaveComplete(st, wk))) return;
+
+    // Award.
+    st.shop = st.shop || {gold:0, ledger:[]};
+    st.shop.gold = Math.max(0, Math.floor(Number(st.shop.gold||0) + Number(rew.gold||0)));
+    st.bag = st.bag || {};
+    for (const [item, qty0] of Object.entries(rew.items || {})){
+      const qty = Math.max(0, Math.floor(Number(qty0||0)));
+      if (!item || !qty) continue;
+      st.bag[item] = Number(st.bag[item]||0) + qty;
+    }
+    st.phaseRewardsClaimed[String(phase)] = {ts: Date.now(), ...rew};
+  }
+
+  // If the user already completed phases in an older version, award immediately on load.
+  store.update(st=>{
+    for (const p of Object.keys(PHASE_COMPLETION_REWARDS)) maybeAwardPhaseReward(st, Number(p));
+  });
 
   const ovPanel = $('#attackOverview');
   const ovSprite = $('#ovSprite');
@@ -300,6 +355,7 @@ export function startApp(ctx){
 
           // Any other tab: leave Pokédex entirely.
           s.ui.tab = t;
+          s.ui.lastNonDexTab = t;
           s.ui.dexDetailBase = null;
           s.ui.dexSelectedForm = null;
           s.ui.dexReturnTab = null;
@@ -2164,11 +2220,21 @@ function renderWavePlanner(state, waveKey, slots, wp){
 
       const line = (x)=>{
         const out = x.best ? `${rosterLabel(x.att)} → ${x.def.defender}: ${x.best.move} (P${x.best.prio} · ${formatPct(x.best.minPct)} min)` : `${rosterLabel(x.att)} → ${x.def.defender}: —`;
+        const slower = !!(x.best && !attackerActsFirst(x.best));
+        const speNote = (best)=>{
+          if (!best) return '';
+          const aSpe = Number(best.attackerSpe ?? 0);
+          const dSpe = Number(best.defenderSpe ?? 0);
+          const tieFirst = (state.settings?.enemySpeedTieActsFirst ?? true);
+          if (aSpe === dSpe) return tieFirst ? `Speed tie (${aSpe} vs ${dSpe}) · enemy acts first on tie` : `Speed tie (${aSpe} vs ${dSpe}) · you act first on tie`;
+          return `Speed: you ${aSpe} vs enemy ${dSpe}`;
+        };
         return el('div', {class:'plan-line'}, [
           el('div', {class:'plan-left'}, [el('strong', {}, x.def.defender), el('span', {class:'muted'}, ` · Lv ${x.def.level}`)]),
           el('div', {class:'plan-right'}, [
             el('span', {}, out),
             x.best?.oneShot ? pill('OHKO','good') : pill('NO','bad'),
+            slower ? (()=>{ const p = pill('SLOW','warn'); p.title = `Enemy may act first. ${speNote(x.best)}`; return p; })() : null,
           ])
         ]);
       };
@@ -2227,6 +2293,11 @@ function renderWavePlanner(state, waveKey, slots, wp){
       const inc1 = incomingRow(right.def, right);
       if (inc0) planTable.appendChild(inc0);
       if (inc1) planTable.appendChild(inc1);
+
+      const slowAny = (!!left.best && !attackerActsFirst(left.best)) || (!!right.best && !attackerActsFirst(right.best));
+      if (slowAny){
+        planTable.appendChild(el('div', {class:'muted small', style:'margin-top:6px'}, '⚠️ Speed warning: at least one matchup has the enemy acting first (SLOW).'));
+      }
 
       // Bench coverage
       const bench = picked.slice(2).map(x=>x.slot);
@@ -2467,6 +2538,11 @@ function renderWavePlanner(state, waveKey, slots, wp){
 
 	      // Add to bottom (oldest first).
 	      w.fightLog.push(entry);
+
+        // If this wave just completed, check phase completion rewards.
+        if (w.fightLog.length >= 4){
+          maybeAwardPhaseReward(s, phase);
+        }
 	    };
 
 	    fightBtn.addEventListener('click', ()=>{
@@ -3277,6 +3353,10 @@ function renderWavePlanner(state, waveKey, slots, wp){
       .map(b=>b.key)
       .filter(Boolean)
     )
+    // Show only purchasable items.
+    // Loot-only (or otherwise non-buyable) items have price 0.
+    .filter(n=>priceOfItem(n) > 0)
+    // Copper Coin is shrine-loot only even though it has a nominal price.
     .filter(n=>n !== 'Copper Coin')
     .sort((a,b)=>a.localeCompare(b));
 
@@ -3342,7 +3422,8 @@ function renderWavePlanner(state, waveKey, slots, wp){
   function openAddRosterModal(state){
     const unlockedSpecies = Object.keys(state.unlocked).filter(k=>state.unlocked[k]).sort((a,b)=>a.localeCompare(b));
     const existing = new Set(state.roster.map(r=>r.baseSpecies));
-    const candidates = unlockedSpecies.filter(s=>!existing.has(s) && data.claimedSets[s]);
+    const candidates = unlockedSpecies.filter(s=>!existing.has(s));
+    const pendingBases = new Set();
 
     const overlay = el('div', {style:`position:fixed; inset:0; background: rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; z-index:1000;`});
     const modal = el('div', {class:'panel', style:'width:820px; max-width:95vw; max-height:85vh; overflow:hidden'}, [
@@ -3357,7 +3438,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
       el('div', {class:'list', style:'max-height:60vh'}, [
         el('div', {class:'list-body', id:'addList', style:'max-height:60vh'}),
       ]),
-      el('div', {class:'muted small'}, 'Only species that have a baseline set in your sheet (ClaimedSets) can be added right now.'),
+      el('div', {class:'muted small'}, 'Tip: Evolutions inherit the base form\'s set automatically unless you explicitly override them.'),
     ]);
 
     modal.querySelector('button').addEventListener('click', ()=> overlay.remove());
@@ -3374,10 +3455,34 @@ function renderWavePlanner(state, waveKey, slots, wp){
       for (const sp of rows){
         const img = el('img', {class:'sprite', src:sprite(calc, sp), alt:sp});
         img.onerror = ()=> img.style.opacity='0.25';
+
+        const stNow = store.getState();
+        const base = pokeApi.baseOfSync(sp, stNow.baseCache||{});
+        const cs = data.claimedSets?.[sp] || data.claimedSets?.[base] || null;
+        const inheritedFrom = (!data.claimedSets?.[sp] && cs && base && base !== sp) ? base : null;
+
+        // If we don't have a base mapping yet, resolve it in the background for better inheritance.
+        if (!data.claimedSets?.[sp] && (!base || base === sp) && !pendingBases.has(sp)){
+          pendingBases.add(sp);
+          pokeApi.resolveBaseNonBaby(sp, stNow.baseCache||{})
+            .then(({base:resolved, updates})=>{
+              store.update(st=>{
+                st.baseCache = {...(st.baseCache||{}), ...(updates||{})};
+              });
+              // Re-render once cache updated.
+              try{ render(); }catch{}
+            })
+            .catch(()=>{ pendingBases.delete(sp); });
+        }
+
         const btn = el('button', {class:'btn-mini'}, 'Add');
+        if (!cs) btn.disabled = true;
+
         btn.addEventListener('click', ()=>{
+          if (!cs) return;
           store.update(s=>{
-            const entry = makeRosterEntryFromClaimedSet(data, sp);
+            const base2 = pokeApi.baseOfSync(sp, s.baseCache||{});
+            const entry = makeRosterEntryFromClaimedSetWithFallback(data, sp, base2);
             normalizeMovePool(entry);
             s.roster.push(entry);
             s.unlocked[sp] = true;
@@ -3398,12 +3503,16 @@ function renderWavePlanner(state, waveKey, slots, wp){
           overlay.remove();
         });
 
+        const sub = cs
+          ? `Ability: ${cs.ability || '—'} · Moves: ${(cs.moves||[]).slice(0,4).join(', ')}${inheritedFrom ? ` (inherit: ${inheritedFrom})` : ''}`
+          : 'No baseline set yet (add it to ClaimedSets).';
+
         listBody.appendChild(el('div', {class:'row'}, [
           el('div', {class:'row-left'}, [
             img,
             el('div', {}, [
               el('div', {class:'row-title'}, sp),
-              el('div', {class:'row-sub'}, `Ability: ${data.claimedSets[sp]?.ability || '—'} · Moves: ${(data.claimedSets[sp]?.moves||[]).join(', ')}`),
+              el('div', {class:'row-sub'}, sub),
             ]),
           ]),
           el('div', {class:'row-right'}, [btn]),
@@ -3431,6 +3540,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
         s.ui.tab = 'unlocked';
         // Remember where we came from so the Dex back button can return.
         s.ui.dexReturnTab = 'roster';
+        s.ui.lastNonDexTab = 'roster';
         s.ui.dexDetailBase = base;
         s.ui.dexSelectedForm = base;
       });
@@ -3792,6 +3902,9 @@ function renderWavePlanner(state, waveKey, slots, wp){
         const base = r.baseSpecies;
         store.update(s=>{
           s.ui.tab = 'unlocked';
+          // Remember where we came from so the Dex back button can return to Roster.
+          s.ui.dexReturnTab = 'roster';
+        s.ui.lastNonDexTab = 'roster';
           s.ui.dexDetailBase = base;
           s.ui.dexSelectedForm = base;
         });
@@ -3864,16 +3977,6 @@ function renderWavePlanner(state, waveKey, slots, wp){
       ...Object.keys(data.claimedSets || {}),
       ...speciesListFromSlots(data.calcSlots || []),
     ]);
-
-    // Wave-derived level ranges per base (for nice labels in the grid)
-    const waveInfoByBase = new Map();
-    for (const sl of (data.calcSlots||[])){
-      const base = pokeApi.baseOfSync(sl.defender, state.baseCache||{});
-      const cur = waveInfoByBase.get(base) || {levels:new Set(), forms:new Set()};
-      cur.levels.add(Number(sl.level)||0);
-      cur.forms.add(sl.defender);
-      waveInfoByBase.set(base, cur);
-    }
 
     const q = (state.ui.searchUnlocked || '').toLowerCase().trim();
 
@@ -4022,7 +4125,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
         ev?.preventDefault?.();
         ev?.stopPropagation?.();
         store.update(s=>{
-          const ret = s.ui.dexReturnTab || 'unlocked';
+          const ret = s.ui.dexReturnTab || s.ui.lastNonDexTab || 'unlocked';
           s.ui.dexDetailBase = null;
           s.ui.dexSelectedForm = null;
           s.ui.dexReturnTab = null;
@@ -4200,77 +4303,53 @@ function renderWavePlanner(state, waveKey, slots, wp){
 
     const filtered = claimable.filter(sp => !q || String(sp).toLowerCase().includes(q));
 
-    // Best-effort base resolution for visible rows (we only show BASE forms in the grid).
-    prefetchBaseForSpeciesList(filtered.slice(0, 800));
+    // IMPORTANT UX NOTE (mobile):
+    // The Pokédex grid must remain stable and clickable.
+    // Large background prefetching (base resolving + meta/api fetches) can trigger
+    // a constant stream of store updates → re-renders → "rows flipping" and
+    // taps not registering. We therefore avoid bulk prefetching in the grid.
+    // Base resolving happens on-demand when opening a detail page.
 
     const baseSet = new Map();
-    const unresolvedList = [];
 
-    // Anything already unlocked should be a BASE species. If it isn't, map it back to its base.
+    // IMPORTANT:
+    // We do NOT bulk-resolve base forms in the background (it makes the grid jittery).
+    // However, we must still show a complete grid even when baseCache is empty.
+    // So: if a base mapping is unknown, we fall back to showing the species itself.
+
+    // Anything already unlocked should be a BASE species. If it isn't, map it back to its base if known.
     for (const k of Object.keys(state.unlocked||{})){
       if (!state.unlocked[k]) continue;
       const norm = fixName(k);
-      const base = (state.baseCache||{})[norm] || null;
-      if (base){
-        baseSet.set(base, true);
-      } else if (data.claimedSets?.[k]){
-        baseSet.set(k, true);
-      } else {
-        unresolvedList.push(k);
-      }
+      const base = (state.baseCache||{})[norm] || norm;
+      baseSet.set(base, true);
     }
 
     // Add bases for any visible species list entries (from waves + claimed sets).
     for (const sp of filtered){
       const norm = fixName(sp);
-      const base = (state.baseCache||{})[norm] || null;
-      if (base){
-        baseSet.set(base, true);
-      } else {
-        unresolvedList.push(sp);
-      }
-    }
-
-    const unresolved = uniq(unresolvedList.map(x=>fixName(x)))
-      .filter(n => !(state.baseCache||{})[n]).length;
-
-    if (unresolvedList.length){
-      prefetchBaseForSpeciesList(uniq(unresolvedList).slice(0, 800));
+      const base = (state.baseCache||{})[norm] || norm;
+      baseSet.set(base, true);
     }
 
     if (resolveHint){
-      resolveHint.textContent = unresolved ? `Resolving base forms… (${unresolved} not resolved yet)` : '';
+      // We no longer auto-resolve everything in the background.
+      // Keep the hint empty to avoid noise.
+      resolveHint.textContent = '';
     }
 
     const baseRaw = Array.from(baseSet.keys());
-    for (const b of baseRaw.slice(0, 500)) ensureDexMeta(b);
-
-    const baseList = baseRaw.sort((a,b)=>{
-      const ma = state.dexMetaCache?.[fixName(a)]?.id;
-      const mb = state.dexMetaCache?.[fixName(b)]?.id;
-      if (Number.isFinite(ma) && Number.isFinite(mb)) return ma - mb;
-      if (Number.isFinite(ma)) return -1;
-      if (Number.isFinite(mb)) return 1;
-      return String(a).localeCompare(String(b));
-    });
+    // Stable ordering (no async resorting while API responses stream in).
+    const baseList = baseRaw.sort((a,b)=> String(a).localeCompare(String(b)));
 
     grid.innerHTML = '';
     for (const base of baseList){
       const locked = !state.unlocked?.[base];
       const d = data.dex?.[base] || null;
 
-      const lvlSet = waveInfoByBase.get(base)?.levels || new Set();
-      const lvls = Array.from(lvlSet).filter(x=>Number.isFinite(Number(x)) && Number(x)>0).sort((a,b)=>a-b);
-      const lvlLabel = lvls.length ? (lvls.length===1 ? `Lv ${lvls[0]}` : `Lv ${lvls[0]}–${lvls[lvls.length-1]}`) : '';
-
-      // Prefer local sheet typings; fall back to Gen5-derived PokéAPI typing if needed.
-      let types = (d && Array.isArray(d.types) && d.types.length) ? d.types : [];
-      if (!types.length){
-        ensureDexApi(base);
-        const api = state.dexApiCache?.[fixName(base)] || null;
-        const tt = (api?.typesGen5 && Array.isArray(api.typesGen5) && api.typesGen5.length) ? api.typesGen5 : [];
-        types = tt;
-      }
+      // Prefer local sheet typings. We intentionally avoid background API fetches in the grid
+      // to keep it stable/clickable (detail page fetches full API data).
+      const types = (d && Array.isArray(d.types) && d.types.length) ? d.types : [];
 
       const img = el('img', {class:'sprite sprite-md dex-sprite', src:sprite(calc, base), alt:base});
       img.onerror = ()=> img.style.opacity='0.25';
@@ -4280,7 +4359,6 @@ function renderWavePlanner(state, waveKey, slots, wp){
           img,
           el('div', {class:'dex-meta'}, [
             el('div', {class:'dex-name'}, base),
-            lvlLabel ? el('div', {class:'dex-levels'}, lvlLabel) : null,
             types && types.length ? renderTypeChips(types) : el('div', {class:'muted small'}, '—'),
           ]),
           el('div', {class:'dex-tag ' + (locked ? 'bad' : 'good')}, locked ? 'Locked' : 'Unlocked'),
@@ -4532,6 +4610,19 @@ function renderWavePlanner(state, waveKey, slots, wp){
 
   // ---------------- Render orchestrator ----------------
 
+  // Chrome DevTools "Issues" will otherwise report hundreds of unlabeled/id-less fields.
+  // We generate hidden labels + ids/names after each render pass.
+  let __a11yQueued = false;
+  function scheduleA11y(){
+    if (__a11yQueued) return;
+    __a11yQueued = true;
+    requestAnimationFrame(()=>{
+      __a11yQueued = false;
+      ensureFormFieldA11y(document);
+    });
+  }
+
+
   function render(){
     const state = store.getState();
 
@@ -4545,6 +4636,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
     else if (state.ui.tab === 'settings') renderSettings(state);
     else if (state.ui.tab === 'sim') renderSim(state);
     else if (state.ui.tab === 'unlocked') renderUnlocked(state);
+    scheduleA11y();
   }
 
   attachTabHandlers();

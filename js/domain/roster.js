@@ -91,6 +91,29 @@ export function makeRosterEntryFromClaimedSet(data, species){
   return entry;
 }
 
+// Like makeRosterEntryFromClaimedSet, but can inherit the set from another species (e.g., base form).
+// Used to allow adding evolved forms even when only the base form exists in claimedSets.
+export function makeRosterEntryFromClaimedSetWithFallback(data, species, fallbackSpecies=null){
+  const s = String(species||'').trim();
+  const fb = fallbackSpecies ? String(fallbackSpecies).trim() : null;
+  const set = (data.claimedSets?.[s]) || (fb ? data.claimedSets?.[fb] : null) || {ability:'', moves:[]};
+  const rawMoves = Array.isArray(set.moves) ? set.moves : [];
+  const fixedMoves = applyMovesetOverrides(s, rawMoves);
+  const id = `r_${s}_${Math.random().toString(16).slice(2,9)}`;
+  return {
+    id,
+    baseSpecies: s,
+    effectiveSpecies: s,
+    active: true,
+    evo: false,
+    nature: defaultNatureForSpecies(s),
+    strength: isStarterSpecies(s) ? true : false,
+    ability: set.ability || '',
+    movePool: buildDefaultMovePool(data, s, fixedMoves || [], 'base'),
+    item: null,
+  };
+}
+
 export function getEvoTarget(data, base, evoCache){
   if (!base || isStarterSpecies(base)) return null;
 

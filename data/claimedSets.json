@@ -1,728 +1,2334 @@
 {
-  "Aipom": {
-    "species": "Aipom",
+  "Absol": {
+    "ability": "Justified",
     "canClaim": 1,
+    "moves": [
+      "Night Slash",
+      "Psycho Cut",
+      "Slash",
+      "Will-O-Wisp"
+    ],
+    "species": "Absol"
+  },
+  "Aerodactyl": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Rock Slide",
+      "Aerial Ace",
+      "Ice Beam",
+      "Thunderbolt"
+    ],
+    "species": "Aerodactyl"
+  },
+  "Aipom": {
     "ability": "Skill Link",
+    "canClaim": 1,
     "moves": [
       "DoubleSlap",
       "Gunk Shot",
       "DynamicPunch",
       "Protect"
-    ]
+    ],
+    "species": "Aipom"
   },
-  "Axew": {
-    "species": "Axew",
-    "canClaim": 1,
-    "ability": "Mold Breaker",
-    "moves": [
-      "Dragon Claw",
-      "Brick Break",
-      "Poison Jab",
-      "Protect"
-    ]
-  },
-  "Buneary": {
-    "species": "Buneary",
-    "canClaim": 1,
-    "ability": "Limber",
+  "Alakazam": {
+    "ability": "TBD",
+    "canClaim": 0,
     "moves": [
       "Return",
-      "Jump Kick",
-      "ThunderPunch",
-      "Bounce"
-    ]
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Alakazam"
   },
-  "Charmander": {
-    "species": "Charmander",
-    "canClaim": 1,
-    "ability": "Solar Power",
+  "Ambipom": {
+    "ability": "Skill Link",
+    "canClaim": 0,
     "moves": [
-      "Flamethrower",
-      "Hidden Power (Flying)",
-      "Dragon Pulse",
-      "Dragon's Blessing"
-    ]
-  },
-  "Chimchar": {
-    "species": "Chimchar",
-    "canClaim": 1,
-    "ability": "Iron Fist",
-    "moves": [
-      "Flamethrower",
-      "Hidden Power (Fighting)",
-      "Fake Out",
-      "Fake Tears"
-    ]
-  },
-  "Cobalion": {
-    "species": "Cobalion",
-    "canClaim": 1,
-    "ability": "Justified",
-    "moves": [
-      "Sacred Sword",
-      "Iron Head",
-      "Poison Jab",
-      "Provoke"
-    ]
-  },
-  "Cottonee": {
-    "species": "Cottonee",
-    "canClaim": 1,
-    "ability": "Prankster",
-    "moves": [
-      "Energy Ball",
-      "Tailwind",
-      "Mending Prayer",
-      "Joyous Cheer"
-    ]
-  },
-  "Cubone": {
-    "species": "Cubone",
-    "canClaim": 1,
-    "ability": "Lightningrod",
-    "moves": [
-      "Bonemerang",
-      "DynamicPunch",
-      "ThunderPunch",
-      "Mending Prayer"
-    ]
-  },
-  "Cyndaquil": {
-    "species": "Cyndaquil",
-    "canClaim": 1,
-    "ability": "Flash Fire",
-    "moves": [
-      "Eruption",
-      "Extrasensory",
-      "Will-O-Wisp",
-      "Provoke"
-    ]
-  },
-  "Deerling": {
-    "species": "Deerling",
-    "canClaim": 1,
-    "ability": "Sap Sipper",
-    "moves": [
-      "Bullet Seed",
-      "Double-Edge",
-      "Jump Kick",
-      "Horse's Protection"
-    ]
-  },
-  "Deino": {
-    "species": "Deino",
-    "canClaim": 1,
-    "ability": "Hustle",
-    "moves": [
-      "Dragon Pulse",
-      "Dark Pulse",
-      "Provoke",
-      "Dragon's Blessing"
-    ]
-  },
-  "Doduo": {
-    "species": "Doduo",
-    "canClaim": 1,
-    "ability": "Early Bird",
-    "moves": [
-      "Drill Peck",
-      "Body Slam",
-      "Jump Kick",
-      "Swords Dance"
-    ]
-  },
-  "Drilbur": {
-    "species": "Drilbur",
-    "canClaim": 1,
-    "ability": "Mold Breaker",
-    "moves": [
-      "Drill Run",
-      "Metal Claw",
-      "Helping Hand",
-      "Flash of Speed"
-    ]
-  },
-  "Eevee": {
-    "species": "Eevee",
-    "canClaim": 1,
-    "ability": "Anticipation",
-    "moves": [
-      "Hidden Power (Ice)",
-      "Shadow Ball",
-      "Helping Hand",
-      "Healing Wind"
-    ]
-  },
-  "Ekans": {
-    "species": "Ekans",
-    "canClaim": 1,
-    "ability": "Intimidate",
-    "moves": [
+      "DoubleSlap",
       "Gunk Shot",
-      "Earthquake",
-      "Leech Life",
-      "Serpent's Fear"
-    ]
+      "DynamicPunch",
+      "Protect"
+    ],
+    "species": "Ambipom"
   },
-  "Electrike": {
-    "species": "Electrike",
-    "canClaim": 1,
-    "ability": "Lightningrod",
-    "moves": [
-      "Thunder",
-      "Flamethrower",
-      "Hidden Power (Ice)",
-      "Protective Aura"
-    ]
-  },
-  "Gible": {
-    "species": "Gible",
-    "canClaim": 1,
-    "ability": "Rough Skin",
-    "moves": [
-      "Draco Meteor",
-      "Dig",
-      "Helping Hand",
-      "Provoke"
-    ]
-  },
-  "Glameow": {
-    "species": "Glameow",
-    "canClaim": 1,
-    "ability": "Limber",
-    "moves": [
-      "Return",
-      "Shadow Claw",
-      "Wake-Up Slap",
-      "Fake Out"
-    ]
-  },
-  "Horsea": {
-    "species": "Horsea",
-    "canClaim": 1,
-    "ability": "Swift Swim",
-    "moves": [
-      "Scald",
-      "Dragon Pulse",
-      "Clear Smog",
-      "Flash of Speed"
-    ]
-  },
-  "Houndour": {
-    "species": "Houndour",
-    "canClaim": 1,
-    "ability": "Flash Fire",
-    "moves": [
-      "Inferno",
-      "Snarl",
-      "Hidden Power (Ground)",
-      "Provoke"
-    ]
-  },
-  "Keldeo": {
-    "species": "Keldeo",
-    "canClaim": 1,
-    "ability": "Justified",
-    "moves": [
-      "Sacred Sword",
-      "Scald",
-      "Hidden Power (Ice)",
-      "Healing Wind"
-    ]
-  },
-  "Mankey": {
-    "species": "Mankey",
-    "canClaim": 1,
-    "ability": "Defiant",
-    "moves": [
-      "Close Combat",
-      "Earthquake",
-      "Acrobatics",
-      "Flash of Speed"
-    ]
-  },
-  "Mareep": {
-    "species": "Mareep",
-    "canClaim": 1,
+  "Ampharos": {
     "ability": "Static",
+    "canClaim": 0,
     "moves": [
       "Electroweb",
       "Power Gem",
       "Hidden Power (Dragon)",
       "Healing Wind"
-    ]
+    ],
+    "species": "Ampharos"
   },
-  "Marill": {
-    "species": "Marill",
+  "Arbok": {
+    "ability": "Intimidate",
     "canClaim": 0,
+    "moves": [
+      "Gunk Shot",
+      "Earthquake",
+      "Leech Life",
+      "Serpent's Fear"
+    ],
+    "species": "Arbok"
+  },
+  "Arcanine": {
+    "ability": "Intimidate",
+    "canClaim": 0,
+    "moves": [
+      "Flamethrower",
+      "Wild Charge",
+      "Close Combat",
+      "Helping Hand"
+    ],
+    "species": "Arcanine"
+  },
+  "Archen": {
+    "ability": "Defeatist",
+    "canClaim": 1,
+    "moves": [
+      "Head Smash",
+      "Acrobatics",
+      "Quick Guard",
+      "Tailwind"
+    ],
+    "species": "Archen"
+  },
+  "Archeops": {
+    "ability": "Defeatist",
+    "canClaim": 0,
+    "moves": [
+      "Head Smash",
+      "Acrobatics",
+      "Quick Guard",
+      "Tailwind"
+    ],
+    "species": "Archeops"
+  },
+  "Audino": {
+    "ability": "Regenerator",
+    "canClaim": 1,
+    "moves": [
+      "Toxic",
+      "Protective Aura",
+      "Mending Prayer",
+      "Joyous Cheer"
+    ],
+    "species": "Audino"
+  },
+  "Axew": {
+    "ability": "Mold Breaker",
+    "canClaim": 1,
+    "moves": [
+      "Dragon Claw",
+      "Brick Break",
+      "Poison Jab",
+      "Protect"
+    ],
+    "species": "Axew"
+  },
+  "Azumarill": {
     "ability": "Huge Power",
+    "canClaim": 0,
     "moves": [
       "Aqua Tail",
       "Superpower",
       "Bounce",
       "Helping Hand"
-    ]
+    ],
+    "species": "Azumarill"
   },
-  "Meditite": {
-    "species": "Meditite",
+  "Bagon": {
+    "ability": "Rock Head",
     "canClaim": 1,
-    "ability": "Pure Power",
     "moves": [
-      "Drain Punch",
-      "Zen Headbutt",
-      "Ice Punch",
-      "Skill Swap"
-    ]
+      "Dragon Rush",
+      "Brick Break",
+      "Wish",
+      "Protect"
+    ],
+    "species": "Bagon"
   },
-  "Meowth": {
-    "species": "Meowth",
-    "canClaim": 1,
-    "ability": "Technician",
+  "Bastiodon": {
+    "ability": "Sturdy",
+    "canClaim": 0,
     "moves": [
-      "Covet",
-      "Bite",
-      "Water Pulse",
-      "Thunderbolt"
-    ]
-  },
-  "Minccino": {
-    "species": "Minccino",
-    "canClaim": 1,
-    "ability": "Skill Link",
-    "moves": [
-      "Tail Slap",
-      "Bullet Seed",
-      "Hidden Power (Dragon)",
-      "After You"
-    ]
-  },
-  "Nidoran♀": {
-    "species": "Nidoran♀",
-    "canClaim": 1,
-    "ability": "Hustle",
-    "moves": [
-      "Sludge Bomb",
-      "Earth Power",
-      "Blizzard",
-      "Toxic"
-    ]
-  },
-  "Nidoran♂": {
-    "species": "Nidoran♂",
-    "canClaim": 1,
-    "ability": "Hustle",
-    "moves": [
-      "Poison Jab",
-      "Drill Run",
-      "Thunderbold",
-      "Lovely Kiss"
-    ]
-  },
-  "Numel": {
-    "species": "Numel",
-    "canClaim": 1,
-    "ability": "Oblivious",
-    "moves": [
-      "Overheat",
-      "Earthquake",
-      "Stone Edge",
+      "Toxic",
+      "Provoke",
+      "Mending Prayer",
       "Joyous Cheer"
-    ]
+    ],
+    "species": "Bastiodon"
   },
-  "Panpour": {
-    "species": "Panpour",
-    "canClaim": 1,
-    "ability": "Torrent",
-    "moves": [
-      "Water Pledge",
-      "Acrobatics",
-      "Hidden Power (Dragon)",
-      "Ice Beam"
-    ]
-  },
-  "Pansage": {
-    "species": "Pansage",
-    "canClaim": 1,
-    "ability": "Overgrow",
-    "moves": [
-      "Grass Pledge",
-      "Acrobatics",
-      "Hidden Power (Rock)",
-      "Low Kick"
-    ]
-  },
-  "Pansear": {
-    "species": "Pansear",
-    "canClaim": 1,
+  "Blaziken": {
     "ability": "Blaze",
+    "canClaim": 0,
     "moves": [
       "Fire Pledge",
-      "Acrobatics",
-      "Hidden Power (Grass)",
-      "Crunch"
-    ]
-  },
-  "Phanpy": {
-    "species": "Phanpy",
-    "canClaim": 1,
-    "ability": "Sand Veil",
-    "moves": [
-      "Earthquake",
-      "Stone Edge",
-      "Seed Bomb",
-      "Protective Aura"
-    ]
-  },
-  "Pikachu": {
-    "species": "Pikachu",
-    "canClaim": 0,
-    "ability": "Lightningrod",
-    "moves": [
-      "Zap Cannon",
-      "DynamicPunch",
-      "Grass Knot",
-      "Fake Out"
-    ]
-  },
-  "Piplup": {
-    "species": "Piplup",
-    "canClaim": 1,
-    "ability": "Competitive",
-    "moves": [
-      "Scald",
-      "Hidden Power (Steel)",
-      "Icy Wind",
-      "Protective Aura"
-    ]
-  },
-  "Ponyta": {
-    "species": "Ponyta",
-    "canClaim": 1,
-    "ability": "Flash Fire",
-    "moves": [
-      "Inferno",
-      "Hidden Power (Ground)",
+      "Hidden Power (Fighting)",
       "Bounce",
+      "Helping Hand"
+    ],
+    "species": "Blaziken"
+  },
+  "Blitzle": {
+    "ability": "Lightning Rod",
+    "canClaim": 1,
+    "moves": [
+      "Thunder",
+      "Hidden Power (Fire)",
+      "Low Kick",
       "Horse's Protection"
-    ]
+    ],
+    "species": "Blitzle"
   },
-  "Poochyena": {
-    "species": "Poochyena",
-    "canClaim": 1,
-    "ability": "Rattled",
+  "Bouffalant": {
+    "ability": "TBD",
+    "canClaim": 0,
     "moves": [
-      "Crunch",
-      "Iron Tail",
-      "Dig",
-      "Toxic"
-    ]
-  },
-  "Psyduck": {
-    "species": "Psyduck",
-    "canClaim": 1,
-    "ability": "Swift Swim",
-    "moves": [
-      "Scald",
+      "Return",
       "Ice Beam",
-      "Psychic",
-      "Clear Smog"
-    ]
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Bouffalant"
   },
-  "Purrloin": {
-    "species": "Purrloin",
-    "canClaim": 1,
-    "ability": "Prankster",
-    "moves": [
-      "Dark Pulse",
-      "Fake Tears",
-      "Joyous Cheer",
-      "Flash of Speed"
-    ]
-  },
-  "Rattata": {
-    "species": "Rattata",
-    "canClaim": 1,
-    "ability": "Guts",
-    "moves": [
-      "Body Slam",
-      "Crunch",
-      "Wild Charge",
-      "Reversal"
-    ]
-  },
-  "Rhyhorn": {
-    "species": "Rhyhorn",
-    "canClaim": 1,
-    "ability": "Lightningrod",
-    "moves": [
-      "Drill Run",
-      "Rock Slide",
-      "Dragon Rush",
-      "Provoke"
-    ]
-  },
-  "Riolu": {
-    "species": "Riolu",
-    "canClaim": 1,
-    "ability": "Inner Focus",
-    "moves": [
-      "Aura Sphere",
-      "Meteor Mash",
-      "Hidden Power (Dragon)",
-      "Protective Aura"
-    ]
-  },
-  "Rufflet": {
-    "species": "Rufflet",
-    "canClaim": 1,
+  "Braviary": {
     "ability": "Sheer Force",
+    "canClaim": 0,
     "moves": [
       "Sky Drop",
       "Body Slam",
       "Close Combat",
       "Tailwind"
-    ]
+    ],
+    "species": "Braviary"
   },
-  "Sandshrew": {
-    "species": "Sandshrew",
+  "Buizel": {
+    "ability": "Water Veil",
     "canClaim": 1,
-    "ability": "Sand Rush",
-    "moves": [
-      "Earthquake",
-      "Stone Edge",
-      "X-Scissor",
-      "Healing Wind"
-    ]
-  },
-  "Skitty": {
-    "species": "Skitty",
-    "canClaim": 1,
-    "ability": "Normalize",
-    "moves": [
-      "Fake Out",
-      "Healing Wind",
-      "Mending Prayer",
-      "Joyous Cheer"
-    ]
-  },
-  "Slakoth": {
-    "species": "Slakoth",
-    "canClaim": 1,
-    "ability": "Truant",
-    "moves": [
-      "Mega Kick",
-      "Gunk Shot",
-      "X-Scissor",
-      "Slack Off"
-    ]
-  },
-  "Slowpoke": {
-    "species": "Slowpoke",
-    "canClaim": 1,
-    "ability": "Regenerator",
     "moves": [
       "Hydro Pump",
-      "Fire Blast",
-      "Zap Cannon",
-      "Mending Prayer"
-    ]
+      "Hidden Power (Ice)",
+      "Ice Beam",
+      "Me First"
+    ],
+    "species": "Buizel"
   },
-  "Smeargle": {
-    "species": "Smeargle",
+  "Buneary": {
+    "ability": "Limber",
     "canClaim": 1,
-    "ability": "Technician",
     "moves": [
-      "Lovely Kiss",
-      "Healing Wind",
-      "Mending Prayer",
-      "Joyous Cheer"
-    ]
+      "Return",
+      "Jump Kick",
+      "ThunderPunch",
+      "Bounce"
+    ],
+    "species": "Buneary"
   },
-  "Snivy": {
-    "species": "Snivy",
-    "canClaim": 1,
-    "ability": "Contrary",
-    "moves": [
-      "Leaf Storm",
-      "Twister",
-      "Hidden Power (Rock)",
-      "Gastro Acid"
-    ]
-  },
-  "Spinda": {
-    "species": "Spinda",
-    "canClaim": 1,
-    "ability": "Contrary",
-    "moves": [
-      "Mega Kick",
-      "Superpower",
-      "Mending Prayer",
-      "Joyous Cheer"
-    ]
-  },
-  "Spoink": {
-    "species": "Spoink",
-    "canClaim": 1,
-    "ability": "Thick Fat",
-    "moves": [
-      "Psychic",
-      "Hidden Power (Fighting)",
-      "Flash Cannon",
-      "Signal Beam"
-    ]
-  },
-  "Starly": {
-    "species": "Starly",
-    "canClaim": 1,
-    "ability": "Reckless",
-    "moves": [
-      "Brave Bird",
-      "Double-Edge",
-      "Roost",
-      "Protect"
-    ]
-  },
-  "Swinub": {
-    "species": "Swinub",
-    "canClaim": 1,
+  "Camerupt": {
     "ability": "Oblivious",
+    "canClaim": 0,
     "moves": [
-      "Icicle Crash",
+      "Overheat",
       "Earthquake",
-      "Provoke",
-      "Protective Aura"
-    ]
+      "Stone Edge",
+      "Joyous Cheer"
+    ],
+    "species": "Camerupt"
   },
-  "Tepig": {
-    "species": "Tepig",
-    "canClaim": 1,
-    "ability": "Thick Fat",
+  "Charizard": {
+    "ability": "Solar Power",
+    "canClaim": 0,
     "moves": [
-      "Flare Blitz",
-      "Head Smash",
-      "Wild Charge",
-      "Protect"
-    ]
+      "Flamethrower",
+      "Hidden Power (Flying)",
+      "Dragon Pulse",
+      "Dragon's Blessing"
+    ],
+    "species": "Charizard"
   },
-  "Terrakion": {
-    "species": "Terrakion",
+  "Charmander": {
+    "ability": "Solar Power",
     "canClaim": 1,
+    "moves": [
+      "Flamethrower",
+      "Hidden Power (Flying)",
+      "Dragon Pulse",
+      "Dragon's Blessing"
+    ],
+    "species": "Charmander"
+  },
+  "Charmeleon": {
+    "ability": "Solar Power",
+    "canClaim": 0,
+    "moves": [
+      "Flamethrower",
+      "Hidden Power (Flying)",
+      "Dragon Pulse",
+      "Dragon's Blessing"
+    ],
+    "species": "Charmeleon"
+  },
+  "Chimchar": {
+    "ability": "Iron Fist",
+    "canClaim": 1,
+    "moves": [
+      "Flamethrower",
+      "Hidden Power (Fighting)",
+      "Fake Out",
+      "Fake Tears"
+    ],
+    "species": "Chimchar"
+  },
+  "Cinccino": {
+    "ability": "Skill Link",
+    "canClaim": 0,
+    "moves": [
+      "Tail Slap",
+      "Bullet Seed",
+      "Hidden Power (Rock)",
+      "After You"
+    ],
+    "species": "Cinccino"
+  },
+  "Cobalion": {
     "ability": "Justified",
+    "canClaim": 1,
     "moves": [
       "Sacred Sword",
-      "Stone Edge",
-      "Aerial Ace",
-      "Mending Prayer"
-    ]
+      "Iron Head",
+      "Poison Jab",
+      "Provoke"
+    ],
+    "species": "Cobalion"
   },
-  "Torchic": {
-    "species": "Torchic",
-    "canClaim": 1,
+  "Combusken": {
     "ability": "Blaze",
+    "canClaim": 0,
     "moves": [
       "Fire Pledge",
       "Hidden Power (Fighting)",
       "Bounce",
       "Helping Hand"
-    ]
+    ],
+    "species": "Combusken"
   },
-  "Totodile": {
-    "species": "Totodile",
+  "Cottonee": {
+    "ability": "Prankster",
     "canClaim": 1,
+    "moves": [
+      "Energy Ball",
+      "Tailwind",
+      "Mending Prayer",
+      "Joyous Cheer"
+    ],
+    "species": "Cottonee"
+  },
+  "Croconaw": {
     "ability": "Sheer Force",
+    "canClaim": 0,
     "moves": [
       "Waterfall",
       "Ice Punch",
       "Crunch",
       "Protect"
-    ]
+    ],
+    "species": "Croconaw"
   },
-  "Treecko": {
-    "species": "Treecko",
+  "Cubone": {
+    "ability": "Lightningrod",
     "canClaim": 1,
-    "ability": "Overgrow",
     "moves": [
-      "Grass Pledge",
+      "Bonemerang",
       "DynamicPunch",
-      "Hidden Power (Dragon)",
-      "Toxic"
-    ]
+      "ThunderPunch",
+      "Mending Prayer"
+    ],
+    "species": "Cubone"
   },
-  "Virizion": {
-    "species": "Virizion",
+  "Cyndaquil": {
+    "ability": "Flash Fire",
     "canClaim": 1,
-    "ability": "Justified",
     "moves": [
-      "Sacred Sword",
-      "Leaf Blade",
-      "Megahorn",
+      "Eruption",
+      "Extrasensory",
+      "Will-O-Wisp",
+      "Provoke"
+    ],
+    "species": "Cyndaquil"
+  },
+  "Darmanitan": {
+    "ability": "Hustle",
+    "canClaim": 0,
+    "moves": [
+      "Fire Punch",
+      "Rock Slide",
+      "Will-O-Wisp",
+      "Protective Aura"
+    ],
+    "species": "Darmanitan"
+  },
+  "Darumaka": {
+    "ability": "Hustle",
+    "canClaim": 1,
+    "moves": [
+      "Fire Punch",
+      "Rock Slide",
+      "Will-O-Wisp",
+      "Protective Aura"
+    ],
+    "species": "Darumaka"
+  },
+  "Deerling": {
+    "ability": "Sap Sipper",
+    "canClaim": 1,
+    "moves": [
+      "Bullet Seed",
+      "Double-Edge",
+      "Jump Kick",
       "Horse's Protection"
-    ]
+    ],
+    "species": "Deerling"
   },
-  "Whismur": {
-    "species": "Whismur",
+  "Deino": {
+    "ability": "Hustle",
     "canClaim": 1,
-    "ability": "Soundproof",
     "moves": [
-      "Hyper Voice",
-      "Flamethrower",
+      "Dragon Pulse",
+      "Dark Pulse",
+      "Provoke",
+      "Dragon's Blessing"
+    ],
+    "species": "Deino"
+  },
+  "Delcatty": {
+    "ability": "Normalize",
+    "canClaim": 0,
+    "moves": [
+      "Fake Out",
+      "Healing Wind",
+      "Mending Prayer",
+      "Joyous Cheer"
+    ],
+    "species": "Delcatty"
+  },
+  "Dewott": {
+    "ability": "Torrent",
+    "canClaim": 0,
+    "moves": [
+      "Water Pledge",
+      "Sacred Sword",
       "Ice Beam",
       "Provoke"
-    ]
+    ],
+    "species": "Dewott"
   },
-  "Pidgey": {
-    "species": "Pidgey",
-    "canClaim": 1,
-    "ability": "Big Pecks",
+  "Dodrio": {
+    "ability": "Early Bird",
+    "canClaim": 0,
     "moves": [
-      "Brave Bird",
-      "Return",
-      "U-turn",
-      "Steel Wing"
-    ]
+      "Drill Peck",
+      "Body Slam",
+      "Jump Kick",
+      "Swords Dance"
+    ],
+    "species": "Dodrio"
   },
-  "Growlithe": {
-    "species": "Growlithe",
+  "Doduo": {
+    "ability": "Early Bird",
     "canClaim": 1,
+    "moves": [
+      "Drill Peck",
+      "Body Slam",
+      "Jump Kick",
+      "Swords Dance"
+    ],
+    "species": "Doduo"
+  },
+  "Donphan": {
+    "ability": "Sand Veil",
+    "canClaim": 0,
+    "moves": [
+      "Earthquake",
+      "Stone Edge",
+      "Seed Bomb",
+      "Protective Aura"
+    ],
+    "species": "Donphan"
+  },
+  "Dragonair": {
+    "ability": "Marvel Scale",
+    "canClaim": 0,
+    "moves": [
+      "Dragon Pulse",
+      "Aqua Tail",
+      "ExtremeSpeed",
+      "Haze"
+    ],
+    "species": "Dragonair"
+  },
+  "Dragonite": {
+    "ability": "Marvel Scale",
+    "canClaim": 0,
+    "moves": [
+      "Dragon Pulse",
+      "Aqua Tail",
+      "ExtremeSpeed",
+      "Haze"
+    ],
+    "species": "Dragonite"
+  },
+  "Dratini": {
+    "ability": "Marvel Scale",
+    "canClaim": 1,
+    "moves": [
+      "Dragon Pulse",
+      "Aqua Tail",
+      "ExtremeSpeed",
+      "Haze"
+    ],
+    "species": "Dratini"
+  },
+  "Drilbur": {
+    "ability": "Mold Breaker",
+    "canClaim": 1,
+    "moves": [
+      "Metal Claw",
+      "Helping Hand",
+      "Flash of Speed",
+      "Drill Run"
+    ],
+    "species": "Drilbur"
+  },
+  "Druddigon": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Dragon Pulse",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Druddigon"
+  },
+  "Dunsparce": {
+    "ability": "Serene Grace",
+    "canClaim": 1,
+    "moves": [
+      "Headbutt",
+      "Zap Cannon",
+      "Mending Prayer",
+      "Joyous Cheer"
+    ],
+    "species": "Dunsparce"
+  },
+  "Eelektrik": {
+    "ability": "Levitate",
+    "canClaim": 0,
+    "moves": [
+      "Spark",
+      "Tackle",
+      "Charge Beam",
+      "Serpent's Fear"
+    ],
+    "species": "Eelektrik"
+  },
+  "Eelektross": {
+    "ability": "Levitate",
+    "canClaim": 0,
+    "moves": [
+      "Spark",
+      "Tackle",
+      "Charge Beam",
+      "Serpent's Fear"
+    ],
+    "species": "Eelektross"
+  },
+  "Eevee": {
+    "ability": "Anticipation",
+    "canClaim": 1,
+    "moves": [
+      "Hidden Power (Ice)",
+      "Shadow Ball",
+      "Helping Hand",
+      "Healing Wind"
+    ],
+    "species": "Eevee"
+  },
+  "Ekans": {
     "ability": "Intimidate",
+    "canClaim": 1,
     "moves": [
+      "Gunk Shot",
+      "Earthquake",
+      "Leech Life",
+      "Serpent's Fear"
+    ],
+    "species": "Ekans"
+  },
+  "Electabuzz": {
+    "ability": "Static",
+    "canClaim": 1,
+    "moves": [
+      "ThunderPunch",
+      "Fire Punch",
+      "Ice Punch",
+      "Flash of Speed"
+    ],
+    "species": "Electabuzz"
+  },
+  "Electivire": {
+    "ability": "Static",
+    "canClaim": 0,
+    "moves": [
+      "ThunderPunch",
+      "Fire Punch",
+      "Ice Punch",
+      "Flash of Speed"
+    ],
+    "species": "Electivire"
+  },
+  "Electrike": {
+    "ability": "Lightning Rod",
+    "canClaim": 1,
+    "moves": [
+      "Thunder",
       "Flamethrower",
-      "Wild Charge",
-      "Close Combat",
-      "Helping Hand"
-    ]
+      "Hidden Power (Ice)",
+      "Protective Aura"
+    ],
+    "species": "Electrike"
   },
-  "Snubbull": {
-    "species": "Snubbull",
+  "Emboar": {
+    "ability": "Thick Fat",
+    "canClaim": 0,
+    "moves": [
+      "Flare Blitz",
+      "Head Smash",
+      "Wild Charge",
+      "Protect"
+    ],
+    "species": "Emboar"
+  },
+  "Emolga": {
+    "ability": "Motor Drive",
     "canClaim": 1,
+    "moves": [
+      "Thunderbolt",
+      "Acrobatics",
+      "Energy Ball",
+      "Joyous Cheer"
+    ],
+    "species": "Emolga"
+  },
+  "Empoleon": {
+    "ability": "Competitive",
+    "canClaim": 0,
+    "moves": [
+      "Scald",
+      "Flash Cannon",
+      "Icy Wind",
+      "Protective Aura"
+    ],
+    "species": "Empoleon"
+  },
+  "Espeon": {
+    "ability": "Anticipation",
+    "canClaim": 0,
+    "moves": [
+      "Hidden Power (Ice)",
+      "Shadow Ball",
+      "Helping Hand",
+      "Healing Wind"
+    ],
+    "species": "Espeon"
+  },
+  "Excadrill": {
+    "ability": "Mold Breaker",
+    "canClaim": 0,
+    "moves": [
+      "Metal Claw",
+      "Helping Hand",
+      "Flash of Speed",
+      "Drill Run"
+    ],
+    "species": "Excadrill"
+  },
+  "Fearow": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Return",
+      "Aerial Ace",
+      "Ice Beam",
+      "Thunderbolt"
+    ],
+    "species": "Fearow"
+  },
+  "Flaaffy": {
+    "ability": "Static",
+    "canClaim": 0,
+    "moves": [
+      "Electroweb",
+      "Power Gem",
+      "Hidden Power (Dragon)",
+      "Healing Wind"
+    ],
+    "species": "Flaaffy"
+  },
+  "Floatzel": {
+    "ability": "Water Veil",
+    "canClaim": 0,
+    "moves": [
+      "Hydro Pump",
+      "Hidden Power (Ice)",
+      "Ice Beam",
+      "Me First"
+    ],
+    "species": "Floatzel"
+  },
+  "Flygon": {
+    "ability": "Hyper Cutter",
+    "canClaim": 0,
+    "moves": [
+      "Hidden Power (Dragon)",
+      "Dig",
+      "Superpower",
+      "Dragon's Blessing"
+    ],
+    "species": "Flygon"
+  },
+  "Fraxure": {
+    "ability": "Mold Breaker",
+    "canClaim": 0,
+    "moves": [
+      "Dragon Claw",
+      "Brick Break",
+      "Poison Jab",
+      "Protect"
+    ],
+    "species": "Fraxure"
+  },
+  "Gabite": {
+    "ability": "Rough Skin",
+    "canClaim": 0,
+    "moves": [
+      "Draco Meteor",
+      "Dig",
+      "Helping Hand",
+      "Provoke"
+    ],
+    "species": "Gabite"
+  },
+  "Garchomp": {
+    "ability": "Rough Skin",
+    "canClaim": 0,
+    "moves": [
+      "Draco Meteor",
+      "Dig",
+      "Helping Hand",
+      "Provoke"
+    ],
+    "species": "Garchomp"
+  },
+  "Gible": {
+    "ability": "Rough Skin",
+    "canClaim": 1,
+    "moves": [
+      "Draco Meteor",
+      "Dig",
+      "Helping Hand",
+      "Provoke"
+    ],
+    "species": "Gible"
+  },
+  "Girafarig": {
+    "ability": "Sap Sipper",
+    "canClaim": 1,
+    "moves": [
+      "Hyper Voice",
+      "Psychic",
+      "Shadow Ball",
+      "Protective Aura"
+    ],
+    "species": "Girafarig"
+  },
+  "Glameow": {
+    "ability": "Limber",
+    "canClaim": 1,
+    "moves": [
+      "Return",
+      "Shadow Claw",
+      "Wake-Up Slap",
+      "Fake Out"
+    ],
+    "species": "Glameow"
+  },
+  "Golduck": {
+    "ability": "Swift Swim",
+    "canClaim": 0,
+    "moves": [
+      "Scald",
+      "Ice Beam",
+      "Psychic",
+      "Clear Smog"
+    ],
+    "species": "Golduck"
+  },
+  "Granbull": {
     "ability": "Intimidate",
+    "canClaim": 0,
     "moves": [
       "Double-Edge",
       "Earthquake",
       "Ice Punch",
       "Lovely Kiss"
-    ]
+    ],
+    "species": "Granbull"
   },
-  "Lillipup": {
-    "species": "Lillipup",
+  "Grovyle": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Energy Ball",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Grovyle"
+  },
+  "Growlithe": {
+    "ability": "Intimidate",
     "canClaim": 1,
+    "moves": [
+      "Flamethrower",
+      "Wild Charge",
+      "Close Combat",
+      "Helping Hand"
+    ],
+    "species": "Growlithe"
+  },
+  "Grumpig": {
+    "ability": "Thick Fat",
+    "canClaim": 0,
+    "moves": [
+      "Psychic",
+      "Hidden Power (Fighting)",
+      "Flash Cannon",
+      "Signal Beam"
+    ],
+    "species": "Grumpig"
+  },
+  "Gyarados": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Return",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Gyarados"
+  },
+  "Haxorus": {
+    "ability": "Mold Breaker",
+    "canClaim": 0,
+    "moves": [
+      "Dragon Claw",
+      "Brick Break",
+      "Poison Jab",
+      "Protect"
+    ],
+    "species": "Haxorus"
+  },
+  "Herdier": {
     "ability": "Vital Spirit",
+    "canClaim": 0,
     "moves": [
       "Return",
       "Crunch",
       "Wild Charge",
       "Fire Fang"
-    ]
+    ],
+    "species": "Herdier"
+  },
+  "Hippopotas": {
+    "ability": "Sand Stream",
+    "canClaim": 1,
+    "moves": [
+      "Earthquake",
+      "Rock Slide",
+      "Provoke",
+      "Slack Off"
+    ],
+    "species": "Hippopotas"
+  },
+  "Hippowdon": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Earthquake",
+      "Ice Beam",
+      "Thunderbolt",
+      "Shadow Ball"
+    ],
+    "species": "Hippowdon"
+  },
+  "Honchkrow": {
+    "ability": "Prankster",
+    "canClaim": 0,
+    "moves": [
+      "Sucker Punch",
+      "Drill Peck",
+      "U-turn",
+      "Haze"
+    ],
+    "species": "Honchkrow"
+  },
+  "Hoppip": {
+    "ability": "Chlorophyll",
+    "canClaim": 1,
+    "moves": [
+      "Leaf Storm",
+      "Acrobatics",
+      "Stun Spore",
+      "Mending Prayer"
+    ],
+    "species": "Hoppip"
+  },
+  "Horsea": {
+    "ability": "Swift Swim",
+    "canClaim": 1,
+    "moves": [
+      "Scald",
+      "Dragon Pulse",
+      "Clear Smog",
+      "Flash of Speed"
+    ],
+    "species": "Horsea"
+  },
+  "Houndoom": {
+    "ability": "Flash Fire",
+    "canClaim": 0,
+    "moves": [
+      "Inferno",
+      "Snarl",
+      "Hidden Power (Ground)",
+      "Provoke"
+    ],
+    "species": "Houndoom"
+  },
+  "Houndour": {
+    "ability": "Flash Fire",
+    "canClaim": 1,
+    "moves": [
+      "Inferno",
+      "Snarl",
+      "Hidden Power (Ground)",
+      "Provoke"
+    ],
+    "species": "Houndour"
+  },
+  "Huntail": {
+    "ability": "Shell Armor",
+    "canClaim": 0,
+    "moves": [
+      "Muddy Water",
+      "Ice Beam",
+      "Hidden Power (Dark)",
+      "Protect"
+    ],
+    "species": "Huntail"
+  },
+  "Hydreigon": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Crunch",
+      "Dragon Pulse",
+      "Ice Beam",
+      "Thunderbolt"
+    ],
+    "species": "Hydreigon"
+  },
+  "Infernape": {
+    "ability": "Iron Fist",
+    "canClaim": 0,
+    "moves": [
+      "Flamethrower",
+      "Hidden Power (Fighting)",
+      "Fake Out",
+      "Fake Tears"
+    ],
+    "species": "Infernape"
+  },
+  "Keldeo": {
+    "ability": "Justified",
+    "canClaim": 1,
+    "moves": [
+      "Sacred Sword",
+      "Scald",
+      "Hidden Power (Ice)",
+      "Healing Wind"
+    ],
+    "species": "Keldeo"
+  },
+  "Kingdra": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Scald",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Kingdra"
+  },
+  "Liepard": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Crunch",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Liepard"
+  },
+  "Lillipup": {
+    "ability": "Vital Spirit",
+    "canClaim": 1,
+    "moves": [
+      "Return",
+      "Crunch",
+      "Wild Charge",
+      "Fire Fang"
+    ],
+    "species": "Lillipup"
+  },
+  "Lopunny": {
+    "ability": "Limber",
+    "canClaim": 0,
+    "moves": [
+      "Return",
+      "Jump Kick",
+      "ThunderPunch",
+      "Bounce"
+    ],
+    "species": "Lopunny"
+  },
+  "Lucario": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Drain Punch",
+      "Iron Tail",
+      "Ice Beam",
+      "Thunderbolt"
+    ],
+    "species": "Lucario"
+  },
+  "Luxio": {
+    "ability": "Intimidate",
+    "canClaim": 0,
+    "moves": [
+      "Wild Charge",
+      "Hidden Power (Fighting)",
+      "Crunch",
+      "Thunder Wave"
+    ],
+    "species": "Luxio"
+  },
+  "Luxray": {
+    "ability": "Intimidate",
+    "canClaim": 0,
+    "moves": [
+      "Wild Charge",
+      "Hidden Power (Fighting)",
+      "Crunch",
+      "Thunder Wave"
+    ],
+    "species": "Luxray"
+  },
+  "Mamoswine": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Ice Beam",
+      "Earthquake",
+      "Thunderbolt",
+      "Shadow Ball"
+    ],
+    "species": "Mamoswine"
+  },
+  "Manectric": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Thunderbolt",
+      "Ice Beam",
+      "Earthquake",
+      "Shadow Ball"
+    ],
+    "species": "Manectric"
+  },
+  "Mankey": {
+    "ability": "Defiant",
+    "canClaim": 1,
+    "moves": [
+      "Close Combat",
+      "Earthquake",
+      "Acrobatics",
+      "Flash of Speed"
+    ],
+    "species": "Mankey"
+  },
+  "Mareep": {
+    "ability": "Static",
+    "canClaim": 1,
+    "moves": [
+      "Electroweb",
+      "Power Gem",
+      "Hidden Power (Dragon)",
+      "Healing Wind"
+    ],
+    "species": "Mareep"
+  },
+  "Marill": {
+    "ability": "Huge Power",
+    "canClaim": 1,
+    "moves": [
+      "Aqua Tail",
+      "Superpower",
+      "Bounce",
+      "Helping Hand"
+    ],
+    "species": "Marill"
+  },
+  "Marowak": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Earthquake",
+      "Ice Beam",
+      "Thunderbolt",
+      "Shadow Ball"
+    ],
+    "species": "Marowak"
+  },
+  "Medicham": {
+    "ability": "Pure Power",
+    "canClaim": 0,
+    "moves": [
+      "Drain Punch",
+      "Zen Headbutt",
+      "Ice Punch",
+      "Skill Swap"
+    ],
+    "species": "Medicham"
+  },
+  "Meditite": {
+    "ability": "Pure Power",
+    "canClaim": 1,
+    "moves": [
+      "Drain Punch",
+      "Zen Headbutt",
+      "Ice Punch",
+      "Skill Swap"
+    ],
+    "species": "Meditite"
+  },
+  "Meowth": {
+    "ability": "Technician",
+    "canClaim": 1,
+    "moves": [
+      "Covet",
+      "Bite",
+      "Water Pulse",
+      "Thunderbolt"
+    ],
+    "species": "Meowth"
+  },
+  "Mienfoo": {
+    "ability": "Inner Focus",
+    "canClaim": 1,
+    "moves": [
+      "Jump Kick",
+      "Dual Chop",
+      "Fake Out",
+      "Healing Wind"
+    ],
+    "species": "Mienfoo"
+  },
+  "Mienshao": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Drain Punch",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Mienshao"
+  },
+  "Mightyena": {
+    "ability": "Rattled",
+    "canClaim": 0,
+    "moves": [
+      "Crunch",
+      "Iron Tail",
+      "Dig",
+      "Toxic"
+    ],
+    "species": "Mightyena"
+  },
+  "Milotic": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Scald",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Milotic"
+  },
+  "Miltank": {
+    "ability": "Thick Fat",
+    "canClaim": 1,
+    "moves": [
+      "Body Slam",
+      "Zen Headbutt",
+      "Iron Tail",
+      "Milk Drink"
+    ],
+    "species": "Miltank"
+  },
+  "Minccino": {
+    "ability": "Skill Link",
+    "canClaim": 1,
+    "moves": [
+      "Tail Slap",
+      "Bullet Seed",
+      "Hidden Power (Rock)",
+      "After You"
+    ],
+    "species": "Minccino"
+  },
+  "Minun": {
+    "ability": "Volt Absorb",
+    "canClaim": 1,
+    "moves": [
+      "Discharge",
+      "Signal Beam",
+      "Hidden Power (Ice)",
+      "Flash of Speed"
+    ],
+    "species": "Minun"
+  },
+  "Monferno": {
+    "ability": "Iron Fist",
+    "canClaim": 0,
+    "moves": [
+      "Flamethrower",
+      "Hidden Power (Fighting)",
+      "Fake Out",
+      "Fake Tears"
+    ],
+    "species": "Monferno"
   },
   "Munna": {
-    "species": "Munna",
-    "canClaim": 1,
     "ability": "Telepathy",
+    "canClaim": 1,
     "moves": [
       "Psychic",
       "Shadow Ball",
       "Signal Beam",
       "Mending Prayer"
-    ]
+    ],
+    "species": "Munna"
+  },
+  "Murkrow": {
+    "ability": "Prankster",
+    "canClaim": 1,
+    "moves": [
+      "Sucker Punch",
+      "Drill Peck",
+      "U-turn",
+      "Haze"
+    ],
+    "species": "Murkrow"
+  },
+  "Musharna": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Psychic",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Musharna"
+  },
+  "Nidoking": {
+    "ability": "Poison Point",
+    "canClaim": 0,
+    "moves": [
+      "Poison Jab",
+      "Drill Run",
+      "Thunderbolt",
+      "Lovely Kiss"
+    ],
+    "species": "Nidoking"
+  },
+  "Nidoqueen": {
+    "ability": "Sheer Force",
+    "canClaim": 0,
+    "moves": [
+      "Sludge Bomb",
+      "Earth Power",
+      "Blizzard",
+      "Toxic"
+    ],
+    "species": "Nidoqueen"
+  },
+  "Nidoran♀": {
+    "ability": "Poison Point",
+    "canClaim": 1,
+    "moves": [
+      "Sludge Bomb",
+      "Earth Power",
+      "Blizzard",
+      "Toxic"
+    ],
+    "species": "Nidoran♀"
+  },
+  "Nidoran♂": {
+    "ability": "Poison Point",
+    "canClaim": 1,
+    "moves": [
+      "Poison Jab",
+      "Drill Run",
+      "Thunderbolt",
+      "Lovely Kiss"
+    ],
+    "species": "Nidoran♂"
+  },
+  "Nidorina": {
+    "ability": "Poison Point",
+    "canClaim": 0,
+    "moves": [
+      "Sludge Bomb",
+      "Earth Power",
+      "Blizzard",
+      "Toxic"
+    ],
+    "species": "Nidorina"
+  },
+  "Nidorino": {
+    "ability": "Poison Point",
+    "canClaim": 0,
+    "moves": [
+      "Poison Jab",
+      "Drill Run",
+      "Thunderbolt",
+      "Lovely Kiss"
+    ],
+    "species": "Nidorino"
+  },
+  "Ninetales": {
+    "ability": "Drought",
+    "canClaim": 0,
+    "moves": [
+      "Flamethrower",
+      "Hidden Power (Grass)",
+      "Extrasensory",
+      "Protective Aura"
+    ],
+    "species": "Ninetales"
+  },
+  "Numel": {
+    "ability": "Oblivious",
+    "canClaim": 1,
+    "moves": [
+      "Overheat",
+      "Earthquake",
+      "Stone Edge",
+      "Joyous Cheer"
+    ],
+    "species": "Numel"
+  },
+  "Onix": {
+    "ability": "Rock Head",
+    "canClaim": 1,
+    "moves": [
+      "Earthquake",
+      "Iron Tail",
+      "Head Smash",
+      "Serpent's Fear"
+    ],
+    "species": "Onix"
+  },
+  "Oshawott": {
+    "ability": "Torrent",
+    "canClaim": 1,
+    "moves": [
+      "Water Pledge",
+      "Sacred Sword",
+      "Ice Beam",
+      "Provoke"
+    ],
+    "species": "Oshawott"
+  },
+  "Panpour": {
+    "ability": "Torrent",
+    "canClaim": 1,
+    "moves": [
+      "Water Pledge",
+      "Acrobatics",
+      "Hidden Power (Dragon)",
+      "Ice Beam"
+    ],
+    "species": "Panpour"
+  },
+  "Pansage": {
+    "ability": "Overgrow",
+    "canClaim": 1,
+    "moves": [
+      "Grass Pledge",
+      "Acrobatics",
+      "Hidden Power (Rock)",
+      "Low Kick"
+    ],
+    "species": "Pansage"
+  },
+  "Pansear": {
+    "ability": "Blaze",
+    "canClaim": 1,
+    "moves": [
+      "Fire Pledge",
+      "Acrobatics",
+      "Hidden Power (Grass)",
+      "Crunch"
+    ],
+    "species": "Pansear"
+  },
+  "Persian": {
+    "ability": "Technician",
+    "canClaim": 0,
+    "moves": [
+      "Covet",
+      "Bite",
+      "Water Pulse",
+      "Thunderbolt"
+    ],
+    "species": "Persian"
+  },
+  "Phanpy": {
+    "ability": "Sand Veil",
+    "canClaim": 1,
+    "moves": [
+      "Earthquake",
+      "Stone Edge",
+      "Seed Bomb",
+      "Protective Aura"
+    ],
+    "species": "Phanpy"
+  },
+  "Pidgeot": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Return",
+      "Aerial Ace",
+      "Ice Beam",
+      "Thunderbolt"
+    ],
+    "species": "Pidgeot"
+  },
+  "Pidgeotto": {
+    "ability": "Big Pecks",
+    "canClaim": 0,
+    "moves": [
+      "Brave Bird",
+      "Return",
+      "U-turn",
+      "Steel Wing"
+    ],
+    "species": "Pidgeotto"
+  },
+  "Pidgey": {
+    "ability": "Big Pecks",
+    "canClaim": 1,
+    "moves": [
+      "Brave Bird",
+      "Return",
+      "U-turn",
+      "Steel Wing"
+    ],
+    "species": "Pidgey"
+  },
+  "Pignite": {
+    "ability": "Thick Fat",
+    "canClaim": 0,
+    "moves": [
+      "Flare Blitz",
+      "Head Smash",
+      "Wild Charge",
+      "Protect"
+    ],
+    "species": "Pignite"
+  },
+  "Pikachu": {
+    "ability": "Lightning Rod",
+    "canClaim": 0,
+    "moves": [
+      "DynamicPunch",
+      "Zap Cannon",
+      "Grass Knot",
+      "Fake Out"
+    ],
+    "species": "Pikachu"
+  },
+  "Piloswine": {
+    "ability": "Oblivious",
+    "canClaim": 0,
+    "moves": [
+      "Icicle Crash",
+      "Earthquake",
+      "Provoke",
+      "Protective Aura"
+    ],
+    "species": "Piloswine"
+  },
+  "Piplup": {
+    "ability": "Competitive",
+    "canClaim": 1,
+    "moves": [
+      "Scald",
+      "Hidden Power (Steel)",
+      "Icy Wind",
+      "Protective Aura"
+    ],
+    "species": "Piplup"
+  },
+  "Plusle": {
+    "ability": "Lightning Rod",
+    "canClaim": 1,
+    "moves": [
+      "Thunderbolt",
+      "Signal Beam",
+      "Hidden Power (Ground)",
+      "Grass Knot"
+    ],
+    "species": "Plusle"
+  },
+  "Ponyta": {
+    "ability": "Flash Fire",
+    "canClaim": 1,
+    "moves": [
+      "Inferno",
+      "Hidden Power (Ground)",
+      "Bounce",
+      "Horse's Protection"
+    ],
+    "species": "Ponyta"
+  },
+  "Poochyena": {
+    "ability": "Rattled",
+    "canClaim": 1,
+    "moves": [
+      "Crunch",
+      "Iron Tail",
+      "Dig",
+      "Toxic"
+    ],
+    "species": "Poochyena"
+  },
+  "Primeape": {
+    "ability": "Defiant",
+    "canClaim": 0,
+    "moves": [
+      "Close Combat",
+      "Earthquake",
+      "Acrobatics",
+      "Flash of Speed"
+    ],
+    "species": "Primeape"
+  },
+  "Prinplup": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Scald",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Prinplup"
+  },
+  "Psyduck": {
+    "ability": "Swift Swim",
+    "canClaim": 1,
+    "moves": [
+      "Scald",
+      "Ice Beam",
+      "Psychic",
+      "Clear Smog"
+    ],
+    "species": "Psyduck"
+  },
+  "Purrloin": {
+    "ability": "Prankster",
+    "canClaim": 1,
+    "moves": [
+      "Dark Pulse",
+      "Fake Tears",
+      "Joyous Cheer",
+      "Flash of Speed"
+    ],
+    "species": "Purrloin"
+  },
+  "Purugly": {
+    "ability": "Limber",
+    "canClaim": 0,
+    "moves": [
+      "Return",
+      "Shadow Claw",
+      "Wake-Up Slap",
+      "Fake Out"
+    ],
+    "species": "Purugly"
+  },
+  "Quilava": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Flamethrower",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Quilava"
+  },
+  "Raichu": {
+    "ability": "Lightning Rod",
+    "canClaim": 0,
+    "moves": [
+      "DynamicPunch",
+      "Zap Cannon",
+      "Grass Knot",
+      "Fake Out"
+    ],
+    "species": "Raichu"
+  },
+  "Rapidash": {
+    "ability": "Flash Fire",
+    "canClaim": 0,
+    "moves": [
+      "Inferno",
+      "Hidden Power (Ground)",
+      "Bounce",
+      "Horse's Protection"
+    ],
+    "species": "Rapidash"
+  },
+  "Raticate": {
+    "ability": "Guts",
+    "canClaim": 0,
+    "moves": [
+      "Body Slam",
+      "Crunch",
+      "Wild Charge",
+      "Reversal"
+    ],
+    "species": "Raticate"
+  },
+  "Rattata": {
+    "ability": "Guts",
+    "canClaim": 1,
+    "moves": [
+      "Body Slam",
+      "Crunch",
+      "Wild Charge",
+      "Reversal"
+    ],
+    "species": "Rattata"
+  },
+  "Rhydon": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Earthquake",
+      "Rock Slide",
+      "Ice Beam",
+      "Thunderbolt"
+    ],
+    "species": "Rhydon"
+  },
+  "Rhyhorn": {
+    "ability": "Lightningrod",
+    "canClaim": 1,
+    "moves": [
+      "Drill Run",
+      "Rock Slide",
+      "Dragon Rush",
+      "Provoke"
+    ],
+    "species": "Rhyhorn"
+  },
+  "Rhyperior": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Earthquake",
+      "Rock Slide",
+      "Ice Beam",
+      "Thunderbolt"
+    ],
+    "species": "Rhyperior"
+  },
+  "Riolu": {
+    "ability": "Inner Focus",
+    "canClaim": 1,
+    "moves": [
+      "Aura Sphere",
+      "Meteor Mash",
+      "Hidden Power (Dragon)",
+      "Protective Aura"
+    ],
+    "species": "Riolu"
+  },
+  "Rufflet": {
+    "ability": "Sheer Force",
+    "canClaim": 1,
+    "moves": [
+      "Sky Drop",
+      "Body Slam",
+      "Close Combat",
+      "Tailwind"
+    ],
+    "species": "Rufflet"
+  },
+  "Salamence": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Dragon Pulse",
+      "Aerial Ace",
+      "Ice Beam",
+      "Thunderbolt"
+    ],
+    "species": "Salamence"
+  },
+  "Samurott": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Scald",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Samurott"
+  },
+  "Sandshrew": {
+    "ability": "Sand Rush",
+    "canClaim": 1,
+    "moves": [
+      "Earthquake",
+      "Stone Edge",
+      "X-Scissor",
+      "Healing Wind"
+    ],
+    "species": "Sandshrew"
+  },
+  "Sandslash": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Earthquake",
+      "Ice Beam",
+      "Thunderbolt",
+      "Shadow Ball"
+    ],
+    "species": "Sandslash"
+  },
+  "Sawsbuck": {
+    "ability": "Sap Sipper",
+    "canClaim": 0,
+    "moves": [
+      "Bullet Seed",
+      "Double-Edge",
+      "Jump Kick",
+      "Horse's Protection"
+    ],
+    "species": "Sawsbuck"
+  },
+  "Sceptile": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Energy Ball",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Sceptile"
+  },
+  "Scrafty": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Crunch",
+      "Drain Punch",
+      "Ice Beam",
+      "Thunderbolt"
+    ],
+    "species": "Scrafty"
+  },
+  "Seadra": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Scald",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Seadra"
+  },
+  "Serperior": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Energy Ball",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Serperior"
+  },
+  "Servine": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Energy Ball",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Servine"
+  },
+  "Seviper": {
+    "ability": "Shed Skin",
+    "canClaim": 1,
+    "moves": [
+      "Sludge Wave",
+      "Flamethrower",
+      "Aqua Tail",
+      "Serpent's Fear"
+    ],
+    "species": "Seviper"
+  },
+  "Shelgon": {
+    "ability": "Rock Head",
+    "canClaim": 0,
+    "moves": [
+      "Dragon Rush",
+      "Brick Break",
+      "Wish",
+      "Protect"
+    ],
+    "species": "Shelgon"
+  },
+  "Shieldon": {
+    "ability": "Sturdy",
+    "canClaim": 1,
+    "moves": [
+      "Toxic",
+      "Provoke",
+      "Mending Prayer",
+      "Joyous Cheer"
+    ],
+    "species": "Shieldon"
+  },
+  "Shinx": {
+    "ability": "Intimidate",
+    "canClaim": 1,
+    "moves": [
+      "Wild Charge",
+      "Hidden Power (Fighting)",
+      "Crunch",
+      "Thunder Wave"
+    ],
+    "species": "Shinx"
+  },
+  "Simipour": {
+    "ability": "Torrent",
+    "canClaim": 0,
+    "moves": [
+      "Water Pledge",
+      "Acrobatics",
+      "Hidden Power (Dragon)",
+      "Ice Beam"
+    ],
+    "species": "Simipour"
+  },
+  "Simisage": {
+    "ability": "Overgrow",
+    "canClaim": 0,
+    "moves": [
+      "Grass Pledge",
+      "Acrobatics",
+      "Hidden Power (Rock)",
+      "Low Kick"
+    ],
+    "species": "Simisage"
+  },
+  "Simisear": {
+    "ability": "Blaze",
+    "canClaim": 0,
+    "moves": [
+      "Fire Pledge",
+      "Acrobatics",
+      "Hidden Power (Grass)",
+      "Crunch"
+    ],
+    "species": "Simisear"
+  },
+  "Skarmory": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Iron Tail",
+      "Aerial Ace",
+      "Ice Beam",
+      "Thunderbolt"
+    ],
+    "species": "Skarmory"
+  },
+  "Skitty": {
+    "ability": "Normalize",
+    "canClaim": 1,
+    "moves": [
+      "Fake Out",
+      "Healing Wind",
+      "Mending Prayer",
+      "Joyous Cheer"
+    ],
+    "species": "Skitty"
+  },
+  "Slaking": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Return",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Slaking"
+  },
+  "Slakoth": {
+    "ability": "Truant",
+    "canClaim": 1,
+    "moves": [
+      "Mega Kick",
+      "Gunk Shot",
+      "X-Scissor",
+      "Slack Off"
+    ],
+    "species": "Slakoth"
+  },
+  "Slowking": {
+    "ability": "Regenerator",
+    "canClaim": 0,
+    "moves": [
+      "Hydro Pump",
+      "Fire Blast",
+      "Zap Cannon",
+      "Mending Prayer"
+    ],
+    "species": "Slowking"
+  },
+  "Slowpoke": {
+    "ability": "Regenerator",
+    "canClaim": 1,
+    "moves": [
+      "Hydro Pump",
+      "Fire Blast",
+      "Zap Cannon",
+      "Mending Prayer"
+    ],
+    "species": "Slowpoke"
+  },
+  "Smeargle": {
+    "ability": "Technician",
+    "canClaim": 1,
+    "moves": [
+      "Lovely Kiss",
+      "Healing Wind",
+      "Mending Prayer",
+      "Joyous Cheer"
+    ],
+    "species": "Smeargle"
+  },
+  "Snivy": {
+    "ability": "Contrary",
+    "canClaim": 1,
+    "moves": [
+      "Leaf Storm",
+      "Twister",
+      "Hidden Power (Rock)",
+      "Gastro Acid"
+    ],
+    "species": "Snivy"
+  },
+  "Snubbull": {
+    "ability": "Intimidate",
+    "canClaim": 1,
+    "moves": [
+      "Double-Edge",
+      "Earthquake",
+      "Ice Punch",
+      "Lovely Kiss"
+    ],
+    "species": "Snubbull"
+  },
+  "Spearow": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Return",
+      "Aerial Ace",
+      "Ice Beam",
+      "Thunderbolt"
+    ],
+    "species": "Spearow"
+  },
+  "Spinda": {
+    "ability": "Contrary",
+    "canClaim": 1,
+    "moves": [
+      "Mega Kick",
+      "Superpower",
+      "Mending Prayer",
+      "Joyous Cheer"
+    ],
+    "species": "Spinda"
+  },
+  "Spoink": {
+    "ability": "Thick Fat",
+    "canClaim": 1,
+    "moves": [
+      "Psychic",
+      "Hidden Power (Fighting)",
+      "Flash Cannon",
+      "Signal Beam"
+    ],
+    "species": "Spoink"
+  },
+  "Stantler": {
+    "ability": "Intimidate",
+    "canClaim": 1,
+    "moves": [
+      "Body Slam",
+      "Energy Ball",
+      "Jump Kick",
+      "Horse's Protection"
+    ],
+    "species": "Stantler"
+  },
+  "Staraptor": {
+    "ability": "Reckless",
+    "canClaim": 0,
+    "moves": [
+      "Brave Bird",
+      "Double-Edge",
+      "Roost",
+      "Protect"
+    ],
+    "species": "Staraptor"
+  },
+  "Staravia": {
+    "ability": "Reckless",
+    "canClaim": 0,
+    "moves": [
+      "Brave Bird",
+      "Double-Edge",
+      "Roost",
+      "Protect"
+    ],
+    "species": "Staravia"
+  },
+  "Starly": {
+    "ability": "Reckless",
+    "canClaim": 1,
+    "moves": [
+      "Brave Bird",
+      "Double-Edge",
+      "Roost",
+      "Protect"
+    ],
+    "species": "Starly"
+  },
+  "Steelix": {
+    "ability": "Rock Head",
+    "canClaim": 0,
+    "moves": [
+      "Earthquake",
+      "Iron Tail",
+      "Head Smash",
+      "Serpent's Fear"
+    ],
+    "species": "Steelix"
+  },
+  "Stoutland": {
+    "ability": "Vital Spirit",
+    "canClaim": 0,
+    "moves": [
+      "Return",
+      "Crunch",
+      "Wild Charge",
+      "Fire Fang"
+    ],
+    "species": "Stoutland"
+  },
+  "Swinub": {
+    "ability": "Oblivious",
+    "canClaim": 1,
+    "moves": [
+      "Icicle Crash",
+      "Earthquake",
+      "Provoke",
+      "Protective Aura"
+    ],
+    "species": "Swinub"
+  },
+  "Swoobat": {
+    "ability": "Simple",
+    "canClaim": 0,
+    "moves": [
+      "Psychic",
+      "Air Slash",
+      "Heat Wave",
+      "Joyous Cheer"
+    ],
+    "species": "Swoobat"
+  },
+  "Tauros": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Return",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Tauros"
+  },
+  "Tepig": {
+    "ability": "Thick Fat",
+    "canClaim": 1,
+    "moves": [
+      "Flare Blitz",
+      "Head Smash",
+      "Wild Charge",
+      "Protect"
+    ],
+    "species": "Tepig"
+  },
+  "Terrakion": {
+    "ability": "Justified",
+    "canClaim": 1,
+    "moves": [
+      "Sacred Sword",
+      "Stone Edge",
+      "Aerial Ace",
+      "Mending Prayer"
+    ],
+    "species": "Terrakion"
+  },
+  "Torchic": {
+    "ability": "Blaze",
+    "canClaim": 1,
+    "moves": [
+      "Fire Pledge",
+      "Hidden Power (Fighting)",
+      "Bounce",
+      "Helping Hand"
+    ],
+    "species": "Torchic"
+  },
+  "Totodile": {
+    "ability": "Sheer Force",
+    "canClaim": 1,
+    "moves": [
+      "Waterfall",
+      "Ice Punch",
+      "Crunch",
+      "Protect"
+    ],
+    "species": "Totodile"
+  },
+  "Treecko": {
+    "ability": "Overgrow",
+    "canClaim": 1,
+    "moves": [
+      "Grass Pledge",
+      "DynamicPunch",
+      "Hidden Power (Dragon)",
+      "Toxic"
+    ],
+    "species": "Treecko"
+  },
+  "Tynamo": {
+    "ability": "Levitate",
+    "canClaim": 1,
+    "moves": [
+      "Spark",
+      "Tackle",
+      "Charge Beam",
+      "Serpent's Fear"
+    ],
+    "species": "Tynamo"
+  },
+  "Typhlosion": {
+    "ability": "TBD",
+    "canClaim": 0,
+    "moves": [
+      "Flamethrower",
+      "Ice Beam",
+      "Thunderbolt",
+      "Earthquake"
+    ],
+    "species": "Typhlosion"
+  },
+  "Vibrava": {
+    "ability": "Hyper Cutter",
+    "canClaim": 0,
+    "moves": [
+      "Hidden Power (Dragon)",
+      "Dig",
+      "Superpower",
+      "Dragon's Blessing"
+    ],
+    "species": "Vibrava"
+  },
+  "Vigoroth": {
+    "ability": "Truant",
+    "canClaim": 0,
+    "moves": [
+      "Mega Kick",
+      "Gunk Shot",
+      "X-Scissor",
+      "Slack Off"
+    ],
+    "species": "Vigoroth"
+  },
+  "Virizion": {
+    "ability": "Justified",
+    "canClaim": 1,
+    "moves": [
+      "Sacred Sword",
+      "Leaf Blade",
+      "Megahorn",
+      "Horse's Protection"
+    ],
+    "species": "Virizion"
+  },
+  "Vulpix": {
+    "ability": "Drought",
+    "canClaim": 1,
+    "moves": [
+      "Flamethrower",
+      "Hidden Power (Grass)",
+      "Extrasensory",
+      "Protective Aura"
+    ],
+    "species": "Vulpix"
+  },
+  "Whimsicott": {
+    "ability": "Prankster",
+    "canClaim": 0,
+    "moves": [
+      "Energy Ball",
+      "Tailwind",
+      "Mending Prayer",
+      "Joyous Cheer"
+    ],
+    "species": "Whimsicott"
+  },
+  "Whismur": {
+    "ability": "Soundproof",
+    "canClaim": 1,
+    "moves": [
+      "Hyper Voice",
+      "Flamethrower",
+      "Ice Beam",
+      "Provoke"
+    ],
+    "species": "Whismur"
+  },
+  "Wigglytuff": {
+    "ability": "Competitive",
+    "canClaim": 0,
+    "moves": [
+      "Hyper Voice",
+      "Blizzard",
+      "Protective Aura",
+      "Healing Wind"
+    ],
+    "species": "Wigglytuff"
+  },
+  "Woobat": {
+    "ability": "Simple",
+    "canClaim": 1,
+    "moves": [
+      "Psychic",
+      "Air Slash",
+      "Heat Wave",
+      "Joyous Cheer"
+    ],
+    "species": "Woobat"
+  },
+  "Zangoose": {
+    "ability": "Toxic Boost",
+    "canClaim": 1,
+    "moves": [
+      "Crush Claw",
+      "Poison Jab",
+      "Low Kick",
+      "Flash of Speed"
+    ],
+    "species": "Zangoose"
+  },
+  "Zebstrika": {
+    "ability": "Lightning Rod",
+    "canClaim": 0,
+    "moves": [
+      "Thunder",
+      "Hidden Power (Fire)",
+      "Low Kick",
+      "Horse's Protection"
+    ],
+    "species": "Zebstrika"
+  },
+  "Zweilous": {
+    "ability": "Hustle",
+    "canClaim": 0,
+    "moves": [
+      "Dragon Pulse",
+      "Dark Pulse",
+      "Provoke",
+      "Dragon's Blessing"
+    ],
+    "species": "Zweilous"
   }
 }

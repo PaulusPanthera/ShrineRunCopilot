@@ -90,6 +90,7 @@ export function createDefaultState(data){
       dexDetailBase: null,
       dexSelectedForm: null,
       dexReturnTab: null,
+      lastNonDexTab: 'waves',
       simWaveKey: null,
       dexDefenderLevelByBase: {},
       attackOverview: null, // {defender, level, tags, source}

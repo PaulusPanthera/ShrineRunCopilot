@@ -2,6 +2,7 @@
 // v13 — hydrate + migrate persisted state
 
 import { fixName } from '../data/nameFixes.js';
+import { fixMoveName } from '../data/moveFixes.js';
 import { STARTERS, makeRosterEntryFromClaimedSet, applyCharmRulesSync, normalizeMovePool, defaultPrioForMove, isStarterSpecies } from '../domain/roster.js';
 import { enforceBagConstraints } from '../domain/items.js';
 
@@ -63,6 +64,7 @@ export function hydrateState(raw, defaultState, data){
   state.pp = state.pp || {};
   if (!state.ui.dexDefenderLevelByBase) state.ui.dexDefenderLevelByBase = {};
   if (!('dexReturnTab' in state.ui)) state.ui.dexReturnTab = null;
+  if (!('lastNonDexTab' in state.ui)) state.ui.lastNonDexTab = (state.ui.tab && state.ui.tab !== 'unlocked') ? state.ui.tab : 'waves';
   if (!('simWaveKey' in state.ui)) state.ui.simWaveKey = null;
 
   // Politoed shop
@@ -100,6 +102,28 @@ export function hydrateState(raw, defaultState, data){
 
     // v13+: priorities must be 1/2/3
     normalizeMovePool(r);
+    // Canonicalize move names (remove legacy aliases/typos) and keep PP map consistent.
+    if (Array.isArray(r.movePool)){
+      const oldToNew = new Map();
+      for (const mv of r.movePool){
+        if (!mv || !mv.name) continue;
+        const old = String(mv.name);
+        const neu = fixMoveName(old);
+        if (neu && neu !== old){
+          mv.name = neu;
+          oldToNew.set(old, neu);
+        }
+      }
+      // Rename stored PP keys for this mon.
+      if (state.pp && state.pp[r.id] && oldToNew.size){
+        const ppObj = state.pp[r.id];
+        for (const [old, neu] of oldToNew.entries()){
+          if (ppObj[old] && !ppObj[neu]) ppObj[neu] = ppObj[old];
+          if (ppObj[old] && ppObj[neu] && old !== neu) delete ppObj[old];
+        }
+      }
+    }
+
 
     // If movePool empty, rebuild
     if (r.movePool.length === 0 && data.claimedSets?.[r.baseSpecies]){
@@ -173,11 +197,22 @@ export function hydrateState(raw, defaultState, data){
     const activeIds = new Set(state.roster.filter(r=>r.active).map(r=>r.id));
     const attackers = (wp.attackers||[]).filter(id => activeIds.has(id)).slice(0,16);
     const attackerStart = (wp.attackerStart||[]).filter(id => attackers.includes(id)).slice(0,2);
+    // Canonicalize any forced-move overrides.
+    let attackMoveOverride = wp.attackMoveOverride || null;
+    if (attackMoveOverride && typeof attackMoveOverride === 'object'){
+      const o2 = {};
+      for (const [rid, mv] of Object.entries(attackMoveOverride)){
+        o2[rid] = fixMoveName(mv);
+      }
+      attackMoveOverride = o2;
+    }
+
     state.wavePlans[wk] = {
       ...wp,
       attackers,
       attackerStart: attackerStart.length ? attackerStart : attackers.slice(0,2),
       fightLog: Array.isArray(wp.fightLog) ? wp.fightLog : [],
+      attackMoveOverride,
     };
   }
 

@@ -153,7 +153,9 @@
     D = applyDefensiveItemMult(settings.defenderItem, mv.category, D);
 
     // Base damage (Gen5-ish rounding)
-    const power = mv.power;
+    let power = mv.power;
+    // Acrobatics: double BP when attacker holds no item.
+    if (moveName === 'Acrobatics' && !(settings.attackerItem)) power = power * 2;
     const base1 = Math.floor((2 * L) / 5) + 2;
     let dmg = Math.floor(Math.floor(Math.floor(base1 * power * A / D) / 50) + 2);
 

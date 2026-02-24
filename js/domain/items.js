@@ -1,5 +1,6 @@
 // js/domain/items.js
-// v13 — shared item catalog + simple effect helpers (PokeMMO / Gen5-ish)
+// v2.0.0-beta
+// Shared item catalog + bundle helpers + simple effect helpers (PokeMMO / Gen5-ish)
 
 // Starters have Strength Charm forced ON, but it does NOT consume the shared bag.
 import { isStarterSpecies } from './roster.js';
@@ -16,12 +17,21 @@ export const CORE_ITEMS = [
   'Muscle Band',
   'Wise Glasses',
   'Expert Belt',
+  'Light Ball',
+  'Bright Powder',
+  'Loaded Dice',
   'Choice Band',
   'Choice Specs',
   'Choice Scarf',
   'Assault Vest',
   'Focus Sash',
   'Copper Coin',
+  'Revive',
+  'Air Balloon',
+  'Scope Lens',
+  'Wide Lens',
+  'Metronome',
+  'Thick Club',
 ];
 
 export function plateName(type){
@@ -36,7 +46,7 @@ export function buildItemCatalog(){
   const plates = TYPES_NO_FAIRY.map(plateName);
   const gems = TYPES_NO_FAIRY.map(gemName);
   const charms = ['Evo Charm','Strength Charm'];
-  const rareCandy = ['Rare Candy','Rare Candy x2'];
+  const rareCandy = ['Rare Candy','Rare Candy x2','Rare Candy x3'];
   const coins = ['Copper Coin','Copper Coin x5'];
 
   // Default “wave loot” pool.
@@ -74,11 +84,12 @@ export function gemType(item){
 
 // Wave loot comes in fixed bundles:
 // - Gems: always found as a set of 5
-// - Rare Candy: 1 or 2
+// - Rare Candy: 1 / 2 / 3
 // - Everything else: 1
 export function lootBundle(itemName){
   const name = String(itemName || '').trim();
   if (!name) return null;
+  if (name === 'Rare Candy x3') return {key:'Rare Candy', qty:3};
   if (name === 'Rare Candy x2') return {key:'Rare Candy', qty:2};
   if (name === 'Rare Candy') return {key:'Rare Candy', qty:1};
   if (name === 'Copper Coin x5') return {key:'Copper Coin', qty:5};
@@ -168,11 +179,15 @@ export function enforceBagConstraints(data, state, applyCharmRulesSync){
 export function priceOfItem(item){
   const name = String(item||'').trim();
   if (!name) return 0;
+  // Loot-only in the shrine (not for purchase).
+  if (name === 'Revive') return 0;
   if (name === 'Evo Charm') return 16;
   if (name === 'Strength Charm') return 12;
   if (name === 'Copper Coin') return 1;
   if (isGem(name)) return 1;
   if (isPlate(name)) return 5;
+  if (name === 'Rare Candy x3') return 24;
+  if (name === 'Rare Candy x2') return 16;
   if (name === 'Rare Candy') return 8;
 
   // Common holds
@@ -180,10 +195,19 @@ export function priceOfItem(item){
   if (name === 'Expert Belt') return 12;
   if (name === 'Muscle Band') return 12;
   if (name === 'Wise Glasses') return 12;
+  if (name === 'Light Ball') return 12;
+  if (name === 'Bright Powder') return 12;
+  if (name === 'Loaded Dice') return 12;
   if (name === 'Assault Vest') return 16;
   if (name === 'Focus Sash') return 16;
   if (name === 'Life Orb') return 16;
   if (name.startsWith('Choice ')) return 16;
+
+  if (name === 'Air Balloon') return 12;
+  if (name === 'Wide Lens') return 12;
+  if (name === 'Metronome') return 12;
+  if (name === 'Scope Lens') return 16;
+  if (name === 'Thick Club') return 16;
 
   return 12;
 }
