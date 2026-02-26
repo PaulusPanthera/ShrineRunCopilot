@@ -1,6 +1,6 @@
-# shrineruncopilot
+# alpha_v1_sim
 A tool to run the Abundand Shrine Run for LNY Event in PokeMMO
-Abundant Shrine — Roster Planner (alpha v13)
+alpha_v1_sim (alpha v1)
 
 A local-first, browser-based planner for the Abundant Shrine challenge: build your roster, plan waves, track unlocked species, and quickly check one-shot / damage info from your active roster.
 

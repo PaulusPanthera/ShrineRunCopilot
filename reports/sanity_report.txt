@@ -1,0 +1,33 @@
+SANITY REPORT — alpha_v1_sim (patched)
+Generated: 2026-02-26 10:15 UTC
+
+dex.json species: 227
+claimedSets.json species: 227
+moves.json moves: 154
+calcSlots.json slots: 332 (unique defenders: 207)
+
+Cross-file alignment
+- dex without claimedSet: 0
+- claimedSets extra (not in dex): 0
+- wave defenders missing in dex: 0
+- wave defenders missing in claimedSets: 0
+- claimedSets referencing missing moves: 0
+- dex schema anomalies (missing 'base'/'types'): 0
+- claimedSets anomalies (missing ability or not 4 moves): 0
+
+Dynamic calc tags
+- HH/INT/STU are derived at load-time from claimedSets (ability/moves) in js/data/loadData.js.
+- calcSlots.json tags can still contain other UI-only tags (FO, SUN, etc.).
+
+calcSlots tag distribution (raw file, before derivation):
+  - INT: 29
+  - FO: 20
+  - HH: 17
+  - STU: 6
+  - SUN: 4
+  - Rough: 3
+  - Skin: 3
+  - SR: 3
+  - MS: 2
+  - PRIO: 1
+  - STA: 1

@@ -1025,6 +1025,7 @@ export function startApp(ctx){
     const phase1 = phaseWaveKeys(1);
     const phase2 = phaseWaveKeys(2);
     const phase3 = phaseWaveKeys(3);
+    const phase4 = phaseWaveKeys(4);
 
     // Run order control (moved from Settings → Waves for better discoverability).
     (function(){
@@ -1053,6 +1054,8 @@ export function startApp(ctx){
       {title:'Phase 2 — Part 2', phase:2, keys: phase2.slice(6), bossAfter:true},
       {title:'Phase 3 — Part 1', phase:3, keys: phase3.slice(0,6), bossAfter:true},
       {title:'Phase 3 — Part 2', phase:3, keys: phase3.slice(6), bossAfter:true},
+      {title:'Phase 4 — Part 1', phase:4, keys: phase4.slice(0,6), bossAfter:true},
+      {title:'Phase 4 — Part 2', phase:4, keys: phase4.slice(6), bossAfter:true},
     ];
 
     for (const sec of sections){
@@ -2152,7 +2155,8 @@ function renderWavePlanner(state, waveKey, slots, wp){
       const isUnlocked = !!state.unlocked?.[base];
       const isClaimed = !!state.cleared?.[baseDefKey(s.rowKey)];
 
-      const sp = el('img', {class:'sprite sprite-sm', src:spriteStatic(calc, s.defender), alt:s.defender});
+      // In the wave list, show defenders a bit larger (static PNG) for readability.
+      const sp = el('img', {class:'sprite sprite-md', src:spriteStatic(calc, s.defender), alt:s.defender});
       sp.onerror = ()=> sp.style.opacity='0.25';
 
       const statusPill = isClaimed
@@ -3208,8 +3212,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	      const signature = (()=>{
 	        const parts = [];
 	        parts.push(`wave:${waveKey}|phase:${phase}|defLimit:${defLimit}`);
-	        parts.push(`sel:${(curW.defenders||[]).join(',')}`);
-	        parts.push(`altslack:${Number(st.settings?.autoAltAvgSlack ?? 0)}`);
+		        parts.push(`altslack:${Number(st.settings?.autoAltAvgSlack ?? 0)}`);
 	        parts.push(`altlim:${Number(st.settings?.variationLimit ?? 8)}`);
 	        parts.push(`altcap:${Number(st.settings?.variationGenCap ?? 5000)}`);
         const ovr = curW.attackMoveOverride || {};
@@ -3274,16 +3277,11 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	          const waveKeys = Array.from(slotByKey.keys());
 	          if (!waveKeys.length) return null;
 
-	          // If the user selected a lead pair (#1/#2 in Selected enemies), treat it as a strong hint:
-	          // Auto x4 should include that pair in the generated schedules (and preferably as Fight 1).
-	          const selLeadRaw = (curW?.defenders || []).filter(Boolean).slice(0, 2);
-	          const lead0 = selLeadRaw[0] ? baseDefKey(selLeadRaw[0]) : null;
-	          const lead1 = selLeadRaw[1] ? baseDefKey(selLeadRaw[1]) : null;
-	          const leadPair = (lead0 && lead1 && lead0 !== lead1 && slotByKey.has(lead0) && slotByKey.has(lead1))
-	            ? { lead0, lead1 }
-	            : null;
+	                    // Auto x4 is a global solver and does NOT depend on Selected enemies (lead pair).
+          // (Lead pair remains meaningful for the manual Fight button + Fight plan preview.)
+          const leadPair = null;
 
-	          const maxFuturePhase = Math.min(3, phase + 2);
+          const maxFuturePhase = Math.min(3, phase + 2);
 	          const futureCount = (rowKey)=>{
 	            const sl = slotByKey.get(String(rowKey));
 	            const base = sl ? pokeApi.baseOfSync(sl.defender, st.baseCache||{}) : String(rowKey);
@@ -4041,8 +4039,8 @@ const sturdyAoeSolveScore = (aId, bId, stuKey, otherKey)=>{
 	            // Round-robin-ish breadth: cap expansion per schedule so we sample across many
 	            // defender matchings instead of fully expanding the earliest one.
 	            const perSchCap = Math.max(
-	              50,
-	              Math.min(400, Math.floor(genCap / Math.max(1, schedules.length)))
+	              10,
+	              Math.min(200, Math.floor(genCap / Math.max(1, schedules.length * 4)))
 	            );
 	            for (const sch of schedules){
 	              if (genCapped) break;
@@ -4098,26 +4096,36 @@ const sturdyAoeSolveScore = (aId, bId, stuKey, otherKey)=>{
 
 	            const prios = [];
 	            const turns = [];
+	            let ppSpent = 0;
+	            let allWon = true;
 	            for (const spec of (cand.fights||[])){
 	              const e = makeFightEntry(simState, wTmp, spec?.aId, spec?.bId, spec?.defs);
+	              if (!e || e.status !== 'won'){
+	                allWon = false;
+	                break;
+	              }
 	              prios.push(Number.isFinite(Number(e?.prioAvg)) ? Number(e.prioAvg) : 9);
 	              turns.push(Number.isFinite(Number(e?.turnCount)) ? Number(e.turnCount) : 99);
+	              for (const d of (e.ppDelta || [])){
+	                const used = Number(d.prevCur||0) - Number(d.nextCur||0);
+	                if (used > 0) ppSpent += used;
+	              }
 	            }
+	            if (!allWon) continue;
 
-	            // Auto x4 selection: prioritize deterministic speed/safety first.
-	            // Primary: fewer turns (deterministic min-roll sim), then prio tier usage.
-	            const avgTurns = turns.length ? (turns.reduce((s,x)=>s+x,0) / turns.length) : 99;
-	            const maxTurns = turns.length ? Math.max(...turns) : 99;
+	            // Auto x4 selection: prioØ-first (lower is better), then turns, then PP usage.
 	            const avgPrio = prios.length ? (prios.reduce((s,x)=>s+x,0) / prios.length) : 9;
 	            const maxPrio = prios.length ? Math.max(...prios) : 9;
+	            const avgTurns = turns.length ? (turns.reduce((s,x)=>s+x,0) / turns.length) : 99;
+	            const maxTurns = turns.length ? Math.max(...turns) : 99;
 	            const stu = sturdyCountFromFights(cand.fights);
 	            scored.push({
 	              alt:{fights:cand.fights},
-	              // Keep field names stable: avg/max now refer to turns.
-	              avg: avgTurns,
-	              max: maxTurns,
 	              avgPrio,
 	              maxPrio,
+	              avgTurns,
+	              maxTurns,
+	              ppSpent,
 	              stu,
 	              pat: patternKeyFromPrios(prios),
 	              key: cand.key,
@@ -4125,15 +4133,18 @@ const sturdyAoeSolveScore = (aId, bId, stuKey, otherKey)=>{
 	            });
 	          }
 
-	          // Find the single best pattern by (min avg turns, then min worst turns),
-	          // then prefer lower prio tier usage, then stable tie-break by lex.
-	          let bestAvg = Math.min(...scored.map(x=>x.avg));
-	          const bestAvgSet = scored.filter(x=> Math.abs(x.avg - bestAvg) <= EPS);
-	          let bestWorst = Math.min(...bestAvgSet.map(x=>x.max));
-	          const bestSet = bestAvgSet.filter(x=> Math.abs(x.max - bestWorst) <= EPS);
+	          if (!scored.length) return null;
+
+	          // Find the single best schedule by (min avg prioØ, then min worst prioØ),
+	          // then fewer turns, then lower PP usage, then fewer STU defenders, then stable tie-break by lex.
+	          let bestAvg = Math.min(...scored.map(x=>x.avgPrio));
+	          const bestAvgSet = scored.filter(x=> Math.abs((x.avgPrio||9) - bestAvg) <= EPS);
+	          let bestWorst = Math.min(...bestAvgSet.map(x=>x.maxPrio));
+	          const bestSet = bestAvgSet.filter(x=> Math.abs((x.maxPrio||9) - bestWorst) <= EPS);
 	          bestSet.sort((a,b)=>{
-	            if ((a.avgPrio||9) !== (b.avgPrio||9)) return (a.avgPrio||9) - (b.avgPrio||9);
-	            if ((a.maxPrio||9) !== (b.maxPrio||9)) return (a.maxPrio||9) - (b.maxPrio||9);
+	            if ((a.avgTurns||99) !== (b.avgTurns||99)) return (a.avgTurns||99) - (b.avgTurns||99);
+	            if ((a.maxTurns||99) !== (b.maxTurns||99)) return (a.maxTurns||99) - (b.maxTurns||99);
+	            if ((a.ppSpent||0) !== (b.ppSpent||0)) return (a.ppSpent||0) - (b.ppSpent||0);
 	            if ((a.stu||0) !== (b.stu||0)) return (a.stu||0) - (b.stu||0);
 	            return String(a.lex).localeCompare(String(b.lex));
 	          });
@@ -4142,8 +4153,9 @@ const sturdyAoeSolveScore = (aId, bId, stuKey, otherKey)=>{
 	          // Build the "best pattern" list (this is what the modal should show by default).
 	          const bestMatches = scored.filter(x=> x.pat === bestPatternKey);
 	          bestMatches.sort((a,b)=>{
-	            if ((a.avgPrio||9) !== (b.avgPrio||9)) return (a.avgPrio||9) - (b.avgPrio||9);
-	            if ((a.maxPrio||9) !== (b.maxPrio||9)) return (a.maxPrio||9) - (b.maxPrio||9);
+	            if ((a.avgTurns||99) !== (b.avgTurns||99)) return (a.avgTurns||99) - (b.avgTurns||99);
+	            if ((a.maxTurns||99) !== (b.maxTurns||99)) return (a.maxTurns||99) - (b.maxTurns||99);
+	            if ((a.ppSpent||0) !== (b.ppSpent||0)) return (a.ppSpent||0) - (b.ppSpent||0);
 	            if ((a.stu||0) !== (b.stu||0)) return (a.stu||0) - (b.stu||0);
 	            return String(a.lex).localeCompare(String(b.lex));
 	          });
@@ -4155,12 +4167,13 @@ const sturdyAoeSolveScore = (aId, bId, stuKey, otherKey)=>{
 	          // Cycle list: within bestAvg + slack (avg prioØ), cap.
 	          const slack = Math.max(0, Number(st.settings?.autoAltAvgSlack ?? 0));
 	          const cutoff = bestAvg + slack + EPS;
-	          const kept = scored.filter(x=> x.avg <= cutoff);
+	          const kept = scored.filter(x=> (x.avgPrio ?? 9) <= cutoff);
 	          kept.sort((a,b)=>{
-	            if (a.avg !== b.avg) return a.avg - b.avg;
-	            if (a.max !== b.max) return a.max - b.max;
 	            if ((a.avgPrio||9) !== (b.avgPrio||9)) return (a.avgPrio||9) - (b.avgPrio||9);
 	            if ((a.maxPrio||9) !== (b.maxPrio||9)) return (a.maxPrio||9) - (b.maxPrio||9);
+	            if ((a.avgTurns||99) !== (b.avgTurns||99)) return (a.avgTurns||99) - (b.avgTurns||99);
+	            if ((a.maxTurns||99) !== (b.maxTurns||99)) return (a.maxTurns||99) - (b.maxTurns||99);
+	            if ((a.ppSpent||0) !== (b.ppSpent||0)) return (a.ppSpent||0) - (b.ppSpent||0);
 	            if ((a.stu||0) !== (b.stu||0)) return (a.stu||0) - (b.stu||0);
 	            return String(a.lex).localeCompare(String(b.lex));
 	          });
@@ -6272,9 +6285,9 @@ const headLeft = el('div', {}, [
 
       el('hr'),
       el('div', {class:'panel-subtitle'}, 'Auto solver (alts)'),
-	  el('div', {class:'muted small'}, 'When cycling Auto x4, include solutions up to bestAvg + slack (avg turns, then prioØ). 0 = best-only.'),
+	  el('div', {class:'muted small'}, 'When cycling Auto x4, include solutions up to bestAvg + slack (avg prioØ, then turns). 0 = best-only.'),
       el('div', {class:'core-fields'}, [
-	    fieldSelect('Avg turns slack', (s.autoAltAvgSlack ?? 0), [
+	    fieldSelect('Avg prioØ slack', (s.autoAltAvgSlack ?? 0), [
           {value:0, label:'0 (best only)'},
           {value:0.25, label:'0.25'},
           {value:0.5, label:'0.5'},

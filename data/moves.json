@@ -1463,6 +1463,16 @@
     "type": "Water",
     "uses": "Atk"
   },
+  "Weather Ball": {
+    "accuracy": 100.0,
+    "category": "Special",
+    "name": "Weather Ball",
+    "notes": "Changes type to match weather; power doubles in weather (Gen 5).",
+    "power": 50.0,
+    "targets": "SpD",
+    "type": "Normal",
+    "uses": "SpA"
+  },
   "Wild Charge": {
     "accuracy": 100.0,
     "category": "Physical",

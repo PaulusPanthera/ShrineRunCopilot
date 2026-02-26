@@ -11,6 +11,8 @@
 // - Only the 4 starters differ: 3× Adamant, 1× Modest (Keldeo).
 export function defaultNatureForSpecies(species){
   const s = String(species || '').trim();
+  // Special case: Politoed side-boss is always Modest (user-confirmed).
+  if (s === 'Politoed') return 'Modest';
   if (s === 'Keldeo') return 'Modest';
   if (s === 'Cobalion' || s === 'Terrakion' || s === 'Virizion') return 'Adamant';
   return 'Bashful';

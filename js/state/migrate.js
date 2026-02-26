@@ -200,6 +200,11 @@ export function hydrateState(raw, defaultState, data){
     const activeIds = new Set(state.roster.filter(r=>r.active).map(r=>r.id));
     const attackers = (wp.attackers||[]).filter(id => activeIds.has(id)).slice(0,16);
     const attackerStart = (wp.attackerStart||[]).filter(id => attackers.includes(id)).slice(0,2);
+
+    // Prune invalid defender rowKeys (data changed / removed slots)
+    const waveRowKeys = new Set((data.calcSlots||[]).filter(sl=>String(sl.waveKey||'')===String(wk)).map(sl=>String(sl.rowKey||sl.key||'')));
+    const defenders = (wp.defenders||[]).map(x=>String(x||'')).filter(rk => waveRowKeys.has(rk));
+    const defenderStart = (wp.defenderStart||[]).map(x=>String(x||'')).filter(rk => waveRowKeys.has(rk)).slice(0,2);
     // Canonicalize any forced-move overrides.
     let attackMoveOverride = wp.attackMoveOverride || null;
     if (attackMoveOverride && typeof attackMoveOverride === 'object'){
@@ -214,6 +219,8 @@ export function hydrateState(raw, defaultState, data){
       ...wp,
       attackers,
       attackerStart: attackerStart.length ? attackerStart : attackers.slice(0,2),
+      defenders,
+      defenderStart,
       fightLog: Array.isArray(wp.fightLog) ? wp.fightLog : [],
       attackMoveOverride,
     };

@@ -343,11 +343,25 @@ body::after{
   line-height: 1;
 }
 
-.sprite{width:28px;height:28px; image-rendering: pixelated; filter: drop-shadow(0 6px 10px rgba(0,0,0,.35));}
+.sprite{
+  width:28px;
+  height:28px;
+  display:block;
+  object-fit: contain;
+  object-position: center;
+  /* Smooth scaling by default (important for large GIF "hero" sprites in Dex/Roster). */
+  image-rendering: auto;
+  filter: drop-shadow(0 6px 10px rgba(0,0,0,.35));
+}
 .sprite-sm{width:22px;height:22px}
 .sprite-md{width:48px;height:48px}
 .sprite-lg{width:72px;height:72px}
 .sprite-xl{width:64px;height:64px}
+
+/* Keep crisp pixel scaling only for small UI icons. */
+.sprite-sm{
+  image-rendering: pixelated;
+}
 
 .section-title{
   margin:16px 0 10px;
@@ -815,7 +829,7 @@ body::after{
 }
 .pick-item{
   display:grid;
-  grid-template-columns: 34px 1fr;
+  grid-template-columns: 54px 1fr;
   gap:10px;
   align-items:center;
   padding:8px 10px;

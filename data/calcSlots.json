@@ -267,7 +267,7 @@
     "animal": "Dog",
     "level": 47,
     "slot": 5,
-    "defender": "Snubb +",
+    "defender": "Snubbull",
     "tags": [
       "INT"
     ]
@@ -328,19 +328,6 @@
     "slot": 10,
     "defender": "Eevee",
     "tags": []
-  },
-  {
-    "rowKey": "P1W4S11",
-    "waveKey": "P1W4",
-    "phase": 1,
-    "wave": 4,
-    "animal": "Dog",
-    "level": 47,
-    "slot": 11,
-    "defender": "Electrike",
-    "tags": [
-      "Kel"
-    ]
   },
   {
     "rowKey": "P1W5S1",
@@ -628,7 +615,7 @@
     "animal": "Rabbit",
     "level": 47,
     "slot": 1,
-    "defender": "Nidoran♂",
+    "defender": "Nidoran\u2642",
     "tags": []
   },
   {
@@ -639,7 +626,7 @@
     "animal": "Rabbit",
     "level": 47,
     "slot": 2,
-    "defender": "Nidoran♀",
+    "defender": "Nidoran\u2640",
     "tags": []
   },
   {
@@ -1552,7 +1539,7 @@
     "animal": "Dragon",
     "level": 49,
     "slot": 4,
-    "defender": "Charm",
+    "defender": "Charmeleon",
     "tags": []
   },
   {
@@ -2791,6 +2778,1044 @@
     "wave": 12,
     "animal": "Horse",
     "level": 51,
+    "slot": 6,
+    "defender": "Stantler",
+    "tags": [
+      "INT"
+    ]
+  },
+  {
+    "rowKey": "P4W1S1",
+    "waveKey": "P4W1",
+    "phase": 4,
+    "wave": 1,
+    "animal": "Goat",
+    "level": 52,
+    "slot": 1,
+    "defender": "Whimsicott",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W1S2",
+    "waveKey": "P4W1",
+    "phase": 4,
+    "wave": 1,
+    "animal": "Goat",
+    "level": 52,
+    "slot": 2,
+    "defender": "Ampharos",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W1S3",
+    "waveKey": "P4W1",
+    "phase": 4,
+    "wave": 1,
+    "animal": "Goat",
+    "level": 52,
+    "slot": 3,
+    "defender": "Rhyperior",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W1S4",
+    "waveKey": "P4W1",
+    "phase": 4,
+    "wave": 1,
+    "animal": "Goat",
+    "level": 52,
+    "slot": 4,
+    "defender": "Absol",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W1S5",
+    "waveKey": "P4W1",
+    "phase": 4,
+    "wave": 1,
+    "animal": "Goat",
+    "level": 52,
+    "slot": 5,
+    "defender": "Alakazam",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W2S1",
+    "waveKey": "P4W2",
+    "phase": 4,
+    "wave": 2,
+    "animal": "Monkey",
+    "level": 52,
+    "slot": 1,
+    "defender": "Simisear",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W2S2",
+    "waveKey": "P4W2",
+    "phase": 4,
+    "wave": 2,
+    "animal": "Monkey",
+    "level": 52,
+    "slot": 2,
+    "defender": "Simisage",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W2S3",
+    "waveKey": "P4W2",
+    "phase": 4,
+    "wave": 2,
+    "animal": "Monkey",
+    "level": 52,
+    "slot": 3,
+    "defender": "Simipour",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W2S4",
+    "waveKey": "P4W2",
+    "phase": 4,
+    "wave": 2,
+    "animal": "Monkey",
+    "level": 52,
+    "slot": 4,
+    "defender": "Slaking",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W2S5",
+    "waveKey": "P4W2",
+    "phase": 4,
+    "wave": 2,
+    "animal": "Monkey",
+    "level": 52,
+    "slot": 5,
+    "defender": "Ambipom",
+    "tags": [
+      "FO"
+    ]
+  },
+  {
+    "rowKey": "P4W2S6",
+    "waveKey": "P4W2",
+    "phase": 4,
+    "wave": 2,
+    "animal": "Monkey",
+    "level": 52,
+    "slot": 6,
+    "defender": "Infernape",
+    "tags": [
+      "FO"
+    ]
+  },
+  {
+    "rowKey": "P4W2S7",
+    "waveKey": "P4W2",
+    "phase": 4,
+    "wave": 2,
+    "animal": "Monkey",
+    "level": 52,
+    "slot": 7,
+    "defender": "Darmanitan",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W2S8",
+    "waveKey": "P4W2",
+    "phase": 4,
+    "wave": 2,
+    "animal": "Monkey",
+    "level": 52,
+    "slot": 8,
+    "defender": "Medicham",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W3S1",
+    "waveKey": "P4W3",
+    "phase": 4,
+    "wave": 3,
+    "animal": "Rooster",
+    "level": 52,
+    "slot": 1,
+    "defender": "Pidgeot",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W3S2",
+    "waveKey": "P4W3",
+    "phase": 4,
+    "wave": 3,
+    "animal": "Rooster",
+    "level": 52,
+    "slot": 2,
+    "defender": "Fearow",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W3S3",
+    "waveKey": "P4W3",
+    "phase": 4,
+    "wave": 3,
+    "animal": "Rooster",
+    "level": 52,
+    "slot": 3,
+    "defender": "Honchkrow",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W3S4",
+    "waveKey": "P4W3",
+    "phase": 4,
+    "wave": 3,
+    "animal": "Rooster",
+    "level": 52,
+    "slot": 4,
+    "defender": "Dodrio",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W3S5",
+    "waveKey": "P4W3",
+    "phase": 4,
+    "wave": 3,
+    "animal": "Rooster",
+    "level": 52,
+    "slot": 5,
+    "defender": "Braviary",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W3S6",
+    "waveKey": "P4W3",
+    "phase": 4,
+    "wave": 3,
+    "animal": "Rooster",
+    "level": 52,
+    "slot": 6,
+    "defender": "Staraptor",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W3S7",
+    "waveKey": "P4W3",
+    "phase": 4,
+    "wave": 3,
+    "animal": "Rooster",
+    "level": 52,
+    "slot": 7,
+    "defender": "Blaziken",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W3S8",
+    "waveKey": "P4W3",
+    "phase": 4,
+    "wave": 3,
+    "animal": "Rooster",
+    "level": 52,
+    "slot": 8,
+    "defender": "Empoleon",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W3S9",
+    "waveKey": "P4W3",
+    "phase": 4,
+    "wave": 3,
+    "animal": "Rooster",
+    "level": 52,
+    "slot": 9,
+    "defender": "Skarmory",
+    "tags": [
+      "STU"
+    ]
+  },
+  {
+    "rowKey": "P4W3S10",
+    "waveKey": "P4W3",
+    "phase": 4,
+    "wave": 3,
+    "animal": "Rooster",
+    "level": 52,
+    "slot": 10,
+    "defender": "Scrafty",
+    "tags": [
+      "INT"
+    ]
+  },
+  {
+    "rowKey": "P4W3S11",
+    "waveKey": "P4W3",
+    "phase": 4,
+    "wave": 3,
+    "animal": "Rooster",
+    "level": 52,
+    "slot": 11,
+    "defender": "Archeops",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W3S12",
+    "waveKey": "P4W3",
+    "phase": 4,
+    "wave": 3,
+    "animal": "Rooster",
+    "level": 52,
+    "slot": 12,
+    "defender": "Golduck",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W4S1",
+    "waveKey": "P4W4",
+    "phase": 4,
+    "wave": 4,
+    "animal": "Dog",
+    "level": 52,
+    "slot": 1,
+    "defender": "Ninetales",
+    "tags": [
+      "SUN",
+      "HH"
+    ]
+  },
+  {
+    "rowKey": "P4W4S2",
+    "waveKey": "P4W4",
+    "phase": 4,
+    "wave": 4,
+    "animal": "Dog",
+    "level": 52,
+    "slot": 2,
+    "defender": "Stoutland",
+    "tags": [
+      "INT"
+    ]
+  },
+  {
+    "rowKey": "P4W4S3",
+    "waveKey": "P4W4",
+    "phase": 4,
+    "wave": 4,
+    "animal": "Dog",
+    "level": 52,
+    "slot": 3,
+    "defender": "Mightyena",
+    "tags": [
+      "INT"
+    ]
+  },
+  {
+    "rowKey": "P4W4S4",
+    "waveKey": "P4W4",
+    "phase": 4,
+    "wave": 4,
+    "animal": "Dog",
+    "level": 52,
+    "slot": 4,
+    "defender": "Houndoom",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W4S5",
+    "waveKey": "P4W4",
+    "phase": 4,
+    "wave": 4,
+    "animal": "Dog",
+    "level": 52,
+    "slot": 5,
+    "defender": "Granbull",
+    "tags": [
+      "INT"
+    ]
+  },
+  {
+    "rowKey": "P4W4S6",
+    "waveKey": "P4W4",
+    "phase": 4,
+    "wave": 4,
+    "animal": "Dog",
+    "level": 52,
+    "slot": 6,
+    "defender": "Arcanine",
+    "tags": [
+      "INT"
+    ]
+  },
+  {
+    "rowKey": "P4W4S7",
+    "waveKey": "P4W4",
+    "phase": 4,
+    "wave": 4,
+    "animal": "Dog",
+    "level": 52,
+    "slot": 7,
+    "defender": "Lucario",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W4S8",
+    "waveKey": "P4W4",
+    "phase": 4,
+    "wave": 4,
+    "animal": "Dog",
+    "level": 52,
+    "slot": 8,
+    "defender": "Manectric",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W5S1",
+    "waveKey": "P4W5",
+    "phase": 4,
+    "wave": 5,
+    "animal": "Pig",
+    "level": 52,
+    "slot": 1,
+    "defender": "Mamoswine",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W5S2",
+    "waveKey": "P4W5",
+    "phase": 4,
+    "wave": 5,
+    "animal": "Pig",
+    "level": 52,
+    "slot": 2,
+    "defender": "Primeape",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W5S3",
+    "waveKey": "P4W5",
+    "phase": 4,
+    "wave": 5,
+    "animal": "Pig",
+    "level": 52,
+    "slot": 3,
+    "defender": "Emboar",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W5S4",
+    "waveKey": "P4W5",
+    "phase": 4,
+    "wave": 5,
+    "animal": "Pig",
+    "level": 52,
+    "slot": 4,
+    "defender": "Grumpig",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W5S5",
+    "waveKey": "P4W5",
+    "phase": 4,
+    "wave": 5,
+    "animal": "Pig",
+    "level": 52,
+    "slot": 5,
+    "defender": "Musharna",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W5S6",
+    "waveKey": "P4W5",
+    "phase": 4,
+    "wave": 5,
+    "animal": "Pig",
+    "level": 52,
+    "slot": 6,
+    "defender": "Slowking",
+    "tags": [
+      "HH"
+    ]
+  },
+  {
+    "rowKey": "P4W5S7",
+    "waveKey": "P4W5",
+    "phase": 4,
+    "wave": 5,
+    "animal": "Pig",
+    "level": 52,
+    "slot": 7,
+    "defender": "Swoobat",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W6S1",
+    "waveKey": "P4W6",
+    "phase": 4,
+    "wave": 6,
+    "animal": "Rat",
+    "level": 52,
+    "slot": 1,
+    "defender": "Raichu",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W6S2",
+    "waveKey": "P4W6",
+    "phase": 4,
+    "wave": 6,
+    "animal": "Rat",
+    "level": 52,
+    "slot": 2,
+    "defender": "Typhlosion",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W6S3",
+    "waveKey": "P4W6",
+    "phase": 4,
+    "wave": 6,
+    "animal": "Rat",
+    "level": 52,
+    "slot": 3,
+    "defender": "Excadrill",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W6S4",
+    "waveKey": "P4W6",
+    "phase": 4,
+    "wave": 6,
+    "animal": "Rat",
+    "level": 52,
+    "slot": 4,
+    "defender": "Sandslash",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W6S5",
+    "waveKey": "P4W6",
+    "phase": 4,
+    "wave": 6,
+    "animal": "Rat",
+    "level": 52,
+    "slot": 5,
+    "defender": "Cinccino",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W6S6",
+    "waveKey": "P4W6",
+    "phase": 4,
+    "wave": 6,
+    "animal": "Rat",
+    "level": 52,
+    "slot": 6,
+    "defender": "Samurott",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W6S7",
+    "waveKey": "P4W6",
+    "phase": 4,
+    "wave": 6,
+    "animal": "Rat",
+    "level": 52,
+    "slot": 7,
+    "defender": "Floatzel",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W6S8",
+    "waveKey": "P4W6",
+    "phase": 4,
+    "wave": 6,
+    "animal": "Rat",
+    "level": 52,
+    "slot": 8,
+    "defender": "Mienshao",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W7S1",
+    "waveKey": "P4W7",
+    "phase": 4,
+    "wave": 7,
+    "animal": "Ox",
+    "level": 53,
+    "slot": 1,
+    "defender": "Camerupt",
+    "tags": [
+      "SR"
+    ]
+  },
+  {
+    "rowKey": "P4W7S2",
+    "waveKey": "P4W7",
+    "phase": 4,
+    "wave": 7,
+    "animal": "Ox",
+    "level": 53,
+    "slot": 2,
+    "defender": "Bastiodon",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W7S3",
+    "waveKey": "P4W7",
+    "phase": 4,
+    "wave": 7,
+    "animal": "Ox",
+    "level": 53,
+    "slot": 3,
+    "defender": "Donphan",
+    "tags": [
+      "STU"
+    ]
+  },
+  {
+    "rowKey": "P4W7S4",
+    "waveKey": "P4W7",
+    "phase": 4,
+    "wave": 7,
+    "animal": "Ox",
+    "level": 53,
+    "slot": 4,
+    "defender": "Hippowdon",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W7S5",
+    "waveKey": "P4W7",
+    "phase": 4,
+    "wave": 7,
+    "animal": "Ox",
+    "level": 53,
+    "slot": 5,
+    "defender": "Miltank",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W7S6",
+    "waveKey": "P4W7",
+    "phase": 4,
+    "wave": 7,
+    "animal": "Ox",
+    "level": 53,
+    "slot": 6,
+    "defender": "Tauros",
+    "tags": [
+      "INT"
+    ]
+  },
+  {
+    "rowKey": "P4W7S7",
+    "waveKey": "P4W7",
+    "phase": 4,
+    "wave": 7,
+    "animal": "Ox",
+    "level": 53,
+    "slot": 7,
+    "defender": "Bouffalant",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W8S1",
+    "waveKey": "P4W8",
+    "phase": 4,
+    "wave": 8,
+    "animal": "Tiger",
+    "level": 53,
+    "slot": 1,
+    "defender": "Persian",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W8S2",
+    "waveKey": "P4W8",
+    "phase": 4,
+    "wave": 8,
+    "animal": "Tiger",
+    "level": 53,
+    "slot": 2,
+    "defender": "Purugly",
+    "tags": [
+      "FO"
+    ]
+  },
+  {
+    "rowKey": "P4W8S3",
+    "waveKey": "P4W8",
+    "phase": 4,
+    "wave": 8,
+    "animal": "Tiger",
+    "level": 53,
+    "slot": 3,
+    "defender": "Eevee",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W8S4",
+    "waveKey": "P4W8",
+    "phase": 4,
+    "wave": 8,
+    "animal": "Tiger",
+    "level": 53,
+    "slot": 4,
+    "defender": "Espeon",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W8S5",
+    "waveKey": "P4W8",
+    "phase": 4,
+    "wave": 8,
+    "animal": "Tiger",
+    "level": 53,
+    "slot": 5,
+    "defender": "Luxray",
+    "tags": [
+      "INT"
+    ]
+  },
+  {
+    "rowKey": "P4W8S6",
+    "waveKey": "P4W8",
+    "phase": 4,
+    "wave": 8,
+    "animal": "Tiger",
+    "level": 53,
+    "slot": 6,
+    "defender": "Electivire",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W9S1",
+    "waveKey": "P4W9",
+    "phase": 4,
+    "wave": 9,
+    "animal": "Rabbit",
+    "level": 53,
+    "slot": 1,
+    "defender": "Nidoking",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W9S2",
+    "waveKey": "P4W9",
+    "phase": 4,
+    "wave": 9,
+    "animal": "Rabbit",
+    "level": 53,
+    "slot": 2,
+    "defender": "Nidoqueen",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W9S3",
+    "waveKey": "P4W9",
+    "phase": 4,
+    "wave": 9,
+    "animal": "Rabbit",
+    "level": 53,
+    "slot": 3,
+    "defender": "Lopunny",
+    "tags": [
+      "FO"
+    ]
+  },
+  {
+    "rowKey": "P4W9S4",
+    "waveKey": "P4W9",
+    "phase": 4,
+    "wave": 9,
+    "animal": "Rabbit",
+    "level": 53,
+    "slot": 4,
+    "defender": "Wigglytuff",
+    "tags": [
+      "HH"
+    ]
+  },
+  {
+    "rowKey": "P4W9S5",
+    "waveKey": "P4W9",
+    "phase": 4,
+    "wave": 9,
+    "animal": "Rabbit",
+    "level": 53,
+    "slot": 5,
+    "defender": "Audino",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W9S6",
+    "waveKey": "P4W9",
+    "phase": 4,
+    "wave": 9,
+    "animal": "Rabbit",
+    "level": 53,
+    "slot": 6,
+    "defender": "Azumarill",
+    "tags": [
+      "HH"
+    ]
+  },
+  {
+    "rowKey": "P4W10S1",
+    "waveKey": "P4W10",
+    "phase": 4,
+    "wave": 10,
+    "animal": "Dragon",
+    "level": 53,
+    "slot": 1,
+    "defender": "Dragonite",
+    "tags": [
+      "MS"
+    ]
+  },
+  {
+    "rowKey": "P4W10S2",
+    "waveKey": "P4W10",
+    "phase": 4,
+    "wave": 10,
+    "animal": "Dragon",
+    "level": 53,
+    "slot": 2,
+    "defender": "Garchomp",
+    "tags": [
+      "Rough",
+      "Skin"
+    ]
+  },
+  {
+    "rowKey": "P4W10S3",
+    "waveKey": "P4W10",
+    "phase": 4,
+    "wave": 10,
+    "animal": "Dragon",
+    "level": 53,
+    "slot": 3,
+    "defender": "Salamence",
+    "tags": [
+      "INT"
+    ]
+  },
+  {
+    "rowKey": "P4W10S4",
+    "waveKey": "P4W10",
+    "phase": 4,
+    "wave": 10,
+    "animal": "Dragon",
+    "level": 53,
+    "slot": 4,
+    "defender": "Charizard",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W10S5",
+    "waveKey": "P4W10",
+    "phase": 4,
+    "wave": 10,
+    "animal": "Dragon",
+    "level": 53,
+    "slot": 5,
+    "defender": "Hydreigon",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W10S6",
+    "waveKey": "P4W10",
+    "phase": 4,
+    "wave": 10,
+    "animal": "Dragon",
+    "level": 53,
+    "slot": 6,
+    "defender": "Flygon",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W10S7",
+    "waveKey": "P4W10",
+    "phase": 4,
+    "wave": 10,
+    "animal": "Dragon",
+    "level": 53,
+    "slot": 7,
+    "defender": "Gyarados",
+    "tags": [
+      "INT"
+    ]
+  },
+  {
+    "rowKey": "P4W10S8",
+    "waveKey": "P4W10",
+    "phase": 4,
+    "wave": 10,
+    "animal": "Dragon",
+    "level": 53,
+    "slot": 8,
+    "defender": "Aerodactyl",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W10S9",
+    "waveKey": "P4W10",
+    "phase": 4,
+    "wave": 10,
+    "animal": "Dragon",
+    "level": 53,
+    "slot": 9,
+    "defender": "Druddigon",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W10S10",
+    "waveKey": "P4W10",
+    "phase": 4,
+    "wave": 10,
+    "animal": "Dragon",
+    "level": 53,
+    "slot": 10,
+    "defender": "Sceptile",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W11S1",
+    "waveKey": "P4W11",
+    "phase": 4,
+    "wave": 11,
+    "animal": "Snake",
+    "level": 53,
+    "slot": 1,
+    "defender": "Arbok",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W11S2",
+    "waveKey": "P4W11",
+    "phase": 4,
+    "wave": 11,
+    "animal": "Snake",
+    "level": 53,
+    "slot": 2,
+    "defender": "Serperior",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W11S3",
+    "waveKey": "P4W11",
+    "phase": 4,
+    "wave": 11,
+    "animal": "Snake",
+    "level": 53,
+    "slot": 3,
+    "defender": "Steelix",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W11S4",
+    "waveKey": "P4W11",
+    "phase": 4,
+    "wave": 11,
+    "animal": "Snake",
+    "level": 53,
+    "slot": 4,
+    "defender": "Seviper",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W11S5",
+    "waveKey": "P4W11",
+    "phase": 4,
+    "wave": 11,
+    "animal": "Snake",
+    "level": 53,
+    "slot": 5,
+    "defender": "Huntail",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W11S6",
+    "waveKey": "P4W11",
+    "phase": 4,
+    "wave": 11,
+    "animal": "Snake",
+    "level": 53,
+    "slot": 6,
+    "defender": "Eelektross",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W11S7",
+    "waveKey": "P4W11",
+    "phase": 4,
+    "wave": 11,
+    "animal": "Snake",
+    "level": 53,
+    "slot": 7,
+    "defender": "Milotic",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W12S1",
+    "waveKey": "P4W12",
+    "phase": 4,
+    "wave": 12,
+    "animal": "Horse",
+    "level": 53,
+    "slot": 1,
+    "defender": "Sawsbuck",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W12S2",
+    "waveKey": "P4W12",
+    "phase": 4,
+    "wave": 12,
+    "animal": "Horse",
+    "level": 53,
+    "slot": 2,
+    "defender": "Kingdra",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W12S3",
+    "waveKey": "P4W12",
+    "phase": 4,
+    "wave": 12,
+    "animal": "Horse",
+    "level": 53,
+    "slot": 3,
+    "defender": "Rapidash",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W12S4",
+    "waveKey": "P4W12",
+    "phase": 4,
+    "wave": 12,
+    "animal": "Horse",
+    "level": 53,
+    "slot": 4,
+    "defender": "Zebstrika",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W12S5",
+    "waveKey": "P4W12",
+    "phase": 4,
+    "wave": 12,
+    "animal": "Horse",
+    "level": 53,
+    "slot": 5,
+    "defender": "Girafarig",
+    "tags": []
+  },
+  {
+    "rowKey": "P4W12S6",
+    "waveKey": "P4W12",
+    "phase": 4,
+    "wave": 12,
+    "animal": "Horse",
+    "level": 53,
     "slot": 6,
     "defender": "Stantler",
     "tags": [

@@ -49,7 +49,7 @@ export function createDefaultState(data){
       allowFriendlyFire: false,
       movesPerMon: 3,
       stabBonus: 2,
-      conservePower: true,
+      conservePower: false,
       hideCleared: false,
 
       // Auto-solver: how much worse (avg prioØ) alternatives are allowed when cycling.
