@@ -1,5 +1,5 @@
 // js/domain/items.js
-// alpha_v1_sim v1.0.1
+// alpha_v1_sim v1.0.2
 // Shared item catalog + shop economy + bag helpers.
 
 // Starters have Strength Charm forced ON, but it does NOT consume the shared bag.
@@ -50,7 +50,7 @@ export function buildItemCatalog(){
   const plates = TYPES_NO_FAIRY.map(plateName);
   const gems = TYPES_NO_FAIRY.map(gemName);
   const charms = ['Evo Charm','Strength Charm'];
-  const rareCandy = ['Rare Candy','Rare Candy x2'];
+  const rareCandy = ['Rare Candy','Rare Candy x2','Rare Candy x3'];
   // Keep bundle SKUs in the catalog so wave loot + shop can show them explicitly.
   // (The Bag key stays the base item name.)
   const coins = ['Copper Coin x5'];

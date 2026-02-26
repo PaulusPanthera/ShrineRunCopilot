@@ -1,5 +1,5 @@
 // js/app/app.js
-// alpha_v1_sim v1.0.1
+// alpha_v1_sim v1.0.2
 // Main single-page UI renderer and event wiring.
 
 import { $, $$, el, pill, formatPct, clampInt, sprite, ensureFormFieldA11y } from '../ui/dom.js';
@@ -1253,6 +1253,8 @@ export function startApp(ctx){
       function commitFromSelectors(){
         const cat = catSel.value || '';
         const val = itemSel.value || '';
+        // For Other items, do not auto-commit an empty selection (it would reset the UI).
+        if (cat === 'other' && !val) return;
         const next = resolveItem(cat, val);
         updateLootInState(next);
       }
@@ -1270,6 +1272,8 @@ export function startApp(ctx){
           : '';
         fillItemOptions(cat, defVal);
         if (cat) itemSel.value = String(defVal||'');
+        // Do not auto-commit Other items when no item is selected; wait for the item dropdown.
+        if (cat === 'other') return;
         commitFromSelectors();
       });
       itemSel.addEventListener('change', commitFromSelectors);
@@ -5131,6 +5135,31 @@ const headLeft = el('div', {}, [
       ]));
     })();
 
+
+
+    // Air Balloon (x5)
+    (function(){
+      const buyBtn = el('button', {class:'btn-mini'}, 'Buy');
+      const priceLine = el('div', {class:'shop-price'});
+
+      const sync = ()=>{
+        const off = buyOfferFor('Air Balloon');
+        const can = off && (gold >= (off.cost||0));
+        buyBtn.disabled = !can;
+        priceLine.textContent = off ? `price: ${off.cost}g · +${off.qty}` : 'price: —';
+      };
+
+      buyBtn.addEventListener('click', ()=> doBuy('Air Balloon'));
+      sync();
+
+      grid.appendChild(el('div', {class:'shop-card'}, [
+        el('div', {class:'shop-meta'}, [
+          el('div', {class:'shop-name'}, 'Air Balloon (x5)'),
+          priceLine,
+        ]),
+        buyBtn,
+      ]));
+    })();
     // --- Remaining singles (no type variations) ---
     const shopSingles = uniq(ITEM_CATALOG
       .map(n=>lootBundle(n))
