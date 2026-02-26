@@ -1,6 +1,6 @@
 // js/state/defaultState.js
 // v2.0.0-beta
-// Default state factory + initial settings
+// Default state factory
 
 export const STATE_VERSION = 13;
 export const STORAGE_KEY = 'abundantShrinePlanner_state_v13';
@@ -51,10 +51,6 @@ export function createDefaultState(data){
       stabBonus: 2,
       conservePower: true,
       hideCleared: false,
-      startWaveAnimal: 'Goat',
-
-      // v20+ alias (some builds store this name instead)
-      startAnimal: 'Goat',
 
       // Auto-solver: how much worse (avg prioØ) alternatives are allowed when cycling.
       // 0 = best-only. Example: 0.5 will include solutions up to bestAvg+0.5.
@@ -75,6 +71,9 @@ export function createDefaultState(data){
       wildEV: n(data?.rules?.Wild_EV_Default, 0),
 
       otherMult: 1,
+
+      // Run order: which animal wave starts each phase (rotates wave display order only)
+      startAnimal: 'Goat',
     },
     unlocked: {},
     cleared: {},
@@ -84,21 +83,22 @@ export function createDefaultState(data){
       'Evo Charm': 2,
       'Strength Charm': 2,
     },
-    // Simple currency (sell loot for gold; shop later)
-    wallet: {
-      gold: 0,
-    },
-
-    // Politoed shop (buy/sell bag items)
-    shop: { gold: 0, ledger: [] },
     evoCache: {},
     baseCache: {},
     evoLineCache: {},
+    wavePlans: {},
+    // Battle simulator state per waveKey
+    battles: {},
+    // Persistent PP tracking for roster moves (id -> moveName -> {cur,max})
+    pp: {},
+
     // Pokédex live caches (PokeAPI)
     dexMetaCache: {},
     dexApiCache: {},
     dexMoveCache: {},
-    wavePlans: {},
+
+    // Politoed shop (buy/sell bag items)
+    shop: { gold: 0, ledger: [] },
     ui: {
       tab: 'waves',
       waveExpanded: {},
@@ -107,22 +107,12 @@ export function createDefaultState(data){
       searchUnlocked: '',
       dexDetailBase: null,
       dexSelectedForm: null,
-      // Pokédex detail-layer navigation
       dexReturnTab: null,
-      dexReturnRosterId: null,
       lastNonDexTab: 'waves',
-      // Per-base remembered defender level (for one-shot table)
+      simWaveKey: null,
       dexDefenderLevelByBase: {},
-      // Grid resolve job flags (avoids jitter while prefetching Pokédex ids)
-      dexGridReady: false,
-      dexGridBuiltN: 0,
-      dexDefenderLevel: null,
       attackOverview: null, // {defender, level, tags, source}
       overviewCollapsed: true,
-      fightLog: {},
-      fightUndo: {},
-      bagUndo: [],
-      settingsDefaultsTab: 'atk',
     },
   };
 }

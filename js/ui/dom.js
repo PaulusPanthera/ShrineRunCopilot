@@ -46,11 +46,76 @@ export function clampInt(v, lo, hi){
 }
 
 export function sprite(calc, name){
-  // Prefer static sprites for performance and UI clarity.
-  // Callers can fall back to spriteAnim() if the PNG is missing.
-  return (calc.spriteUrlPokemonDbBWStatic ? calc.spriteUrlPokemonDbBWStatic(name) : calc.spriteUrlPokemonDbBW(name));
+  return calc.spriteUrlPokemonDbBW(name);
 }
 
-export function spriteAnim(calc, name){
-  return calc.spriteUrlPokemonDbBW(name);
+
+// ---------------- A11y / Autofill helpers ----------------
+
+// Creates hidden labels + ensures id/name so Chrome doesn't spam "Issues" for form fields.
+// This tool is not a real form, but Chrome still audits it.
+let __afSeq = 1;
+const __afPrefix = `af_${Math.random().toString(36).slice(2,8)}_`;
+
+function __labelTextFor(el){
+  return el.getAttribute('aria-label')
+    || el.getAttribute('title')
+    || el.getAttribute('placeholder')
+    || el.getAttribute('name')
+    || el.getAttribute('id')
+    || el.tagName.toLowerCase();
+}
+
+function __hasAssociatedLabel(el){
+  if (!el || !el.id) return false;
+  if (el.closest && el.closest('label')) return true;
+  return !!document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+}
+
+function __ensureLabelHost(){
+  let host = document.getElementById('__autolabel_host');
+  if (!host){
+    host = document.createElement('div');
+    host.id = '__autolabel_host';
+    host.className = 'sr-only';
+    document.body.appendChild(host);
+  }
+  return host;
+}
+
+export function ensureFormFieldA11y(root=document){
+  try{
+    const host = __ensureLabelHost();
+    host.innerHTML = ''; // rebuild each render to match current DOM
+
+    const fields = root.querySelectorAll('input, select, textarea');
+    for (const f of fields){
+      // ignore hidden fields
+      const type = (f.getAttribute('type')||'').toLowerCase();
+      if (type === 'hidden') continue;
+
+      // id/name
+      if (!f.id){
+        f.id = f.name || `${__afPrefix}${__afSeq++}`;
+      }
+      if (!f.name){
+        f.name = f.id;
+      }
+
+      // aria-label as fallback name
+      if (!f.getAttribute('aria-label')){
+        f.setAttribute('aria-label', __labelTextFor(f));
+      }
+
+      // label (for autofill auditing)
+      if (!__hasAssociatedLabel(f)){
+        const lab = document.createElement('label');
+        lab.setAttribute('for', f.id);
+        lab.textContent = __labelTextFor(f);
+        host.appendChild(lab);
+      }
+    }
+  }catch(e){
+    // no-op: don't let a11y helpers break rendering
+  }
 }

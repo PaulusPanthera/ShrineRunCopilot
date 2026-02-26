@@ -32,6 +32,7 @@ export async function loadData(){
     fetchJsonOptional('data/waveLoot.json', {}),
   ]);
 
+
   // Normalize move names inside claimedSets so the app uses canonical names everywhere.
   for (const [sp, obj] of Object.entries(claimedSets||{})){
     if (!obj || typeof obj !== 'object') continue;

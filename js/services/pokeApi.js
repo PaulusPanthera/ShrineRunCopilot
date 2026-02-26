@@ -23,16 +23,15 @@ export const BASE_OVERRIDES = {
   Ampharos: 'Mareep',
 };
 
-
+// Tool overrides: restrict certain multi-branch evo lines for the Pokédex UI.
 const EVO_LINE_OVERRIDES = {
   Eevee: ['Eevee','Espeon'],
 };
 
 function normName(s){
-  // IMPORTANT: keep Nidoran♀/♂ distinct.
-  // Also aligns with PokéAPI names nidoran-f / nidoran-m.
   return String(s||'')
     .toLowerCase()
+    // IMPORTANT: keep Nidoran♀/♂ distinct.
     .replace(/♀/g,'-f')
     .replace(/♂/g,'-m')
     .replace(/['.:%]/g,'')
@@ -40,7 +39,6 @@ function normName(s){
     .replace(/[^a-z0-9-]/g,'')
     .replace(/-/g,'');
 }
-
 
 export function toApiSlug(name){
   return String(name||'')
@@ -96,10 +94,9 @@ export function createPokeApi(data){
   }
 
   function bestDexKeyForApiName(apiName){
-    // Only return names that exist in our local dex.json (Gen5 scope).
+    // Only return names that exist in our local dex.json (Gen 5 scope).
     return apiNameToDexKey(apiName) || null;
   }
-
 
   function flattenEvoChainNonBaby(chain){
     // Returns [{apiName,is_baby}...] in a stable traversal order.
@@ -323,13 +320,14 @@ export function createPokeApi(data){
       };
       walk(chJson.chain);
 
-      let uniqLine = Array.from(new Set(out));
+      const uniqLine = Array.from(new Set(out));
       if (!uniqLine.length) uniqLine.push(root);
 
+      // Tool overrides: restrict certain multi-branch lines.
       const ovLine = EVO_LINE_OVERRIDES[root];
       if (Array.isArray(ovLine) && ovLine.length){
-        uniqLine = ovLine.filter(nm => data.dex?.[nm]);
-        if (!uniqLine.length) uniqLine = [root];
+        const filtered = ovLine.filter(nm => data.dex?.[nm]);
+        if (filtered.length) return { base: root, line: filtered, updates: updates || { [s]: root } };
       }
 
       return { base: root, line: uniqLine, updates: updates || { [s]: root } };
@@ -366,8 +364,8 @@ export function createPokeApi(data){
       // Tool overrides: restrict certain multi-branch lines.
       const ovLine = EVO_LINE_OVERRIDES[root];
       if (Array.isArray(ovLine) && ovLine.length){
-        line = ovLine.filter(nm => data.dex?.[nm]);
-        if (!line.length) line = [root];
+        const filtered = ovLine.filter(nm => data.dex?.[nm]);
+        if (filtered.length) line = filtered;
       }
 
       // Ensure base mapping for everything we discovered.

@@ -1,10 +1,9 @@
 // js/domain/waves.js
 // v2.0.0-beta
-// Wave planning domain logic (enemy selection, auto-match scoring, threat model helpers)
+// Wave planning domain logic (state v13)
 
 import { fixName } from '../data/nameFixes.js';
 import { buildDefaultMovePool } from './roster.js';
-import { applyMovesetOverrides } from './shrineRules.js';
 
 function clampInt(v, lo, hi){
   const n = Number.parseInt(String(v), 10);
@@ -21,7 +20,8 @@ function byId(arr, id){
 }
 
 // Optional forced move override (set in Fight plan).
-// If wp.attackMoveOverride[attackerId] = moveName, calculations will restrict that attacker to that move.
+// If a wave plan sets wp.attackMoveOverride[attackerId] = moveName,
+// calculations will restrict that attacker to the selected move.
 function movePoolForWave(wp, attacker){
   const pool = (attacker && attacker.movePool) ? attacker.movePool : [];
   const id = attacker ? attacker.id : null;
@@ -114,27 +114,66 @@ export function settingsForWave(state, wp, attackerId, defenderRowKey){
 // Fallback: assumed generic STAB hit (only if moveset is missing).
 export const ENEMY_ASSUMED_POWER = 80; // fallback
 
-function enemyMovePoolForSpecies(data, species){
-  const set = data.claimedSets?.[species];
-  const movesRaw = (set && Array.isArray(set.moves)) ? set.moves : [];
-  const moves = applyMovesetOverrides(species, movesRaw);
-  if (!moves.length) return null;
-  return buildDefaultMovePool(data, species, moves, 'base');
-}
-
-// Compute best incoming hit from the defender to the chosen attacker using real species moves.
-
-// Moves that can hit multiple targets in doubles (used for threat display + sim hints).
+// Simple AoE move detection for battle sim + incoming previews.
+// Treat these as hitting BOTH opponents (double battles) unless proven otherwise.
 const AOE_MOVES = new Set([
-  'Rock Slide','Surf','Earthquake','Heat Wave','Blizzard','Discharge','Muddy Water','Dazzling Gleam',
-  'Icy Wind','Snarl','Bulldoze','Razor Leaf','Sludge Wave','Eruption','Water Spout','Hyper Voice',
-  'Explosion','Self-Destruct',
+  'Electroweb','Rock Slide','Earthquake','Surf','Heat Wave','Discharge','Icy Wind','Bulldoze','Muddy Water',
+  'Dazzling Gleam','Sludge Wave','Lava Plume',
+  'Air Cutter',
+  'Hyper Voice',
+  'Blizzard',
+  'Eruption',
+  'Snarl',
+]);
+
+// Subset that hits ALL mons (both opponents + ally) in doubles.
+// Keep consistent with battle engine.
+const AOE_HITS_ALL = new Set([
+  'Earthquake','Surf','Discharge','Bulldoze','Sludge Wave','Lava Plume',
 ]);
 
 function isAoeMove(name){
   return AOE_MOVES.has(String(name||''));
 }
 
+function aoeHitsAlly(name){
+  return AOE_HITS_ALL.has(String(name||''));
+}
+
+function spreadMult(targetsDamaged){
+  return (targetsDamaged > 1) ? 0.75 : 1.0;
+}
+
+function immuneFromAllyAbilityItem(allyRosterMon, moveType){
+  if (!allyRosterMon) return false;
+  const type = String(moveType||'');
+  const ab = String(allyRosterMon.ability || '').trim();
+  const item = String(allyRosterMon.item || '').trim();
+  if (ab === 'Telepathy') return true;
+  if (type === 'Ground'){
+    if (ab === 'Levitate') return true;
+    if (item === 'Air Balloon') return true;
+  }
+  if (type === 'Electric'){
+    if (ab === 'Lightning Rod' || ab === 'Motor Drive' || ab === 'Volt Absorb') return true;
+  }
+  if (type === 'Fire'){
+    if (ab === 'Flash Fire') return true;
+  }
+  if (type === 'Water'){
+    if (ab === 'Water Absorb' || ab === 'Storm Drain' || ab === 'Dry Skin') return true;
+  }
+  return false;
+}
+
+function enemyMovePoolForSpecies(data, species){
+  const set = data.claimedSets?.[species];
+  const moves = (set && Array.isArray(set.moves)) ? set.moves : [];
+  if (!moves.length) return null;
+  return buildDefaultMovePool(data, species, moves, 'base');
+}
+
+// Compute best incoming hit from the defender to the chosen attacker using real species moves.
 export function enemyThreatForMatchup(data, state, wp, attackerRosterMon, defSlot){
   try{
     if (!(state.settings?.threatModelEnabled ?? true)) return null;
@@ -193,8 +232,8 @@ export function enemyThreatForMatchup(data, state, wp, attackerRosterMon, defSlo
     };
 
     // Enemy move selection rule:
-    // - always chooses the move that deals the MOST damage (avg%),
-    //   tie-break: max% then min%, then name.
+    // - prefers the move with the highest OHKO chance (if any can OHKO)
+    // - otherwise, chooses the move that deals the most damage (highest min%)
     const candidates = (pool||[]).filter(m => m && m.use !== false);
     const all = [];
     for (const m of candidates){
@@ -220,27 +259,22 @@ export function enemyThreatForMatchup(data, state, wp, attackerRosterMon, defSlo
           ohkoChance = Math.max(0, Math.min(1, ohkoChance));
         }
       }
-      const avgPct = (minPct + maxPct) / 2;
-      all.push({...r, prio: Number(m.prio)||2, ohkoChance, oneShot, avgPct});
+    all.push({...r, prio: Number(m.prio)||2, ohkoChance, oneShot, aoe: isAoeMove(r.move)});
     }
 
     if (!all.length) return null;
 
+    const anyChance = all.some(x => x.ohkoChance > 0);
     all.sort((a,b)=>{
-      const aa = Number(a.avgPct)||0;
-      const ba = Number(b.avgPct)||0;
-      if (aa !== ba) return ba - aa;
-      const ax = Number(a.maxPct)||0;
-      const bx = Number(b.maxPct)||0;
-      if (ax !== bx) return bx - ax;
-      const am = Number(a.minPct)||0;
-      const bm = Number(b.minPct)||0;
-      if (am !== bm) return bm - am;
+      if (anyChance){
+        if (a.ohkoChance !== b.ohkoChance) return b.ohkoChance - a.ohkoChance;
+      }
+      if (a.minPct !== b.minPct) return b.minPct - a.minPct;
+      if ((a.maxPct||0) !== (b.maxPct||0)) return (b.maxPct||0) - (a.maxPct||0);
       return String(a.move||'').localeCompare(String(b.move||''));
     });
 
     const best = all[0];
-    const pickReason = 'chosen for max dmg';
 
     const enemySpe = best.attackerSpe ?? 0;
     const mySpe = best.defenderSpe ?? 0;
@@ -256,9 +290,8 @@ export function enemyThreatForMatchup(data, state, wp, attackerRosterMon, defSlo
       speedTie: tie,
       enemyActsFirst,
       diesBeforeMove,
+      aoe: !!best.aoe,
       assumed: false,
-      aoe: isAoeMove(best.move),
-      reason: pickReason,
     };
   }catch(e){
     return null;
@@ -346,19 +379,16 @@ export function assumedEnemyThreatForMatchup(data, state, wp, attackerRosterMon,
     const enemyActsFirst = enemyFaster || (tie && tieActsFirst);
     const diesBeforeMove = enemyActsFirst && !!best.oneShot;
 
-    const pickReason = best.oneShot ? 'chosen for OHKO chance' : 'chosen for max dmg';
+    const moveLabel = `Assumed ${best.category || 'Attack'} ${best.moveType || ''}`.trim();
 
     return {
       ...best,
-      move: `Assumed ${best.moveType} ${best.category}`,
-      prio: 2,
+      move: moveLabel,
       enemyFaster,
       speedTie: tie,
       enemyActsFirst,
       diesBeforeMove,
       assumed: true,
-      aoe: isAoeMove(best.move),
-      reason: pickReason,
     };
   }catch(e){
     return null;
@@ -385,35 +415,17 @@ export function ensureWavePlan(data, state, waveKey, slots){
   }
 
   // Defenders from this wave
+  // NOTE: we allow instance keys like "P1W1S1#2" to represent duplicate encounters.
+  // The base rowKey is the part before '#'.
   const slotByKey = new Map(slots.map(s=>[s.rowKey, s]));
+  const baseKey = (k)=> String(k||'').split('#')[0];
   ensureWaveMods(wp);
+  wp.defenders = (wp.defenders||[]).filter(rk => slotByKey.has(baseKey(rk))).slice(0, limit);
 
-  // Enemy slots (duplicates allowed). Prefer wp.enemySlots if present; fall back to legacy wp.defenders.
-  const rawEnemySlots = Array.isArray(wp.enemySlots)
-    ? wp.enemySlots
-    : (Array.isArray(wp.defenders) ? wp.defenders : []);
-
-  wp.enemySlots = rawEnemySlots
-    .slice(0, limit)
-    .map(rk => (rk && slotByKey.has(rk)) ? rk : null);
-  while (wp.enemySlots.length < limit) wp.enemySlots.push(null);
-
-  // Legacy field kept for compatibility (now derived from enemySlots)
-  wp.defenders = wp.enemySlots.filter(Boolean).slice(0, limit);
-
-  // Per-wave fight log + solver cache (used by battle sim UI)
-  if (!Array.isArray(wp.fightLog)) wp.fightLog = [];
-  if (!wp.solve || typeof wp.solve !== 'object') wp.solve = {alts:[], idx:0};
-
-
-  // If the user explicitly managed defender selection, allow an empty selection.
-  if (!wp.defenders.length && !wp.manualDefenders){
+  if (!wp.defenders.length){
     const prefer = slots.filter(s=>!state.cleared[s.rowKey]);
     const base = prefer.length ? prefer : slots;
-    const picks = base.slice(0, limit).map(s=>s.rowKey);
-    wp.enemySlots = picks.slice(0, limit);
-    while (wp.enemySlots.length < limit) wp.enemySlots.push(null);
-    wp.defenders = picks.slice(0, limit);
+    wp.defenders = base.slice(0, limit).map(s=>s.rowKey);
   }
 
   wp.defenderStart = (wp.defenderStart||[]).filter(rk => wp.defenders.includes(rk)).slice(0,2);
@@ -449,6 +461,21 @@ export function ensureWavePlan(data, state, waveKey, slots){
     }catch(e){ /* ignore */ }
   }
 
+
+
+  // Wave fights (4 players): store per-wave progress
+  if (!Array.isArray(wp.fights) || wp.fights.length !== 4){
+    const basePair = (wp.attackerStart||[]).slice(0,2);
+    wp.fights = Array.from({length:4}).map(()=>({
+      attackers: basePair.length===2 ? basePair.slice() : [null,null],
+      done: false,
+      summary: null,
+    }));
+  }
+
+  // Per-wave fight log (replaces Wave fights UI). Newest first.
+  if (!Array.isArray(wp.fightLog)) wp.fightLog = [];
+
   state.wavePlans[waveKey] = wp;
   return wp;
 }
@@ -459,9 +486,232 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
   const defKeys = (wp.defenderStart||[]).slice(0,2);
   if (pool.length < 2 || defKeys.length < 2) return;
 
-  const defA = slotByKey.get(defKeys[0]);
-  const defB = slotByKey.get(defKeys[1]);
-  if (!defA || !defB) return;
+  const baseKey = (k)=> String(k||'').split('#')[0];
+  const def0 = slotByKey.get(baseKey(defKeys[0]));
+  const def1 = slotByKey.get(baseKey(defKeys[1]));
+  if (!def0 || !def1) return;
+
+  const allDefSlots = (wp.defenders||[]).map(k=>slotByKey.get(baseKey(k))).filter(Boolean);
+
+  // Targeting assumption: any active battler can target any enemy.
+  // For lead-pair scoring we try both assignments (A->left/B->right and swap) and pick the better tuple.
+  const scoreFor = (aL, aR, defOrder)=>{
+    const dA = slotByKey.get(baseKey(defOrder[0]));
+    const dB = slotByKey.get(baseKey(defOrder[1]));
+    if (!dA || !dB) return {score:-Infinity};
+
+    const defA = {species:dA.defender, level:dA.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
+    const defB = {species:dB.defender, level:dB.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
+
+    const atkObj = (r, s)=>({
+      species:(r.effectiveSpecies||r.baseSpecies),
+      level: s.claimedLevel,
+      ivAll: s.claimedIV,
+      evAll: r.strength ? s.strengthEV : s.claimedEV,
+    });
+
+    const bestVs = (att, def, defSlot)=>{
+      const sW = settingsForWave(state, wp, att.id, defSlot.rowKey);
+      return window.SHRINE_CALC.chooseBestMove({
+        data,
+        attacker: atkObj(att, sW),
+        defender: def,
+        movePool: movePoolForWave(wp, att),
+        settings: sW,
+        tags: defSlot.tags||[],
+      }).best;
+    };
+
+    // Deterministic 1-turn min-roll sim for the two chosen starter actions.
+    // Used to detect STU-break → AoE full clears that basic oneShot flags cannot represent.
+    const oneTurnClear = (act0, act1)=>{
+      try{
+        if (!(act0?.move && act1?.move)) return false;
+
+        const defSlots = [dA, dB];
+        const hpDef = {[dA.rowKey]: 1, [dB.rowKey]: 1};
+        const hpAtk = {[aL.id]: 1, [aR.id]: 1};
+
+        const atkObj2 = (rm, s)=>({
+          species:(rm.effectiveSpecies||rm.baseSpecies),
+          level: s.claimedLevel,
+          ivAll: s.claimedIV,
+          evAll: rm.strength ? s.strengthEV : s.claimedEV,
+        });
+        const defObj2 = (slot)=>({
+          species: slot.defender,
+          level: slot.level,
+          ivAll: state.settings.wildIV,
+          evAll: state.settings.wildEV,
+        });
+
+        const rrVsDef = (attMon, moveName, defSlot, curFrac)=>{
+          const s0 = settingsForWave(state, wp, attMon.id, defSlot.rowKey);
+          const s = {...s0, defenderCurHpFrac: (curFrac ?? 1)};
+          const rr = window.SHRINE_CALC.computeDamageRange({data, attacker: atkObj2(attMon, s), defender: defObj2(defSlot), moveName, settings: s, tags: defSlot.tags||[]});
+          return (rr && rr.ok) ? rr : null;
+        };
+        const rrVsAlly = (attMon, moveName, allyMon, curFrac)=>{
+          const s0 = settingsForWave(state, wp, attMon.id, null);
+          const s = {...s0, defenderItem: allyMon.item || null, defenderHpFrac: 1, defenderCurHpFrac: (curFrac ?? 1), applyINT: false, applySTU: false};
+          const rr = window.SHRINE_CALC.computeDamageRange({data, attacker: atkObj2(attMon, s), defender: atkObj2(allyMon, s), moveName, settings: s, tags: []});
+          return (rr && rr.ok) ? rr : null;
+        };
+
+        const acts = [act0, act1].map(a=>({
+          att: a.att,
+          move: a.move,
+          prio: (a.prio ?? 9),
+          spe: Number(a.spe ?? 0),
+          targetKey: a.targetKey,
+        }));
+        acts.sort((x,y)=>{
+          if ((x.prio??9) !== (y.prio??9)) return (x.prio??9) - (y.prio??9);
+          if ((y.spe??0) !== (x.spe??0)) return (y.spe??0) - (x.spe??0);
+          return String(x.att.id||'').localeCompare(String(y.att.id||''));
+        });
+
+        for (const act of acts){
+          const aoe = isAoeMove(act.move);
+          const hitsAlly = aoe && aoeHitsAlly(act.move);
+          const ally = (act.att.id === aL.id) ? aR : aL;
+
+          const targets = [];
+          if (aoe){
+            for (const ds of defSlots){
+              if (!ds) continue;
+              if ((hpDef[ds.rowKey] ?? 0) > 0) targets.push({kind:'def', slot: ds});
+            }
+            if (hitsAlly && ally && (hpAtk[ally.id] ?? 0) > 0) targets.push({kind:'ally', mon: ally});
+          } else {
+            const ds = (act.targetKey === dA.rowKey) ? dA : dB;
+            if (ds && (hpDef[ds.rowKey] ?? 0) > 0) targets.push({kind:'def', slot: ds});
+          }
+          if (!targets.length) continue;
+
+          const per = [];
+          for (const t of targets){
+            if (t.kind === 'def'){
+              const cur = hpDef[t.slot.rowKey] ?? 1;
+              const rr = rrVsDef(act.att, act.move, t.slot, cur);
+              if (rr) per.push({kind:'def', key: t.slot.rowKey, rr});
+            } else {
+              const cur = hpAtk[t.mon.id] ?? 1;
+              const rr = rrVsAlly(act.att, act.move, t.mon, cur);
+              if (rr){
+                const immune = immuneFromAllyAbilityItem(t.mon, rr.moveType);
+                per.push({kind:'ally', id: t.mon.id, immune, rr});
+              }
+            }
+          }
+          if (!per.length) continue;
+
+          let damaged = 0;
+          for (const o of per){
+            if (o.kind === 'ally' && o.immune) continue;
+            if (Number(o.rr?.minPct || 0) > 0) damaged += 1;
+          }
+          const mult = aoe ? spreadMult(damaged) : 1.0;
+
+          // FF rule: if FF is disallowed and this action could KO partner, invalidate this plan.
+          if (aoe && hitsAlly && !(state.settings?.allowFriendlyFire)){
+            const ff = per.find(o=>o.kind==='ally') || null;
+            if (ff && !ff.immune){
+              const maxAdj = Number(ff.rr?.maxPct ?? ff.rr?.minPct ?? 0) * mult;
+              if (maxAdj >= 100) return false;
+            }
+          }
+
+          // Apply deterministic min-roll damage.
+          for (const o of per){
+            const rawMin = Number(o.rr?.minPct || 0);
+            const finalMin = (o.kind === 'ally' && o.immune) ? 0 : (rawMin * mult);
+            if (finalMin <= 0) continue;
+            if (o.kind === 'def') hpDef[o.key] = Math.max(0, (hpDef[o.key] ?? 1) - (finalMin/100));
+            else hpAtk[o.id] = Math.max(0, (hpAtk[o.id] ?? 1) - (finalMin/100));
+          }
+        }
+
+        return (hpDef[dA.rowKey] <= 0) && (hpDef[dB.rowKey] <= 0);
+      }catch(e){
+        return false;
+      }
+    };
+
+    const a_vs_A = bestVs(aL, defA, dA);
+    const a_vs_B = bestVs(aL, defB, dB);
+    const b_vs_A = bestVs(aR, defA, dA);
+    const b_vs_B = bestVs(aR, defB, dB);
+
+    const tuple = (m0, m1, tKey0, tKey1)=>{
+      // Primary: minimize worst-case (ensure both starters have OHKO coverage)
+      const bothOhko = (m0?.oneShot && m1?.oneShot) ? 2 : ((m0?.oneShot || m1?.oneShot) ? 1 : 0);
+      const worstPrio = Math.max(m0?.prio ?? 9, m1?.prio ?? 9);
+      const prioSum = (m0?.prio ?? 9) + (m1?.prio ?? 9);
+      const overkillSum = Math.abs((m0?.minPct ?? 0) - 100) + Math.abs((m1?.minPct ?? 0) - 100);
+
+      // Detect 1-turn full clear (STU-break → AoE included).
+      const clear1 = oneTurnClear(
+        {att:aL, move:m0?.move, prio:m0?.prio, spe:m0?.attackerSpe, targetKey: tKey0},
+        {att:aR, move:m1?.move, prio:m1?.prio, spe:m1?.attackerSpe, targetKey: tKey1},
+      );
+
+      return {clear1, bothOhko, worstPrio, prioSum, overkillSum};
+    };
+
+    const t1 = tuple(a_vs_A, b_vs_B, dA.rowKey, dB.rowKey);
+    const t2 = tuple(a_vs_B, b_vs_A, dB.rowKey, dA.rowKey);
+
+    const betterTuple = (x,y)=>{
+      if ((x.clear1?1:0) !== (y.clear1?1:0)) return (x.clear1?1:0) > (y.clear1?1:0);
+      if (x.bothOhko !== y.bothOhko) return x.bothOhko > y.bothOhko;
+      if (x.worstPrio !== y.worstPrio) return x.worstPrio < y.worstPrio;
+      if (x.prioSum !== y.prioSum) return x.prioSum < y.prioSum;
+      return x.overkillSum <= y.overkillSum;
+    };
+
+    const lead = betterTuple(t1,t2) ? t1 : t2;
+
+    // Starters-only clear all selected defenders (3/4): at least one can OHKO each.
+    let startersClear = 0;
+    for (const ds of allDefSlots){
+      const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
+      const b0 = window.SHRINE_CALC.chooseBestMove({
+        data,
+        attacker:{species:(aL.effectiveSpecies||aL.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aL.strength?state.settings.strengthEV:state.settings.claimedEV},
+        defender:defObj,
+        movePool: movePoolForWave(wp, aL),
+        settings: settingsForWave(state, wp, aL.id, ds.rowKey),
+        tags: ds.tags||[],
+      }).best;
+      const b1 = window.SHRINE_CALC.chooseBestMove({
+        data,
+        attacker:{species:(aR.effectiveSpecies||aR.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aR.strength?state.settings.strengthEV:state.settings.claimedEV},
+        defender:defObj,
+        movePool: movePoolForWave(wp, aR),
+        settings: settingsForWave(state, wp, aR.id, ds.rowKey),
+        tags: ds.tags||[],
+      }).best;
+      if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) startersClear += 1;
+    }
+
+    // Survival penalty
+    let deathPenalty = 0;
+    const t0 = enemyThreatForMatchup(data, state, wp, aL, dA) || assumedEnemyThreatForMatchup(data, state, wp, aL, dA);
+    const t1t = enemyThreatForMatchup(data, state, wp, aR, dB) || assumedEnemyThreatForMatchup(data, state, wp, aR, dB);
+    if (t0?.diesBeforeMove) deathPenalty += 1;
+    if (t1t?.diesBeforeMove) deathPenalty += 1;
+
+    const score = (startersClear * 1_000_000)
+      + ((lead.clear1 ? 1 : 0) * 5_000_000_000)
+      + (lead.bothOhko * 10_000)
+      - (lead.worstPrio * 1_000)
+      - (lead.prioSum * 100)
+      - (lead.overkillSum)
+      - (deathPenalty * 50_000);
+
+    return {score};
+  };
 
   let best = null;
   for (let i=0;i<pool.length;i++){
@@ -470,11 +720,15 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
       const a1 = byId(state.roster, pool[j]);
       if (!a0 || !a1) continue;
 
-      const plan = bestAssignmentForWavePair(data, state, wp, a0, a1, defA, defB);
-      if (!plan) continue;
-
-      if (!best || betterAssignmentMeta(plan.meta, best.meta)){
-        best = {atk:[a0.id,a1.id], meta: plan.meta};
+      const atkOrders = [[a0,a1],[a1,a0]];
+      const defOrders = [[def0.rowKey, def1.rowKey],[def1.rowKey, def0.rowKey]];
+      for (const [aL,aR] of atkOrders){
+        for (const dOrd of defOrders){
+          const sc = scoreFor(aL,aR,dOrd);
+          if (!best || sc.score > best.score){
+            best = {score: sc.score, atk:[aL.id,aR.id], def:dOrd};
+          }
+        }
       }
     }
   }
@@ -482,174 +736,114 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
   if (best){
     wp.attackerStart = best.atk.slice(0,2);
     wp.attackerOrder = best.atk.slice(0,2);
-    wp.defenderOrder = (wp.defenderStart||[]).slice(0,2);
+    wp.defenderOrder = best.def.slice(0,2);
   }
 }
 
 export function autoPickOrdersForWave(data, state, wp, slotByKey){
-  // With free targeting in 2v2, left/right order does not affect the plan.
-  // Keep a stable, normalized order.
-  wp.attackerOrder = normalizeOrder(wp.attackerOrder, (wp.attackerStart||[]).slice(0,2));
-  wp.defenderOrder = normalizeOrder(wp.defenderOrder, (wp.defenderStart||[]).slice(0,2));
-}
+  const atkIds = (wp.attackerStart||[]).slice(0,2);
+  const defKeys = (wp.defenderStart||[]).slice(0,2);
+  if (atkIds.length < 2 || defKeys.length < 2) return;
 
-// --- 2v2 targeting helpers ---
+  const baseKey = (k)=> String(k||'').split('#')[0];
 
-function moveDistanceTo100(best){
-  const m = Number(best?.minPct);
-  if (!Number.isFinite(m)) return 9999;
-  return Math.abs(m - 100);
-}
+  const atk0 = byId(state.roster, atkIds[0]);
+  const atk1 = byId(state.roster, atkIds[1]);
+  const def0 = slotByKey.get(baseKey(defKeys[0]));
+  const def1 = slotByKey.get(baseKey(defKeys[1]));
+  if (!atk0 || !atk1 || !def0 || !def1) return;
 
-function bestMoveForWave(data, state, wp, attackerRosterMon, defSlot){
-  if (!attackerRosterMon || !defSlot) return null;
-  const attacker = {
-    species: attackerRosterMon.effectiveSpecies || attackerRosterMon.baseSpecies,
-    level: state.settings.claimedLevel,
-    ivAll: state.settings.claimedIV,
-    evAll: attackerRosterMon.strength ? state.settings.strengthEV : state.settings.claimedEV,
+  const atkOrders = [[atk0.id, atk1.id],[atk1.id, atk0.id]];
+  const defOrders = [[def0.rowKey, def1.rowKey],[def1.rowKey, def0.rowKey]];
+
+  const allDefSlots = (wp.defenders||[]).map(k=>slotByKey.get(baseKey(k))).filter(Boolean);
+
+  const scorePlan = (atkOrder, defOrder)=>{
+    const aL = byId(state.roster, atkOrder[0]);
+    const aR = byId(state.roster, atkOrder[1]);
+    const dL = slotByKey.get(defOrder[0]);
+    const dR = slotByKey.get(defOrder[1]);
+    if (!aL || !aR || !dL || !dR) return {score:-Infinity};
+
+    const defLeft = {species:dL.defender, level:dL.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
+    const defRight = {species:dR.defender, level:dR.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
+
+    const bestL = window.SHRINE_CALC.chooseBestMove({
+      data,
+      attacker:{species:(aL.effectiveSpecies||aL.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aL.strength?state.settings.strengthEV:state.settings.claimedEV},
+      defender:defLeft,
+      movePool: movePoolForWave(wp, aL),
+      settings: settingsForWave(state, wp, aL.id, dL.rowKey),
+      tags: dL.tags||[],
+    }).best;
+    const bestR = window.SHRINE_CALC.chooseBestMove({
+      data,
+      attacker:{species:(aR.effectiveSpecies||aR.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aR.strength?state.settings.strengthEV:state.settings.claimedEV},
+      defender:defRight,
+      movePool: movePoolForWave(wp, aR),
+      settings: settingsForWave(state, wp, aR.id, dR.rowKey),
+      tags: dR.tags||[],
+    }).best;
+
+    const bothOhko = (bestL?.oneShot && bestR?.oneShot) ? 2 : ((bestL?.oneShot || bestR?.oneShot) ? 1 : 0);
+    const worstPrio = Math.max(bestL?.prio ?? 9, bestR?.prio ?? 9);
+    const prioSum = (bestL?.prio ?? 9) + (bestR?.prio ?? 9);
+    const overkillSum = Math.abs((bestL?.minPct ?? 0) - 100) + Math.abs((bestR?.minPct ?? 0) - 100);
+
+    // Primary: starters-only clear all selected defenders (3/4)
+    let startersClear = 0;
+    for (const ds of allDefSlots){
+      const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
+      const b0 = window.SHRINE_CALC.chooseBestMove({
+        data,
+        attacker:{species:(aL.effectiveSpecies||aL.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aL.strength?state.settings.strengthEV:state.settings.claimedEV},
+        defender:defObj,
+        movePool: movePoolForWave(wp, aL),
+        settings: settingsForWave(state, wp, aL.id, ds.rowKey),
+        tags: ds.tags||[],
+      }).best;
+      const b1 = window.SHRINE_CALC.chooseBestMove({
+        data,
+        attacker:{species:(aR.effectiveSpecies||aR.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aR.strength?state.settings.strengthEV:state.settings.claimedEV},
+        defender:defObj,
+        movePool: movePoolForWave(wp, aR),
+        settings: settingsForWave(state, wp, aR.id, ds.rowKey),
+        tags: ds.tags||[],
+      }).best;
+      if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) startersClear += 1;
+    }
+
+    // Survival penalty (enemy acts first + OHKOs you)
+    let deathPenalty = 0;
+    const t0 = enemyThreatForMatchup(data, state, wp, aL, dL) || assumedEnemyThreatForMatchup(data, state, wp, aL, dL);
+    const t1 = enemyThreatForMatchup(data, state, wp, aR, dR) || assumedEnemyThreatForMatchup(data, state, wp, aR, dR);
+    if (t0?.diesBeforeMove) deathPenalty += 1;
+    if (t1?.diesBeforeMove) deathPenalty += 1;
+
+    const score = (startersClear * 1_000_000)
+      + (bothOhko * 10_000)
+      - (worstPrio * 1_000)
+      - (prioSum * 100)
+      - (overkillSum)
+      - (deathPenalty * 50_000);
+
+    return {score};
   };
-  const defender = {
-    species: defSlot.defender,
-    level: defSlot.level,
-    ivAll: state.settings.wildIV,
-    evAll: state.settings.wildEV,
-  };
-  const res = window.SHRINE_CALC.chooseBestMove({
-    data,
-    attacker,
-    defender,
-    movePool: movePoolForWave(wp, attackerRosterMon) || attackerRosterMon.moves || [],
-    settings: settingsForWave(state, wp, attackerRosterMon.id, defSlot.rowKey),
-    tags: defSlot.tags || [],
-  });
-  return res?.best || null;
-}
-
-function defenderPreferredThreat(data, state, wp, defSlot, attackers){
-  const pool = (attackers||[]).filter(Boolean);
-  if (!defSlot || pool.length === 0) return null;
 
   let best = null;
-  for (const a of pool){
-    const t = enemyThreatForMatchup(data, state, wp, a, defSlot) || assumedEnemyThreatForMatchup(data, state, wp, a, defSlot);
-    if (!t) continue;
-    if (!best){
-      best = {attacker:a, threat:t};
-      continue;
-    }
-    const am = Number(t.minPct)||0;
-    const bm = Number(best.threat.minPct)||0;
-    if (am !== bm){
-      if (am > bm) best = {attacker:a, threat:t};
-      continue;
-    }
-    const ax = Number(t.maxPct)||am;
-    const bx = Number(best.threat.maxPct)||bm;
-    if (ax !== bx){
-      if (ax > bx) best = {attacker:a, threat:t};
-      continue;
-    }
-  }
-  return best;
-}
-
-function scoreAssignment({data, state, wp, assign}){
-  let ohko = 0;
-  let prioSum = 0;
-  let prioWorst = 0;
-  let distSum = 0;
-  let slowerCount = 0;
-  let stabCount = 0;
-  let minPctSum = 0;
-  let deathPenalty = 0;
-
-  for (const x of (assign||[])){
-    const b = x.best;
-    if (b?.oneShot) ohko += 1;
-    const p = Number.isFinite(b?.prio) ? b.prio : 3;
-    prioSum += p;
-    prioWorst = Math.max(prioWorst, p);
-    distSum += moveDistanceTo100(b);
-    if (b?.slower) slowerCount += 1;
-    if (b?.stab) stabCount += 1;
-    minPctSum += Number(b?.minPct) || 0;
-
-  }
-
-  // Defender targeting (focus-fire): each defender aims at the attacker it can hit hardest.
-  // This can cause both defenders to target the same attacker.
-  const attackers = uniq((assign||[]).map(x=>x.attacker).filter(Boolean));
-  const defenders = (assign||[]).map(x=>x.defSlot).filter(Boolean);
-  const focusMinSums = new Map(); // attackerId -> sum(minPct) from enemies that act before
-  let diesBeforeMoveCount = 0;
-  for (const d of defenders){
-    const pick = defenderPreferredThreat(data, state, wp, d, attackers);
-    if (!pick || !pick.threat) continue;
-    const t = pick.threat;
-    if (t.diesBeforeMove) diesBeforeMoveCount += 1;
-    if (t.enemyActsFirst){
-      const id = pick.attacker.id;
-      focusMinSums.set(id, (focusMinSums.get(id)||0) + (Number(t.minPct)||0));
+  for (const ao of atkOrders){
+    for (const do2 of defOrders){
+      const sc = scorePlan(ao, do2);
+      if (!best || sc.score > best.score){
+        best = {...sc, atkOrder: ao, defOrder: do2};
+      }
     }
   }
 
-  let focusKOs = 0;
-  for (const v of focusMinSums.values()){
-    if (v >= 100) focusKOs += 1;
+  if (best){
+    wp.attackerOrder = best.atkOrder;
+    wp.defenderOrder = best.defOrder;
   }
-
-  deathPenalty = diesBeforeMoveCount + focusKOs;
-
-  return {ohko, prioWorst, prioSum, distSum, deathPenalty, slowerCount, stabCount, minPctSum};
-}
-
-function betterAssignmentMeta(a, b){
-  if (!b) return true;
-  if (!a) return false;
-
-  // Scoring order (lexicographic):
-  // maximize #OHKOs, then lower prio tier (P1>P2>P3), then lowest overkill (closest-to-100),
-  // then speed safety, then STAB preference.
-  if (a.ohko !== b.ohko) return a.ohko > b.ohko;
-  if (a.prioWorst !== b.prioWorst) return a.prioWorst < b.prioWorst;
-  if (a.prioSum !== b.prioSum) return a.prioSum < b.prioSum;
-  if (a.distSum !== b.distSum) return a.distSum < b.distSum;
-  if (a.deathPenalty !== b.deathPenalty) return a.deathPenalty < b.deathPenalty;
-  if (a.slowerCount !== b.slowerCount) return a.slowerCount < b.slowerCount;
-  if (a.stabCount !== b.stabCount) return a.stabCount > b.stabCount;
-  if (a.minPctSum !== b.minPctSum) return a.minPctSum > b.minPctSum;
-  return false;
-}
-
-// Any active battler can target any enemy in 2v2.
-// Compute the better of the two possible 2v2 target assignments.
-export function bestAssignmentForWavePair(data, state, wp, attackerA, attackerB, defSlotA, defSlotB){
-  if (!attackerA || !attackerB || !defSlotA || !defSlotB) return null;
-
-  const a_vs_A = bestMoveForWave(data, state, wp, attackerA, defSlotA);
-  const a_vs_B = bestMoveForWave(data, state, wp, attackerA, defSlotB);
-  const b_vs_A = bestMoveForWave(data, state, wp, attackerB, defSlotA);
-  const b_vs_B = bestMoveForWave(data, state, wp, attackerB, defSlotB);
-
-  const assign1 = [
-    {attacker: attackerA, defSlot: defSlotA, best: a_vs_A},
-    {attacker: attackerB, defSlot: defSlotB, best: b_vs_B},
-  ];
-  const assign2 = [
-    {attacker: attackerA, defSlot: defSlotB, best: a_vs_B},
-    {attacker: attackerB, defSlot: defSlotA, best: b_vs_A},
-  ];
-
-  const meta1 = scoreAssignment({data, state, wp, assign: assign1});
-  const meta2 = scoreAssignment({data, state, wp, assign: assign2});
-
-  const pick1 = betterAssignmentMeta(meta1, meta2);
-  return {
-    assign: pick1 ? assign1 : assign2,
-    meta: pick1 ? meta1 : meta2,
-    altMeta: pick1 ? meta2 : meta1,
-  };
 }
 
 // Best-effort base prefetch utility (use in UI effect)

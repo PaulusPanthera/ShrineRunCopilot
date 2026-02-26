@@ -1,6 +1,7 @@
 // calc.js
-// v8 — minimal, deterministic planner calc (Gen5-style) using sheet tables.
-// NOTE: This is not a full simulator. Use c4vv calc for verification of edge cases.
+// v2.0.0-beta
+// Damage calc utilities (Gen5-style) used by the Abundant Shrine tool.
+// Includes Sturdy (STU) full-HP KO prevention that correctly caps damage and respects current HP.
 
 (function(){
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -57,7 +58,7 @@
     return `https://img.pokemondb.net/sprites/black-white/anim/normal/${slug}.gif`;
   }
 
-  // Static BW sprites (PNG). Intended for Pokédex grid for performance/clarity.
+  // Static BW sprites (PNG). Intended for Pokédex grid / chips for performance.
   function spriteUrlPokemonDbBWStatic(name){
     const slug = slugifyPokemonDb(name);
     return `https://img.pokemondb.net/sprites/black-white/normal/${slug}.png`;
@@ -131,7 +132,12 @@
 
     // Defender HP for percent calc
     const defHP = statHP(defMon.base.hp, levelDef, defIV, defEV);
-    const targetHP = Math.max(1, Math.floor(defHP * (settings.defenderHpFrac ?? 1)));
+    // Max HP scaling (HP% modifiers) is defenderHpFrac. Current remaining HP fraction is defenderCurHpFrac.
+    // If defenderCurHpFrac is omitted, assume full HP.
+    const hpScale = (settings.defenderHpFrac ?? 1);
+    const curFrac = (settings.defenderCurHpFrac ?? 1);
+    const maxHP = Math.max(1, Math.floor(defHP * hpScale));
+    const curHP = Math.max(1, Math.floor(maxHP * curFrac));
 
     // Attacker offensive stat + stages
     const uses = (mv.uses || (mv.category === 'Physical' ? 'Atk' : 'SpA'));
@@ -159,7 +165,9 @@
     D = applyDefensiveItemMult(settings.defenderItem, mv.category, D);
 
     // Base damage (Gen5-ish rounding)
-    const power = mv.power;
+    let power = mv.power;
+    // Acrobatics: double BP when attacker holds no item.
+    if (moveName === 'Acrobatics' && !(settings.attackerItem)) power = power * 2;
     const base1 = Math.floor((2 * L) / 5) + 2;
     let dmg = Math.floor(Math.floor(Math.floor(base1 * power * A / D) / 50) + 2);
 
@@ -177,18 +185,21 @@
 
     dmg = Math.floor(dmg * modifier);
 
-    const min = Math.floor(dmg * rules.RandMin);
-    const max = Math.floor(dmg * rules.RandMax);
+    let min = Math.floor(dmg * rules.RandMin);
+    let max = Math.floor(dmg * rules.RandMax);
 
-    const minPct = (min / targetHP) * 100;
-    const maxPct = (max / targetHP) * 100;
-
-    let oneShot = min >= targetHP;
-
-    // STU: Sturdy blocks full-HP OHKO
-    if ((settings.applySTU ?? true) && tags.includes('STU') && (settings.defenderHpFrac ?? 1) >= 0.999 && min >= defHP) {
-      oneShot = false;
+    // STU: Sturdy blocks any KO from full HP by capping damage to leave 1 HP.
+    // Applies whenever the defender is at full HP (curFrac ~= 1) and ANY roll could KO.
+    if ((settings.applySTU ?? true) && tags.includes('STU') && curFrac >= 0.999 && max >= curHP) {
+      const cap = Math.max(0, curHP - 1);
+      min = Math.min(min, cap);
+      max = Math.min(max, cap);
     }
+
+    const minPct = (min / maxHP) * 100;
+    const maxPct = (max / maxHP) * 100;
+
+    let oneShot = min >= curHP;
 
     // Speed (for warnings / planning)
     const atkSpe0 = statOther(atkMon.base.spe, L, atkIV, atkEV);
@@ -209,7 +220,7 @@
       min, max,
       minPct, maxPct,
       oneShot,
-      defHP, targetHP,
+      defHP, targetHP: maxHP,
       attackerSpe: atkSpe,
       defenderSpe: defSpe,
       slower: atkSpe < defSpe
@@ -240,7 +251,10 @@
     const defEV = defender.evAll;
 
     const defHP = statHP(defMon.base.hp, levelDef, defIV, defEV);
-    const targetHP = Math.max(1, Math.floor(defHP * (settings.defenderHpFrac ?? 1)));
+    const hpScale = (settings.defenderHpFrac ?? 1);
+    const curFrac = (settings.defenderCurHpFrac ?? 1);
+    const maxHP = Math.max(1, Math.floor(defHP * hpScale));
+    const curHP = Math.max(1, Math.floor(maxHP * curFrac));
 
     // Offense
     const uses = (category === 'Physical') ? 'Atk' : 'SpA';
@@ -277,17 +291,19 @@
     const modifier = stabMult * eff * hhMult * other * itemMult;
     dmg = Math.floor(dmg * modifier);
 
-    const min = Math.floor(dmg * rules.RandMin);
-    const max = Math.floor(dmg * rules.RandMax);
-    const minPct = (min / targetHP) * 100;
-    const maxPct = (max / targetHP) * 100;
+    let min = Math.floor(dmg * rules.RandMin);
+    let max = Math.floor(dmg * rules.RandMax);
 
-    let oneShot = min >= targetHP;
-
-    // STU: Sturdy blocks full-HP OHKO
-    if ((settings.applySTU ?? true) && (tags||[]).includes('STU') && (settings.defenderHpFrac ?? 1) >= 0.999 && min >= defHP) {
-      oneShot = false;
+    if ((settings.applySTU ?? true) && (tags||[]).includes('STU') && curFrac >= 0.999 && max >= curHP) {
+      const cap = Math.max(0, curHP - 1);
+      min = Math.min(min, cap);
+      max = Math.min(max, cap);
     }
+
+    const minPct = (min / maxHP) * 100;
+    const maxPct = (max / maxHP) * 100;
+
+    let oneShot = min >= curHP;
 
     // Speed
     const atkSpe0 = statOther(atkMon.base.spe, L, atkIV, atkEV);
@@ -308,7 +324,7 @@
       min, max,
       minPct, maxPct,
       oneShot,
-      defHP, targetHP,
+      defHP, targetHP: maxHP,
       attackerSpe: atkSpe,
       defenderSpe: defSpe,
       slower: atkSpe < defSpe
@@ -324,13 +340,7 @@
 
   function pickCandidateMoves(movePool){
     // movePool: [{name, prio, use}]
-    const enabled = (movePool || []).filter(m => {
-      if (!m || !m.use || !m.name) return false;
-      // PP support (planner default is 12 for every move): if pp is present, it must be > 0.
-      const pp = (m.pp === undefined || m.pp === null) ? null : Number(m.pp);
-      if (pp === null) return true;
-      return Number.isFinite(pp) ? (pp > 0) : true;
-    });
+    const enabled = (movePool || []).filter(m => m && m.use && m.name);
     // Lower number means more preferred (P1 > P2 > P3)
     enabled.sort((a,b) => (normPrio(a.prio) - normPrio(b.prio)) || a.name.localeCompare(b.name));
     return enabled;
