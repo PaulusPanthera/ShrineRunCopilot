@@ -5,8 +5,20 @@
 // - Supports manual move + target selection and reinforcement choice.
 
 import { settingsForWave, enemyThreatForMatchup, assumedEnemyThreatForMatchup } from './waves.js';
+import { isGem, gemType } from './items.js';
 
-export const DEFAULT_MOVE_PP = 12;
+import {
+  DEFAULT_MOVE_PP,
+  ensurePPForRosterMon,
+  getPP,
+  setPP,
+  decPP,
+  snapshotPP,
+  restorePP,
+} from './ppAdapter.js';
+
+// Re-export PP helpers so the rest of the app can keep importing from domain/battle.js
+export { DEFAULT_MOVE_PP, ensurePPForRosterMon, getPP, setPP, decPP, snapshotPP, restorePP };
 
 function byId(arr, id){
   return (arr||[]).find(x => x && x.id === id);
@@ -28,61 +40,9 @@ function clampPct(x){
   return Math.max(0, Math.min(100, n));
 }
 
-export function ensurePPForRosterMon(state, rosterMon){
-  if (!state || !rosterMon) return;
-  state.pp = state.pp || {};
-  const id = rosterMon.id;
-  state.pp[id] = state.pp[id] || {};
-
-  const pool = (rosterMon.movePool||[]).filter(m => m && m.use !== false);
-  for (const m of pool){
-    const name = m.name;
-    if (!name) continue;
-    const cur = state.pp[id][name];
-    if (!cur || typeof cur !== 'object'){
-      state.pp[id][name] = {cur: DEFAULT_MOVE_PP, max: DEFAULT_MOVE_PP};
-    } else {
-      if (!('max' in cur)) cur.max = DEFAULT_MOVE_PP;
-      if (!('cur' in cur)) cur.cur = cur.max;
-      if (!Number.isFinite(Number(cur.max)) || Number(cur.max) <= 0) cur.max = DEFAULT_MOVE_PP;
-      if (!Number.isFinite(Number(cur.cur))) cur.cur = cur.max;
-      cur.max = Number(cur.max);
-      cur.cur = clampInt(cur.cur, 0, cur.max);
-    }
-  }
-}
-
-function clampInt(v, lo, hi){
-  const n = Number.parseInt(String(v), 10);
-  const x = Number.isFinite(n) ? n : lo;
-  return Math.max(lo, Math.min(hi, x));
-}
-
-export function setPP(state, rosterMonId, moveName, nextCur){
-  if (!state) return;
-  state.pp = state.pp || {};
-  state.pp[rosterMonId] = state.pp[rosterMonId] || {};
-  const cur = state.pp[rosterMonId][moveName] || {cur: DEFAULT_MOVE_PP, max: DEFAULT_MOVE_PP};
-  cur.max = Number.isFinite(Number(cur.max)) ? Number(cur.max) : DEFAULT_MOVE_PP;
-  cur.cur = clampInt(nextCur, 0, cur.max);
-  state.pp[rosterMonId][moveName] = cur;
-}
-
-function getPP(state, rosterMonId, moveName){
-  const o = state.pp?.[rosterMonId]?.[moveName];
-  if (!o) return {cur: DEFAULT_MOVE_PP, max: DEFAULT_MOVE_PP};
-  return {cur: Number(o.cur ?? DEFAULT_MOVE_PP), max: Number(o.max ?? DEFAULT_MOVE_PP)};
-}
-
 function hasPP(state, rosterMonId, moveName){
   const p = getPP(state, rosterMonId, moveName);
   return (p.cur ?? 0) > 0;
-}
-
-function decPP(state, rosterMonId, moveName){
-  const p = getPP(state, rosterMonId, moveName);
-  const next = Math.max(0, (p.cur ?? 0) - 1);
-  setPP(state, rosterMonId, moveName, next);
 }
 
 function attackerObj(state, rosterMon){
@@ -133,7 +93,6 @@ function pickAutoActionForAttacker({data, calc, state, wp, waveKey, attackerId, 
   const defList = (activeDefSlots||[]);
   const filtered = exclude.size ? defList.filter(ds => !exclude.has(ds?._instKey || ds?.rowKey)) : defList;
   const targets = (filtered.length ? filtered : defList);
-
   for (const ds of targets){
     const defObj = defenderObj(state, ds);
     const sW = settingsForWave(state, wp, attackerId, ds.rowKey);
@@ -390,7 +349,7 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
     const baseKey = baseDefKey(rk);
     const sl = slotByKey.get(baseKey);
     if (!sl) return null;
-    // Keep instance key separate from base rowKey so we can track HP per-instance (#1/#2/...).
+    // Keep instance key separate from base rowKey so we can track HP per-instance (#1/#2/...)
     return {...sl, _instKey: rk, _baseRowKey: baseKey};
   }).filter(Boolean);
 
@@ -405,6 +364,7 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
     battle.log.push('All attackers fainted.');
     return;
   }
+
 
   // Hard safety cap to avoid infinite loops when targeting/PP gets weird.
   battle.turnCount = (battle.turnCount || 0) + 1;
@@ -468,9 +428,9 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
       }
     }
 
-    const targetKey = pick.targetRowKey; // instance key (base#N)
-    const targetBaseRowKey = pick.targetBaseRowKey || baseDefKey(targetKey);
-    const defSlot = slotByKey.get(targetBaseRowKey);
+    if (pick.targetRowKey) reservedTargets.add(pick.targetRowKey);
+
+    const defSlot = slotByKey.get(baseDefKey(pick.targetRowKey));
     if (!defSlot) continue;
 
     const rr = computeRangeForAttack({data, calc, state, wp, attackerId:id, defSlot, moveName:pick.move});
@@ -479,8 +439,7 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
     const actObj = {
       side:'atk',
       actorId:id,
-      targetKey,
-      targetBaseRowKey,
+      targetKey: pick.targetRowKey,
       move: pick.move,
       prio: pick.prio ?? 9,
       minPct: Number(rr.minPct)||0,
@@ -495,10 +454,6 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
       attackerChoices.push(actObj);
     } else {
       actions.push(actObj);
-    }
-
-    if (!onlyOneEnemy && actObj.targetKey){
-      reservedTargets.add(actObj.targetKey);
     }
 
     battle.lastActions.atk[id] = {move: pick.move, target: pick.targetRowKey, prio: pick.prio ?? 9, minPct: Number(rr.minPct)||0, source: pick.source};
@@ -565,26 +520,10 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
   for (const act of actions){
     if (act.side === 'atk'){
       const id = act.actorId;
-      let rk = act.targetKey;
+      const rk = act.targetKey;
       if (!id || !rk) continue;
       if ((battle.hpAtk[id] ?? 0) <= 0) continue; // fainted before acting
-
-      // If the chosen target fainted earlier in the same turn, redirect to a remaining alive defender.
-      // This matches in-game behavior and prevents wasting an action on a dead slot.
-      if ((battle.hpDef[rk] ?? 0) <= 0){
-        const altKey = (battle.def.active||[]).filter(Boolean).find(k => (battle.hpDef[k] ?? 0) > 0);
-        if (!altKey) continue;
-        rk = altKey;
-        // Recompute minPct vs redirected target (species can differ).
-        const baseKey = baseDefKey(rk);
-        const defSlot = slotByKey.get(baseKey);
-        if (!defSlot) continue;
-        const rr = computeRangeForAttack({data, calc, state, wp, attackerId:id, defSlot, moveName:act.move});
-        if (!rr) continue;
-        act.minPct = Number(rr.minPct)||0;
-        act.targetKey = rk;
-        act.targetBaseRowKey = baseKey;
-      }
+      if ((battle.hpDef[rk] ?? 0) <= 0) continue;
 
       const dmg = clampPct(act.minPct);
       battle.hpDef[rk] = clampPct((battle.hpDef[rk] ?? 0) - dmg);
@@ -594,6 +533,23 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
       const defName = slotByKey.get(baseDefKey(rk))?.defender || rk;
       turnLog.push(`${byId(state.roster,id)?.baseSpecies || 'Attacker'} used ${act.move} (P${act.prio ?? '?'}) → ${defName} (${dmg.toFixed(1)}% · PP ${ppAfter.cur}/${ppAfter.max}).`);
       battle.history.push({side:'atk', actorId:id, move: act.move, prio: act.prio ?? 9, targetKey: rk});
+
+      // Gems: if held and the move matches the gem type, consume 1 from bag and clear the held item.
+      // (Shop sells gems as bundles, but they are used/consumed as single units.)
+      const atkMon = byId(state.roster, id);
+      const held = atkMon?.item || null;
+      if (held && isGem(held)){
+        const t = gemType(held);
+        if (t && t === act.moveType){
+          atkMon.item = null;
+          state.bag = state.bag || {};
+          const cur = Number(state.bag[held] || 0);
+          const next = cur - 1;
+          if (next <= 0) delete state.bag[held];
+          else state.bag[held] = next;
+          turnLog.push(`${atkMon.baseSpecies || 'Attacker'}'s ${held} was consumed.`);
+        }
+      }
       if ((battle.hpDef[rk] ?? 0) <= 0){
         // remove from active slot
         const idx = battle.def.active.indexOf(rk);

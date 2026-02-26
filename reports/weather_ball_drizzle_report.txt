@@ -1,0 +1,14 @@
+Weather Ball under Drizzle (Politoed)
+
+Current state:
+- Weather Ball is defined as Normal / 50 BP in data/moves.json.
+- The tool currently does NOT model weather-based type/power changes for Weather Ball.
+
+Desired behavior (next logic patch):
+- If attacker ability is Drizzle (or active weather is Rain), Weather Ball should:
+  - become Water-type
+  - become 100 base power (Gen 5 weather boost)
+
+Scope note:
+- Apply only to Weather Ball; do not change other moves.
+- If future weather systems are added, route through a central "active weather" state.

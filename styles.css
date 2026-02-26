@@ -109,7 +109,7 @@ body::after{
   padding:8px 10px;
   border-radius:10px;
   border:1px solid var(--border);
-  background-color: rgba(6,10,18,.65);
+  background: rgba(6,10,18,.65);
   color:var(--text);
 }
 .field input[type="range"]{width:100%}
@@ -253,12 +253,10 @@ body::after{
 .pill.good{border-color: rgba(79,227,161,.35); color: rgba(79,227,161,.95)}
 .pill.bad{border-color: rgba(255,93,115,.35); color: rgba(255,93,115,.95)}
 .pill.warn{border-color: rgba(255,209,102,.35); color: rgba(255,209,102,.95)}
-.pill.info{border-color: rgba(122,221,255,.35); color: rgba(122,221,255,.95)}
 
 .sprite{width:28px;height:28px; image-rendering: pixelated; filter: drop-shadow(0 6px 10px rgba(0,0,0,.35));}
 .sprite-sm{width:22px;height:22px}
-.sprite-md{width:48px;height:48px}
-.sprite-lg{width:72px;height:72px}
+.sprite-lg{width:44px;height:44px}
 .sprite-xl{width:64px;height:64px}
 
 .section-title{
@@ -336,7 +334,7 @@ body::after{
   padding:8px 10px;
   border-radius:10px;
   border:1px solid var(--border);
-  background-color: rgba(6,10,18,.65);
+  background: rgba(6,10,18,.65);
   color:var(--text);
 }
 
@@ -399,8 +397,7 @@ body::after{
   background: rgba(6,10,18,.60);
   color:var(--text);
 }
-/* Use page scrolling (no inner scrollbars). */
-.list-body{max-height: none; overflow: visible; background: rgba(16,22,35,.55)}
+.list-body{max-height: calc(100vh - 220px); overflow:auto; background: rgba(16,22,35,.55)}
 .row{
   display:flex; align-items:center; justify-content:space-between;
   gap:10px;
@@ -413,50 +410,13 @@ body::after{
 .row-sub{font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .row-right{display:flex; gap:8px; align-items:center}
 
-
-
-/* --- Type chips (Pokédex-like) --- */
-.typechips{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px}
-.typechip{
-  display:inline-flex;
-  align-items:center;
-  padding:2px 8px;
-  border-radius:999px;
-  font-size:11px;
-  font-weight:800;
-  letter-spacing:.2px;
-  border:1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.06);
-  color: var(--text);
-}
-
-/* per-type accents (soft, readable on dark) */
-.type-Normal{border-color: rgba(168,167,122,.35); background: rgba(168,167,122,.14)}
-.type-Fire{border-color: rgba(238,129,48,.45); background: rgba(238,129,48,.16)}
-.type-Water{border-color: rgba(99,144,240,.45); background: rgba(99,144,240,.16)}
-.type-Electric{border-color: rgba(247,208,44,.45); background: rgba(247,208,44,.16)}
-.type-Grass{border-color: rgba(122,199,76,.45); background: rgba(122,199,76,.16)}
-.type-Ice{border-color: rgba(150,217,214,.45); background: rgba(150,217,214,.16)}
-.type-Fighting{border-color: rgba(194,46,40,.45); background: rgba(194,46,40,.16)}
-.type-Poison{border-color: rgba(163,62,161,.45); background: rgba(163,62,161,.16)}
-.type-Ground{border-color: rgba(226,191,101,.45); background: rgba(226,191,101,.16)}
-.type-Flying{border-color: rgba(169,143,243,.45); background: rgba(169,143,243,.16)}
-.type-Psychic{border-color: rgba(249,85,135,.45); background: rgba(249,85,135,.16)}
-.type-Bug{border-color: rgba(166,185,26,.45); background: rgba(166,185,26,.16)}
-.type-Rock{border-color: rgba(182,161,54,.45); background: rgba(182,161,54,.16)}
-.type-Ghost{border-color: rgba(115,87,151,.45); background: rgba(115,87,151,.16)}
-.type-Dragon{border-color: rgba(111,53,252,.45); background: rgba(111,53,252,.16)}
-.type-Dark{border-color: rgba(112,87,70,.45); background: rgba(112,87,70,.16)}
-.type-Steel{border-color: rgba(183,183,206,.45); background: rgba(183,183,206,.16)}
-.type-Fairy{border-color: rgba(214,133,173,.45); background: rgba(214,133,173,.16)}
 /* --- Unlocked Pokédex grid --- */
 .dex-grid{
   display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap:10px;
-  max-height:none;
-  overflow:visible;
-  padding:10px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap:12px;
+  /* Let the whole page scroll naturally (no inner scroll bar). */
+  padding:12px;
   border:1px solid var(--border);
   border-radius: var(--radius);
   background: rgba(16,22,35,.55);
@@ -464,8 +424,8 @@ body::after{
 .dex-card{
   display:flex;
   align-items:center;
-  gap:10px;
-  padding:10px 10px;
+  gap:12px;
+  padding:12px 12px;
   border-radius: 14px;
   border:1px solid rgba(122,167,255,.16);
   background: rgba(16,22,35,.45);
@@ -476,42 +436,20 @@ body::after{
   font: inherit;
   color: var(--text);
 }
-
-.dex-top{display:flex; align-items:flex-start; gap:10px; width:100%}
-.dex-levels{font-size:12px; color:var(--muted); margin-top:2px}
-.dex-tag{font-size:12px; font-weight:900; padding:4px 10px; border-radius:999px; border:1px solid rgba(120,170,255,.20); background: rgba(6,10,18,.40); color:var(--muted); height:24px; display:flex; align-items:center}
-.dex-tag.good{border-color: rgba(79,227,161,.35); color: rgba(79,227,161,.95)}
-.dex-tag.bad{border-color: rgba(255,93,115,.35); color: rgba(255,93,115,.95)}
-.dex-card.unlocked{border-color: rgba(79,227,161,.25)}
-.dex-card.locked{opacity:.62; filter:saturate(.7)}
-.dex-sprite{width:56px; height:56px}
 .dex-card:hover{
   border-color: rgba(122,167,255,.35);
   background: rgba(16,22,35,.62);
 }
-.dex-card.locked{opacity:.68}
-.dex-meta{min-width:0}
-.dex-name{font-weight:900; white-space:normal; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:1.15; min-height:2.3em}
+.dex-card.unlocked{border-color: rgba(79,227,161,.22)}
+.dex-card.locked{opacity:.78; border-color: rgba(255,93,115,.18)}
+.dex-meta{min-width:0; flex:1}
+.dex-name{font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:14px}
+.dex-sub{font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px}
 .dex-status{font-size:12px; color:var(--muted)}
 .dex-tag{font-size:12px; color:var(--muted)}
-.dex-sprite{width:56px; height:56px}
+.dex-sprite{width:44px; height:44px}
 
 /* Pokédex detail */
-.dex-evo-row{display:flex; flex-wrap:wrap; gap:10px; margin-top:8px}
-.dex-form{
-  display:flex; align-items:center; gap:8px;
-  padding:8px 10px;
-  border-radius: 14px;
-  border:1px solid rgba(122,167,255,.16);
-  background: rgba(16,22,35,.45);
-  cursor:pointer;
-  color: var(--text);
-  font: inherit;
-}
-.dex-form:hover{border-color: rgba(122,167,255,.35); background: rgba(16,22,35,.62)}
-.dex-form.active{border-color: rgba(79,227,161,.35); box-shadow: 0 0 0 2px rgba(79,227,161,.12) inset}
-.dex-form-name{font-weight:900; white-space:nowrap}
-
 .dex-detail-head{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
 .dex-detail-head-left{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
 
@@ -546,6 +484,16 @@ body::after{
 .dex-stat-k{font-size:12px; color:var(--muted); font-weight:900}
 .dex-stat-v{font-weight:900; margin-top:2px}
 
+.dex-moves{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
+.dex-move{
+  padding:6px 10px;
+  border-radius: 999px;
+  border:1px solid rgba(122,167,255,.16);
+  background: rgba(6,10,18,.35);
+  font-size:12px;
+  color: var(--text);
+}
+
 /* Pokédex moveset cards */
 .dex-move-list{display:flex; flex-direction:column; gap:10px; margin-top:8px}
 .dex-move-card{border:1px solid rgba(122,167,255,.14); background: rgba(6,10,18,.30); border-radius:12px; padding:10px 12px;}
@@ -557,6 +505,10 @@ body::after{
 .dex-meta-grid{display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px; margin-top:6px;}
 .dex-matchups{display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:10px; margin-top:8px;}
 .dex-mu{border:1px solid rgba(122,167,255,.14); background: rgba(6,10,18,.30); border-radius:12px; padding:8px 10px;}
+
+.dex-move-row{display:flex; gap:10px; align-items:center; padding:6px 10px; border-radius:12px; border:1px solid rgba(122,167,255,.14); background: rgba(6,10,18,.30);}
+.dex-move-lv{font-size:12px; color:var(--muted); font-weight:900; min-width:56px;}
+.dex-move-name{font-weight:900;}
 
 /* Type badges */
 .type-badge{padding:4px 10px; border-radius:999px; font-size:12px; font-weight:900; border:1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.06);}
@@ -577,7 +529,21 @@ body::after{
 .type-dragon{background:rgba(112,56,248,.22);} 
 .type-dark{background:rgba(112,88,72,.22);} 
 .type-steel{background:rgba(184,184,208,.22);} 
-.type-fairy{background:rgba(238,153,172,.22);} 
+
+.dex-evo-row{display:flex; flex-wrap:wrap; gap:10px; margin-top:8px}
+.dex-form{
+  display:flex; align-items:center; gap:8px;
+  padding:8px 10px;
+  border-radius: 14px;
+  border:1px solid rgba(122,167,255,.16);
+  background: rgba(16,22,35,.45);
+  cursor:pointer;
+  color: var(--text);
+  font: inherit;
+}
+.dex-form:hover{border-color: rgba(122,167,255,.35); background: rgba(16,22,35,.62)}
+.dex-form.active{border-color: rgba(79,227,161,.35); box-shadow: 0 0 0 2px rgba(79,227,161,.12) inset}
+.dex-form-name{font-weight:900; white-space:nowrap}
 
 .badge{
   padding:3px 8px;
@@ -595,37 +561,6 @@ body::after{
 .hr{height:1px; background: rgba(120,170,255,.10); margin:12px 0}
 
 
-
-
-/* --- Battle simulator --- */
-.battle-panel{margin-top:12px}
-.battle-reinf{margin-top:10px; padding:10px; border-radius:12px; border:1px solid rgba(255,209,102,.25); background: rgba(255,209,102,.06); display:flex; flex-direction:column; gap:8px}
-.battle-grid{display:grid; grid-template-columns:1fr; gap:12px; margin-top:10px}
-@media (min-width: 1100px){
-  .battle-grid{grid-template-columns: 1fr 1fr;}
-}
-.battle-side-title{font-weight:900; margin-bottom:8px}
-.battle-card{
-  border-radius: 14px;
-  border:1px solid rgba(120,170,255,.16);
-  background: rgba(10,14,24,.72);
-  padding:10px;
-}
-.battle-card + .battle-card{margin-top:10px}
-.battle-card-head{display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:8px}
-.battle-controls{margin-top:8px; padding-top:8px; border-top:1px solid rgba(120,170,255,.10)}
-.battle-pp{margin-top:10px; padding-top:8px; border-top:1px solid rgba(120,170,255,.10)}
-.pp-list{display:flex; flex-direction:column; gap:6px; margin-top:6px}
-.pp-row{display:flex; justify-content:space-between; gap:10px; align-items:center}
-.pp-move{font-size:12px; font-weight:800; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.pp-box{display:flex; gap:6px; align-items:center}
-.battle-log{margin-top:8px; max-height:none; overflow:visible; border-radius:12px; border:1px solid rgba(120,170,255,.12); background: rgba(6,10,18,.45); padding:8px}
-.battle-log-line{font-size:12px; color:var(--muted); padding:3px 0; border-bottom:1px dashed rgba(120,170,255,.10)}
-.battle-log-line:last-child{border-bottom:none}
-
-/* btn-mini danger */
-.btn-mini.btn-danger{border-color: rgba(255,93,115,.35)}
-.btn-mini.btn-danger:hover{border-color: rgba(255,93,115,.55); background: rgba(40,10,16,.55)}
 /* --- Wave planner v9 --- */
 .wave-planner{margin-top:12px;}
 .planner-grid{
@@ -641,13 +576,14 @@ body::after{
   display:flex;
   flex-direction:column;
   gap:8px;
-  max-height:none;
-  overflow:visible;
-  padding-right:0;
+  max-height: 440px;
+  overflow:auto;
+  padding-right:6px;
 }
 .pick-item{
   display:grid;
-  grid-template-columns: 34px 1fr;
+  /* Wider sprite column so enemy icons are readable. */
+  grid-template-columns: 18px 52px 1fr auto;
   gap:10px;
   align-items:center;
   padding:8px 10px;
@@ -659,13 +595,51 @@ body::after{
   border-color: rgba(122,167,255,.35);
   background: rgba(16,22,35,.62);
 }
+.pick-item.selected{
+  border-color: rgba(79,227,161,.35);
+  box-shadow: 0 0 0 2px rgba(79,227,161,.10) inset;
+}
+
+.enemy-slots{
+  margin: 8px 0 10px;
+  padding: 10px;
+  border-radius: 12px;
+  border:1px solid rgba(120,170,255,.16);
+  background: rgba(10,15,24,.55);
+}
+.enemy-slot-row{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-top:8px;
+}
+.enemy-slot-row .lbl{
+  width:70px;
+  font-size:12px;
+  font-weight:900;
+  color:var(--muted);
+}
+.slotbadge{
+  width:18px;
+  height:18px;
+  border-radius:6px;
+  border:1px solid rgba(120,170,255,.18);
+  background: rgba(6,10,18,.35);
+  color: var(--muted);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  font-weight:900;
+}
+.slotbadge.on{
+  border-color: rgba(79,227,161,.35);
+  color: rgba(79,227,161,.95);
+  background: rgba(79,227,161,.10);
+}
 .pick-item.cleared{
   opacity:.55;
-}
-.pick-item.selected{
-  border-color: rgba(122,167,255,.80);
-  box-shadow: 0 0 0 2px rgba(122,167,255,.22) inset, 0 10px 24px rgba(0,0,0,.22);
-  background: rgba(22,30,48,.62);
 }
 .pick-meta{min-width:0}
 .pick-title{
@@ -724,7 +698,7 @@ body::after{
   padding:8px 10px;
   border-radius: 12px;
   border:1px solid rgba(120,170,255,.18);
-  background-color: rgba(0,0,0,.25);
+  background: rgba(0,0,0,.25);
   color: var(--text);
 }
 /* Keep overview visible on top */
@@ -753,30 +727,6 @@ body::after{
 .bag-table th, .bag-table td{ border-bottom:1px solid rgba(255,255,255,0.08); padding:8px 6px; text-align:left; }
 .bag-table td:last-child{ text-align:right; }
 
-/* Bag (grouped view) */
-.bag-row{ display:grid; grid-template-columns: 1fr 80px 80px 90px; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.08); }
-.bag-row.bag-head{ font-weight:900; padding-top:0; }
-.bag-item{ display:flex; align-items:center; gap:10px; }
-.bag-num{ text-align:right; }
-
-
-
-/* --- Politoed shop (compact) --- */
-.shop-balance{display:flex; align-items:center; gap:8px}
-.shop-grid{display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:8px; margin-top:10px}
-.shop-card{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border-radius:12px; border:1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.18)}
-.shop-meta{display:flex; flex-direction:column; gap:2px; min-width:0}
-.shop-name{font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.shop-price{font-size:12px; color:var(--muted)}
-.shop-ledger{margin-top:8px; display:flex; flex-direction:column; gap:6px}
-.shop-ledger-row{font-size:12px; color:var(--muted); padding:6px 8px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.14)}
-
-/* Bag table column alignment */
-.bag-table th:nth-child(2), .bag-table th:nth-child(3), .bag-table th:nth-child(4),
-.bag-table td:nth-child(2), .bag-table td:nth-child(3), .bag-table td:nth-child(4){text-align:right}
-.bag-table th:nth-child(5), .bag-table th:nth-child(6),
-.bag-table td:nth-child(5), .bag-table td:nth-child(6){text-align:right; width:110px}
-
 /* --- Settings --- */
 .settings-grid{ display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; }
 .settings-col{ flex: 1 1 420px; display:flex; flex-direction:column; gap:14px; }
@@ -787,75 +737,998 @@ body::after{
 .modrow{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
 .modchip{display:flex; align-items:center; gap:6px; padding:4px 8px; border-radius: 999px; border:1px solid rgba(120,170,255,.16); background: rgba(0,0,0,.18)}
 .modchip .lbl{font-size:11px; color:var(--muted)}
-.modchip select, .modchip input{font-size:12px; padding:4px 6px; border-radius:10px; border:1px solid rgba(120,170,255,.18); background-color: rgba(0,0,0,.25); color: var(--text); width:auto}
+.modchip select, .modchip input{font-size:12px; padding:4px 6px; border-radius:10px; border:1px solid rgba(120,170,255,.18); background: rgba(0,0,0,.25); color: var(--text); width:auto}
 .modchip input{max-width:64px}
 
 /* Mini controls used throughout the planner */
-.sel-mini{font-size:12px; padding:4px 6px; border-radius:10px; border:1px solid rgba(120,170,255,.18); background-color: rgba(0,0,0,.25); color: var(--text)}
+.sel-mini{font-size:12px; padding:4px 6px; border-radius:10px; border:1px solid rgba(120,170,255,.18); background: rgba(0,0,0,.25); color: var(--text)}
 .inp-mini{font-size:12px; padding:4px 6px; border-radius:10px; border:1px solid rgba(120,170,255,.18); background: rgba(0,0,0,.25); color: var(--text); width:64px}
 
-/* --- Scrollbar polish (global) --- */
-/* Remove visible scrollbar entirely (scroll still works). */
-html, body{ scrollbar-width: none; }
-html::-webkit-scrollbar, body::-webkit-scrollbar{ width: 0; height: 0; }
+/* --- Bag shop placeholder --- */
+.shop-grid{ display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+.shop-row{ display:grid; grid-template-columns: 1fr auto auto; gap:10px; align-items:center; padding:6px 8px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.18); }
 
-/* Main app columns scroll (sidebar/content). Hide their scrollbars too. */
-.sidebar, .content{ scrollbar-width: none; -ms-overflow-style: none; }
-.sidebar::-webkit-scrollbar, .content::-webkit-scrollbar{ width: 0; height: 0; }
+/* --- Credits / Impressum --- */
+.credits-list{ display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+.credits-list a{ color: var(--accent); text-decoration: underline; }
 
-/* --- Select / dropdown polish --- */
-/* Make selects match the glassy dark UI and avoid the default OS look. */
-:where(select){
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  color-scheme: dark;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background-color: rgba(6,10,18,.65);
+/* --- Waves build merge: Bag + Settings polish (v20) --- */
+
+/* Small segmented toggles (used in Settings) */
+.seg-toggle{display:flex; gap:6px; flex-wrap:wrap; align-items:center}
+.btn-mini.active{
+  border-color: rgba(122,167,255,.55);
+  background: rgba(22,32,56,.55);
+  box-shadow: 0 0 0 3px rgba(122,167,255,.14);
+}
+
+/* Bag table column alignment */
+.bag-table th:nth-child(2), .bag-table th:nth-child(3), .bag-table th:nth-child(4),
+.bag-table td:nth-child(2), .bag-table td:nth-child(3), .bag-table td:nth-child(4){text-align:right}
+.bag-table th:nth-child(5), .bag-table th:nth-child(6),
+.bag-table td:nth-child(5), .bag-table td:nth-child(6){text-align:right; width:110px}
+
+/* --- Politoed shop (compact) --- */
+.shop-balance{display:flex; align-items:center; gap:8px}
+/* Override legacy shop-grid (column list) with responsive grid */
+.shop-grid{display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:8px; margin-top:10px}
+.shop-card{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border-radius:12px; border:1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.18)}
+.shop-meta{display:flex; flex-direction:column; gap:2px; min-width:0}
+.shop-name{font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.shop-price{font-size:12px; color:var(--muted)}
+.shop-ledger{margin-top:8px; display:flex; flex-direction:column; gap:6px}
+.shop-ledger-row{font-size:12px; color:var(--muted); padding:6px 8px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.14)}
+
+/* --- Settings layout (3-column flex) --- */
+.settings-layout{
+  display:flex;
+  gap:14px;
+  align-items:flex-start;
+  justify-content:center;
+  flex-wrap:wrap;
+  max-width: 1720px;
+  margin: 0 auto;
+}
+
+.settings-layout .panel-title{
+  margin: 0 0 10px 0;
+  line-height: 1.15;
+  min-height: 24px;
+  display:flex;
+  align-items:center;
+  padding-top: 1px;
+}
+.settings-layout .panel-subtitle{ margin: 12px 0 6px 0; }
+.settings-about .muted.small{ line-height: 1.25; }
+
+.settings-col{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  flex: 1 1 360px;
+  min-width: 320px;
+}
+
+.settings-col-mid{
+  flex: 2 1 560px;
+  min-width: 520px;
+}
+
+@media (min-width: 1200px){
+  .settings-layout{ flex-wrap:nowrap; }
+  .settings-col-left, .settings-col-right{ flex: 0 0 360px; }
+  .settings-col-mid{ flex: 1 1 auto; min-width: 0; max-width: 920px; }
+}
+
+/* Core settings: compress long lists into a tighter 2-col form on wide screens */
+.settings-core .core-fields{ display:grid; grid-template-columns: 1fr; gap:10px; }
+@media (min-width: 900px){
+  .settings-core .core-fields{ grid-template-columns: 1fr 1fr; }
+}
+.settings-core .core-fields .field{ margin-bottom: 0; }
+
+
+/* --- Dex UI (ported from alpha_v32_dex_entry_chefs_kiss) --- */
+/* --- Type chips (Pokédex-like) --- */
+.typechips{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px}
+.typechip{
+  display:inline-flex;
+  align-items:center;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.2px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
   color: var(--text);
-  padding: 8px 34px 8px 10px;
-  line-height: 1.2;
-  cursor: pointer;
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'%3E%3Cpath fill='rgba(232,238,252,0.75)' d='M7 10l5 5l5-5z'/%3E%3C/svg%3E"),
-    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0));
-  background-repeat: no-repeat, no-repeat;
-  background-position: right 12px center, 0 0;
-  background-size: 14px 14px, auto;
-}
-:where(select):hover{ border-color: rgba(122,167,255,.35); background-color: rgba(6,10,18,.75); }
-:where(select):focus{ outline: none; border-color: rgba(122,167,255,.55); box-shadow: 0 0 0 3px rgba(122,167,255,.18); }
-:where(select):disabled{ opacity:.55; cursor:not-allowed; }
-
-/* Keep the dropdown list readable (browser support varies). */
-select option{ background: var(--bg0); color: var(--text); }
-
-/* Small selects used throughout */
-select.sel-mini{
-  padding: 4px 28px 4px 8px;
-  border-color: rgba(120,170,255,.18);
-  background-color: rgba(0,0,0,.25);
-  background-position: right 10px center, 0 0;
-  background-size: 12px 12px, auto;
 }
 
-/* Modchip selects should also get the arrow */
-.modchip select{
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  padding-right: 26px;
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'%3E%3Cpath fill='rgba(232,238,252,0.75)' d='M7 10l5 5l5-5z'/%3E%3C/svg%3E"),
-    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0));
-  background-repeat: no-repeat, no-repeat;
-  background-position: right 10px center, 0 0;
-  background-size: 12px 12px, auto;
+/* per-type accents (soft, readable on dark) */
+.type-Normal{border-color: rgba(168,167,122,.35); background: rgba(168,167,122,.14)}
+.type-Fire{border-color: rgba(238,129,48,.45); background: rgba(238,129,48,.16)}
+.type-Water{border-color: rgba(99,144,240,.45); background: rgba(99,144,240,.16)}
+.type-Electric{border-color: rgba(247,208,44,.45); background: rgba(247,208,44,.16)}
+.type-Grass{border-color: rgba(122,199,76,.45); background: rgba(122,199,76,.16)}
+.type-Ice{border-color: rgba(150,217,214,.45); background: rgba(150,217,214,.16)}
+.type-Fighting{border-color: rgba(194,46,40,.45); background: rgba(194,46,40,.16)}
+.type-Poison{border-color: rgba(163,62,161,.45); background: rgba(163,62,161,.16)}
+.type-Ground{border-color: rgba(226,191,101,.45); background: rgba(226,191,101,.16)}
+.type-Flying{border-color: rgba(169,143,243,.45); background: rgba(169,143,243,.16)}
+.type-Psychic{border-color: rgba(249,85,135,.45); background: rgba(249,85,135,.16)}
+.type-Bug{border-color: rgba(166,185,26,.45); background: rgba(166,185,26,.16)}
+.type-Rock{border-color: rgba(182,161,54,.45); background: rgba(182,161,54,.16)}
+.type-Ghost{border-color: rgba(115,87,151,.45); background: rgba(115,87,151,.16)}
+.type-Dragon{border-color: rgba(111,53,252,.45); background: rgba(111,53,252,.16)}
+.type-Dark{border-color: rgba(112,87,70,.45); background: rgba(112,87,70,.16)}
+.type-Steel{border-color: rgba(183,183,206,.45); background: rgba(183,183,206,.16)}
+.type-Fairy{border-color: rgba(214,133,173,.45); background: rgba(214,133,173,.16)}
+/* --- Unlocked Pokédex grid --- */
+.dex-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap:12px;
+  max-height:none;
+  overflow:visible;
+  padding:12px;
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(8,12,20,.62);
+}
+.dex-card{
+  --dex-pad: 12px;
+  /* Bigger, more prominent sprites (still leave breathing room for large wings like Aerodactyl). */
+  --dex-sprite: 78px;
+  /* Reserve space above the sprite for the state badge (keeps sprite position stable). */
+  --dex-state-reserve: 20px;
+  /* Actual badge size (kept smaller so it doesn't overpower the card). */
+  --dex-state-size: 16px;
+  display:flex;
+  position:relative;
+  align-items:flex-start;
+  gap:12px;
+  padding:12px 12px 12px 12px;
+  border-radius: 14px;
+  border:1px solid rgba(122,167,255,.22);
+  background: rgba(10,14,24,.62);
+  box-shadow: 0 10px 24px rgba(0,0,0,.20);
+  cursor:pointer;
+  text-align:left;
+  width:100%;
+  appearance:none;
+  font: inherit;
+  color: var(--text);
+  transition: transform .12s ease, background .12s ease, border-color .12s ease, box-shadow .12s ease;
+  min-height: 122px;
+}
+.dex-card:focus-visible{outline: 2px solid rgba(122,167,255,.55); outline-offset:2px;}
+
+.dex-card > *{position:relative; z-index:1;}
+
+.dex-spritewrap{
+  flex:0 0 var(--dex-sprite);
+  width: var(--dex-sprite);
+  /* Reserve vertical space for the badge above the sprite so the sprite can sit lower. */
+  height: calc(var(--dex-sprite) + var(--dex-state-reserve) + 10px);
+  position: relative;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  margin-top: 2px;
+}
+.dex-spritewrap .sprite{width:var(--dex-sprite); height:var(--dex-sprite);}
+
+.dex-plates{flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:8px; margin-top:12px;}
+.dex-top{
+  display:grid;
+  /* Keep the TOP row aligned with the 2-col move grid below */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap:6px;
+  align-items:stretch;
+}
+.dex-top .typechips{margin-top:0;}
+.dex-top .typechips{margin:0;}
+.dex-top .typechips{
+  display:flex;
+  width:100%;
+  gap:6px;
+  flex-wrap:nowrap;
+  align-items:stretch;
+}
+.dex-top .dex-ability{justify-self:stretch; width:100%; max-width:none;}
+
+/* Unified plate grid (Types + Ability + 4 moves) for perfectly aligned cards */
+.dex-plategrid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 22px;
+  gap:6px;
+  align-content:start;
+}
+.dex-plategrid .dex-ability{
+  grid-row: 1 / span 2;
+  border-color: rgba(122,167,255,.42);
+  border-style: dashed;
+  background: linear-gradient(180deg, rgba(122,167,255,.14), rgba(122,167,255,.08));
+  font-weight:1000;
+  justify-content:center;
+}
+.dex-plategrid .dex-ability::before{
+  content:'⚙';
+  margin-right:6px;
+  opacity:.85;
+  font-size:12px;
+}
+.dex-plategrid .dex-type{
+  justify-content:center;
+  font-weight:1000;
+}
+.dex-plategrid .dex-placeholder{
+  opacity:0;
+  border-color: transparent;
+  background: transparent;
 }
 
-/* Hide legacy IE/Edge dropdown arrow */
-select::-ms-expand{ display:none; }
 
-/* Screen-reader only (used for hidden form labels to silence Chrome Issues panel) */
-.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+.dex-moves{display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:6px; grid-auto-rows: 22px; align-content:start;}
+.dex-plate{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:2px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.15px;
+  line-height:1;
+  min-height: 22px;
+  box-sizing: border-box;
+}
+/* Plates should align to the grid columns (not content width). */
+.dex-plates .dex-plate{width:100%; justify-self:stretch;}
+.dex-ability{
+  border-color: rgba(122,167,255,.30);
+  background: rgba(122,167,255,.12);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-content: flex-start;
+}
+.dex-move{
+  justify-content:flex-start;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* Move category accent (subtle) */
+.dex-move.cat-Physical{box-shadow: 0 0 0 1px rgba(255,93,115,.22) inset;}
+.dex-move.cat-Special{box-shadow: 0 0 0 1px rgba(122,167,255,.22) inset;}
+.dex-move.cat-Status{box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset; opacity:.95;}
+
+/* Moves: use the SAME type coloring as type chips (but keep .dex-plate sizing). */
+.dex-plate.type-Normal{border-color: rgba(168,167,122,.35); background: rgba(168,167,122,.14)}
+.dex-plate.type-Fire{border-color: rgba(238,129,48,.45); background: rgba(238,129,48,.16)}
+.dex-plate.type-Water{border-color: rgba(99,144,240,.45); background: rgba(99,144,240,.16)}
+.dex-plate.type-Electric{border-color: rgba(247,208,44,.45); background: rgba(247,208,44,.16)}
+.dex-plate.type-Grass{border-color: rgba(122,199,76,.45); background: rgba(122,199,76,.16)}
+.dex-plate.type-Ice{border-color: rgba(150,217,214,.45); background: rgba(150,217,214,.16)}
+.dex-plate.type-Fighting{border-color: rgba(194,46,40,.45); background: rgba(194,46,40,.16)}
+.dex-plate.type-Poison{border-color: rgba(163,62,161,.45); background: rgba(163,62,161,.16)}
+.dex-plate.type-Ground{border-color: rgba(226,191,101,.45); background: rgba(226,191,101,.16)}
+.dex-plate.type-Flying{border-color: rgba(169,143,243,.45); background: rgba(169,143,243,.16)}
+.dex-plate.type-Psychic{border-color: rgba(249,85,135,.45); background: rgba(249,85,135,.16)}
+.dex-plate.type-Bug{border-color: rgba(166,185,26,.45); background: rgba(166,185,26,.16)}
+.dex-plate.type-Rock{border-color: rgba(182,161,54,.45); background: rgba(182,161,54,.16)}
+.dex-plate.type-Ghost{border-color: rgba(115,87,151,.45); background: rgba(115,87,151,.16)}
+.dex-plate.type-Dragon{border-color: rgba(111,53,252,.45); background: rgba(111,53,252,.16)}
+.dex-plate.type-Dark{border-color: rgba(112,87,70,.45); background: rgba(112,87,70,.16)}
+.dex-plate.type-Steel{border-color: rgba(183,183,206,.45); background: rgba(183,183,206,.16)}
+
+.dex-state{
+  position:absolute;
+  /* Centered over the sprite, but a touch lower (so it feels attached to the sprite column). */
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--dex-state-size);
+  height: var(--dex-state-size);
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(120,170,255,.18);
+  background: rgba(8,12,20,.58);
+  /* Reduce the "floating sticker" feel (no heavy drop shadow, softer integration). */
+  box-shadow: 0 0 0 1px rgba(0,0,0,.32);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events:none;
+  opacity: .92;
+}
+.dex-card.locked .dex-state{border-color: rgba(255,93,115,.34); background: rgba(255,93,115,.06); color: rgba(255,93,115,.85)}
+.dex-card.unlocked .dex-state{border-color: rgba(79,227,161,.34); background: rgba(79,227,161,.06); color: rgba(79,227,161,.85)}
+
+/* Monochrome icons via SVG masks (avoids emoji color pop). */
+.dex-state::before{
+  content:'';
+  width: 10px;
+  height: 10px;
+  background: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+}
+/* lock icon */
+.dex-card.locked .dex-state::before{
+  -webkit-mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nYmxhY2snIGQ9J00xNyA4aC0xVjZhNCA0IDAgMCAwLTggMHYySDdhMiAyIDAgMCAwLTIgMnY5YTIgMiAwIDAgMCAyIDJoMTBhMiAyIDAgMCAwIDItMnYtOWEyIDIgMCAwIDAtMi0yem0tNy0yYTIgMiAwIDAgMSA0IDB2Mmg0VjZ6bTcgMTNIN3YtOWgxMHY5eicvPjwvc3ZnPg==");
+  mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nYmxhY2snIGQ9J00xNyA4aC0xVjZhNCA0IDAgMCAwLTggMHYySDdhMiAyIDAgMCAwLTIgMnY5YTIgMiAwIDAgMCAyIDJoMTBhMiAyIDAgMCAwIDItMnYtOWEyIDIgMCAwIDAtMi0yem0tNy0yYTIgMiAwIDAgMSA0IDB2Mmg0VjZ6bTcgMTNIN3YtOWgxMHY5eicvPjwvc3ZnPg==");
+}
+/* check icon */
+.dex-card.unlocked .dex-state::before{
+  -webkit-mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nYmxhY2snIGQ9J005IDE2LjJsLTQuMi00LjItMS40IDEuNEw5IDE5IDIxIDdsLTEuNC0xLjR6Jy8+PC9zdmc+");
+  mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nYmxhY2snIGQ9J005IDE2LjJsLTQuMi00LjItMS40IDEuNEw5IDE5IDIxIDdsLTEuNC0xLjR6Jy8+PC9zdmc+");
+}
+
+.dex-card.unlocked{
+  border-color: rgba(79,227,161,.28);
+  box-shadow: 0 0 0 1px rgba(79,227,161,.10) inset, 0 10px 24px rgba(0,0,0,.22);
+}
+.dex-card.unlocked .sprite{filter: drop-shadow(0 0 10px rgba(79,227,161,.18));}
+
+.dex-card.locked{
+  border-color: rgba(255,93,115,.22);
+  background: rgba(10,14,24,.50);
+}
+.dex-card.locked{ border-style: dashed; }
+.dex-card.locked::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:14px;
+  background: radial-gradient(140px 140px at 18px 18px, rgba(255,93,115,.12), rgba(0,0,0,0) 70%);
+  opacity:.95;
+  pointer-events:none;
+  z-index:0;
+}
+.dex-card.unlocked::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:14px;
+  background: radial-gradient(160px 160px at 18px 18px, rgba(79,227,161,.10), rgba(0,0,0,0) 72%);
+  opacity:.95;
+  pointer-events:none;
+  z-index:0;
+}
+.dex-card.locked .sprite{
+  filter: grayscale(1) brightness(.7);
+  opacity:.55;
+}
+.dex-card.locked .dex-plates{opacity:.32;}
+.dex-sprite{width:56px; height:56px}
+.dex-card:hover{
+  border-color: rgba(122,167,255,.35);
+  background: rgba(10,14,24,.74);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 560px){
+  .dex-grid{grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));}
+}
+
+/* Pokédex detail */
+.dex-evo-row{display:flex; flex-wrap:wrap; gap:10px; margin-top:8px}
+.dex-form{
+  display:flex; align-items:center; gap:8px;
+  padding:8px 10px;
+  border-radius: 14px;
+  border:1px solid rgba(122,167,255,.16);
+  background: rgba(16,22,35,.45);
+  cursor:pointer;
+  color: var(--text);
+  font: inherit;
+}
+.dex-form:hover{border-color: rgba(122,167,255,.35); background: rgba(16,22,35,.62)}
+.dex-form.active{border-color: rgba(79,227,161,.35); box-shadow: 0 0 0 2px rgba(79,227,161,.12) inset}
+.dex-form-name{font-weight:900; white-space:nowrap}
+
+.dex-detail-head{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
+.dex-detail-head-left{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+
+/* Inline state indicator (used in Dex detail header + hero) */
+.dex-state-inline{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:14px;
+  height:14px;
+  border-radius:999px;
+  border:1px solid rgba(120,170,255,.18);
+  background: rgba(8,12,20,.58);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.32);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity:.92;
+}
+.dex-state-inline.locked{border-color: rgba(255,93,115,.34); background: rgba(255,93,115,.06); color: rgba(255,93,115,.85)}
+.dex-state-inline.unlocked{border-color: rgba(79,227,161,.34); background: rgba(79,227,161,.06); color: rgba(79,227,161,.85)}
+.dex-state-inline::before{
+  content:'';
+  width:9px;
+  height:9px;
+  background: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+}
+.dex-state-inline.locked::before{
+  -webkit-mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nYmxhY2snIGQ9J00xNyA4aC0xVjZhNCA0IDAgMCAwLTggMHYySDdhMiAyIDAgMCAwLTIgMnY5YTIgMiAwIDAgMCAyIDJoMTBhMiAyIDAgMCAwIDItMnYtOWEyIDIgMCAwIDAtMi0yem0tNy0yYTIgMiAwIDAgMSA0IDB2Mmg0VjZ6bTcgMTNIN3YtOWgxMHY5eicvPjwvc3ZnPg==");
+  mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nYmxhY2snIGQ9J00xNyA4aC0xVjZhNCA0IDAgMCAwLTggMHYySDdhMiAyIDAgMCAwLTIgMnY5YTIgMiAwIDAgMCAyIDJoMTBhMiAyIDAgMCAwIDItMnYtOWEyIDIgMCAwIDAtMi0yem0tNy0yYTIgMiAwIDAgMSA0IDB2Mmg0VjZ6bTcgMTNIN3YtOWgxMHY5eicvPjwvc3ZnPg==");
+}
+.dex-state-inline.unlocked::before{
+  -webkit-mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nYmxhY2snIGQ9J005IDE2LjJsLTQuMi00LjItMS40IDEuNEw5IDE5IDIxIDdsLTEuNC0xLjR6Jy8+PC9zdmc+");
+  mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nYmxhY2snIGQ9J005IDE2LjJsLTQuMi00LjItMS40IDEuNEw5IDE5IDIxIDdsLTEuNC0xLjR6Jy8+PC9zdmc+");
+}
+
+/* Dex detail hero — bring it closer to the grid-card aesthetic */
+.dex-entry-hero{
+  display:grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap:14px;
+  align-items:center;
+  max-width: 980px;
+  margin: 0 auto;
+  padding:14px;
+  border:1px solid rgba(122,167,255,.18);
+  border-radius:14px;
+  background: rgba(10,14,24,.45);
+  box-shadow: 0 10px 24px rgba(0,0,0,.18);
+}
+
+/* Constrain Dex detail sections so they feel "designed" on ultrawide */
+.dex-detail-panel{max-width:1200px; margin-left:auto; margin-right:auto;}
+.dex-entry-spritewrap{
+  position:relative;
+  width:112px;
+  height:112px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+}
+.dex-entry-spritewrap .dex-state-inline{
+  position:absolute;
+  top:8px;
+  left:10px;
+}
+.dex-entry-main{min-width:0; display:flex; flex-direction:column; gap:10px;}
+.dex-entry-title{font-weight:1000; font-size:20px; letter-spacing:.2px;}
+.dex-entry-sub{font-size:12px; color:var(--muted);}
+.dex-entry-plates .dex-plategrid{grid-auto-rows: 26px;}
+.dex-entry-plates .dex-plate{font-size:12px; min-height:26px;}
+.dex-entry-meta{display:flex; flex-wrap:wrap; gap:8px;}
+.dex-entry-meta .dex-meta{font-weight:900; opacity:.95;}
+.dex-entry-meta .dex-meta{padding:2px 10px;}
+.dex-entry-meta .dex-meta-warn{border-color: rgba(255,209,102,.32); background: rgba(255,209,102,.10);}
+
+/* Legacy hero styles (kept for any other pages still using it) */
+.dex-hero{display:flex; gap:14px; align-items:center; flex-wrap:wrap}
+.dex-hero-meta{min-width:0}
+.dex-hero-title{font-weight:1000; font-size:20px; letter-spacing:.2px}
+.dex-hero-sub{font-size:12px; color:var(--muted); margin-top:2px}
+.dex-hero-badges{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
+
+.dex-stats{
+  display:grid;
+  grid-template-columns: repeat(6, minmax(64px, 1fr));
+  gap:10px;
+  margin-top:8px;
+}
+@media (max-width: 720px){
+  .dex-stats{grid-template-columns: repeat(3, minmax(64px, 1fr));}
+}
+.dex-stat{
+  border:1px solid rgba(122,167,255,.14);
+  background: rgba(6,10,18,.35);
+  border-radius: 12px;
+  padding:8px 10px;
+  text-align:center;
+}
+.dex-stat-hp{border-color: rgba(79,227,161,.35); background: rgba(79,227,161,.08);}
+.dex-stat-atk{border-color: rgba(255,93,115,.35); background: rgba(255,93,115,.08);}
+.dex-stat-def{border-color: rgba(255,209,102,.35); background: rgba(255,209,102,.08);}
+.dex-stat-spa{border-color: rgba(122,167,255,.35); background: rgba(122,167,255,.08);}
+.dex-stat-spd{border-color: rgba(255,164,92,.35); background: rgba(255,164,92,.08);}
+.dex-stat-spe{border-color: rgba(235,130,255,.35); background: rgba(235,130,255,.08);}
+.dex-stat-k{font-size:12px; color:var(--muted); font-weight:900}
+.dex-stat-v{font-weight:900; margin-top:2px}
+
+/* Pokédex moveset cards */
+.dex-move-list{display:flex; flex-direction:column; gap:10px; margin-top:8px}
+.dex-move-card{
+  border:1px solid rgba(122,167,255,.18);
+  background: rgba(10,14,24,.45);
+  border-radius:14px;
+  padding:10px 12px;
+  box-shadow: 0 10px 22px rgba(0,0,0,.16);
+}
+.dex-move-card:hover{border-color: rgba(122,167,255,.30); background: rgba(10,14,24,.55);}
+.dex-move-top{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap}
+.dex-move-name{font-weight:1000;}
+.dex-move-tags{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.dex-move-desc{margin-top:6px; font-size:12px; color: var(--muted); line-height:1.25}
+
+.dex-meta-grid{display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px; margin-top:6px;}
+.dex-matchups{display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:10px; margin-top:8px;}
+.dex-mu{border:1px solid rgba(122,167,255,.14); background: rgba(6,10,18,.30); border-radius:12px; padding:8px 10px;}
+.dex-mu-plates{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;}
+
+/* Type badges */
+.type-badge{padding:4px 10px; border-radius:999px; font-size:13px; font-weight:900; line-height:1; letter-spacing:.2px; color:rgba(255,255,255,.95); text-shadow:0 1px 2px rgba(0,0,0,.65); border:1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.10);}
+.type-normal{background:rgba(168,168,120,.30);} 
+.type-fire{background:rgba(240,128,48,.30);} 
+.type-water{background:rgba(104,144,240,.30);} 
+.type-electric{background:rgba(248,208,48,.30);} 
+.type-grass{background:rgba(120,200,80,.30);} 
+.type-ice{background:rgba(152,216,216,.30);} 
+.type-fighting{background:rgba(192,48,40,.30);} 
+.type-poison{background:rgba(160,64,160,.30);} 
+.type-ground{background:rgba(224,192,104,.30);} 
+.type-flying{background:rgba(168,144,240,.30);} 
+.type-psychic{background:rgba(248,88,136,.30);} 
+.type-bug{background:rgba(168,184,32,.30);} 
+.type-rock{background:rgba(184,160,56,.30);} 
+.type-ghost{background:rgba(112,88,152,.30);} 
+.type-dragon{background:rgba(112,56,248,.30);} 
+.type-dark{background:rgba(112,88,72,.30);} 
+.type-steel{background:rgba(184,184,208,.30);} 
+.type-fairy{background:rgba(238,153,172,.30);} 
+
+.badge{
+  padding:3px 8px;
+  border-radius:999px;
+  border:1px solid rgba(120,170,255,.20);
+  background: rgba(6,10,18,.40);
+  font-size:12px;
+  color:var(--muted);
+}
+.badge.good{border-color: rgba(79,227,161,.35); color: rgba(79,227,161,.95)}
+.badge.warn{border-color: rgba(255,209,102,.35); color: rgba(255,209,102,.95)}
+
+.kv{display:grid; grid-template-columns: 120px 1fr; gap:8px; align-items:center; margin:8px 0}
+.kv .k{font-size:12px; color:var(--muted); font-weight:800}
+.hr{height:1px; background: rgba(120,170,255,.10); margin:12px 0}
+
+/* --- Dex entry layout (ported from alpha_v35_dex_entry_layout_final_align_v3) --- */
+
+/* Ensure the Pokédex tab establishes a height context so the Dex entry view can lock scrolling to the one-shot panel. */
+#tabUnlocked{height:100%; min-height:0; margin-bottom:0; padding-bottom:0;}
+@media (min-width: 1100px){
+  #tabUnlocked .dex-detail-wrap{overflow:hidden;}
+}
+
+/* Extra pill + sprite sizes used by the Dex entry layout */
+.pill.info{border-color: rgba(122,221,255,.35); color: rgba(122,221,255,.95)}
+.pill.danger::before{content:'⚠'; font-size:12px; line-height:1;}
+
+.sprite-md{width:48px;height:48px}
+.sprite-xxl{width:96px;height:96px}
+
+
+/* Dex detail outer wrapper — keep the clean v35 look, but constrain width so panels don't feel floaty */
+.dex-detail-wrap{
+  --dex-gap: 14px;
+  /* Balanced columns; both lanes can grow on wide screens (prevents a tiny right stack + mega-wide hero). */
+  /* Slight bias to the RIGHT so the hero doesn't feel like an aircraft carrier. */
+  --dex-col-left: minmax(560px, 0.95fr);
+  --dex-col-right: minmax(560px, 1.05fr);
+
+  width: 100%;
+  max-width: none;
+  margin: 0;
+
+  /* IMPORTANT: this wrapper lives inside .content, which already has a fixed height and scroll.
+     Use a column flex layout so the entry grid can take the remaining height *without* magic
+     viewport offsets. This makes the one-shot panel the only place where "extra" space lives. */
+  display:flex;
+  flex-direction:column;
+  gap: var(--dex-gap);
+  height: 100%;
+  min-height: 0;
+}
+
+/* Compact evo strip in the header */
+.dex-evo-inline{display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-left:4px;}
+.dex-evo-chip{
+  width:38px;
+  height:38px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:12px;
+  border:1px solid rgba(122,167,255,.16);
+  background: rgba(6,10,18,.26);
+  box-shadow: 0 8px 18px rgba(0,0,0,.16);
+  opacity:.82;
+  cursor:pointer;
+  transition: transform .08s ease, opacity .08s ease, border-color .08s ease, background .08s ease;
+}
+.dex-evo-chip:hover{opacity:1; transform: translateY(-1px); border-color: rgba(122,167,255,.34); background: rgba(10,14,24,.50);}
+.dex-evo-chip.active{opacity:1; border-color: rgba(79,227,161,.38); background: rgba(79,227,161,.10); box-shadow: 0 0 0 2px rgba(79,227,161,.10);}
+.dex-evo-chip img{width:28px; height:28px; image-rendering: pixelated;}
+
+/* Inline state indicator (used in Dex detail header + hero) */
+.dex-state-inline{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:14px;
+  height:14px;
+  border-radius:999px;
+  border:1px solid rgba(120,170,255,.18);
+  background: rgba(8,12,20,.58);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.32);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity:.92;
+}
+.dex-state-inline.locked{border-color: rgba(255,93,115,.34); background: rgba(255,93,115,.06); color: rgba(255,93,115,.85)}
+.dex-state-inline.unlocked{border-color: rgba(79,227,161,.34); background: rgba(79,227,161,.06); color: rgba(79,227,161,.85)}
+.dex-state-inline::before{
+  content:'';
+  width:9px;
+  height:9px;
+  background: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+}
+.dex-state-inline.locked::before{
+  -webkit-mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nYmxhY2snIGQ9J00xNyA4aC0xVjZhNCA0IDAgMCAwLTggMHYySDdhMiAyIDAgMCAwLTIgMnY5YTIgMiAwIDAgMCAyIDJoMTBhMiAyIDAgMCAwIDItMnYtOWEyIDIgMCAwIDAtMi0yem0tNy0yYTIgMiAwIDAgMSA0IDB2Mmg0VjZ6bTcgMTNIN3YtOWgxMHY5eicvPjwvc3ZnPg==");
+  mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nYmxhY2snIGQ9J00xNyA4aC0xVjZhNCA0IDAgMCAwLTggMHYySDdhMiAyIDAgMCAwLTIgMnY5YTIgMiAwIDAgMCAyIDJoMTBhMiAyIDAgMCAwIDItMnYtOWEyIDIgMCAwIDAtMi0yem0tNy0yYTIgMiAwIDAgMSA0IDB2Mmg0VjZ6bTcgMTNIN3YtOWgxMHY5eicvPjwvc3ZnPg==");
+}
+.dex-state-inline.unlocked::before{
+  -webkit-mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nYmxhY2snIGQ9J005IDE2LjJsLTQuMi00LjItMS40IDEuNEw5IDE5IDIxIDdsLTEuNC0xLjR6Jy8+PC9zdmc+");
+  mask-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nYmxhY2snIGQ9J005IDE2LjJsLTQuMi00LjItMS40IDEuNEw5IDE5IDIxIDdsLTEuNC0xLjR6Jy8+PC9zdmc+");
+}
+
+/* Dex detail hero — bring it closer to the grid-card aesthetic */
+.dex-entry-hero{
+  display:grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap:12px;
+  align-items:center;
+  max-width: none;
+  margin: 0;
+  padding:10px;
+  border:1px solid rgba(122,167,255,.22);
+  border-radius:14px;
+  background: rgba(6,10,18,.54);
+  box-shadow: 0 12px 28px rgba(0,0,0,.20);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Entry layout (Dex detail)
+   IMPORTANT: Avoid shared grid-rows across columns.
+   Shared rows create "dead bands" (your C/G gaps) whenever the right stack is taller.
+
+   Solution:
+   - 2-column shell
+   - each column is its own vertical stack
+   - one-shot panel is the ONLY thing allowed to flex/scroll to fill leftover height
+*/
+.dex-entry-shell{
+  display:grid;
+  grid-template-columns: var(--dex-col-left) var(--dex-col-right);
+  /* Give the shell a real height budget so the right column can flex.
+     This ensures One-shot is the ONLY module that absorbs leftover space. */
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--dex-gap);
+
+  /* Don't stretch both columns to equal height (that creates "fake" dead space on the left).
+     We'll explicitly size the RIGHT column and let the LEFT stay content-sized. */
+  align-items:start;
+
+  /* Consume remaining height beneath the header panel so the right column can flex.
+     The one-shot panel will take leftover space (or scroll internally). */
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.dex-entry-col{min-width:0; min-height:0; display:flex; flex-direction:column; gap: var(--dex-gap);}
+.dex-entry-right{min-height:0; align-self:start;}
+@media (max-width: 1100px){
+  .dex-entry-shell{grid-template-columns: 1fr; height:auto;}
+  .dex-entry-right{height:auto; min-height:0;}
+}
+
+/* Right column layout: Profile on top, then Matchups + Base stats side-by-side.
+   Kept compact so the page reads as one snapped grid. */
+.dex-side-stack{flex:0 0 auto; display:grid; gap: var(--dex-gap); align-content:start;}
+.dex-side-split{
+  display:grid;
+  /* Base stats should read as the "compact" block; Matchups gets the roomy lane. */
+  grid-template-columns: minmax(260px, .90fr) minmax(0, 1.40fr);
+  gap: var(--dex-gap);
+  /* Don't stretch Matchups to the height of Base stats.
+     Stretching creates the big internal "dead" area you pointed out. */
+  align-items:start;
+}
+.dex-side-split .panel + .panel{margin-top:0;}
+.dex-side-split .dex-stats{grid-template-columns: repeat(3, minmax(64px, 1fr));}
+@media (max-width: 1100px){
+  .dex-side-split{grid-template-columns: 1fr;}
+}
+
+/* Legacy entry layout wrappers (v35). Kept for compatibility. */
+.dex-entry-layout{display:grid; grid-template-columns: var(--dex-col-left) var(--dex-col-right); gap:var(--dex-gap); align-items:start; margin-top:0;}
+@media (max-width: 1100px){
+  .dex-entry-layout{grid-template-columns: 1fr;}
+}
+.dex-entry-layout .dex-entry-col{display:flex; flex-direction:column; gap: var(--dex-gap);}
+
+.dex-side-panel{padding:12px;}
+.dex-side-title{font-weight:900; color: var(--muted); font-size:12px; letter-spacing:.2px; margin-bottom:8px;}
+
+/* Entry view density overrides (Dex entry only)
+   Goal: remove "air pockets" without bloating components.
+*/
+.dex-entry-shell .dex-side-panel{padding:9px;}
+.dex-entry-shell .dex-bottom-panel{padding:10px;}
+.dex-entry-shell .dex-side-title{margin-bottom:6px;}
+.dex-entry-shell .dex-profile-grid{gap:8px;}
+@media (min-width: 1250px){
+  .dex-entry-shell .dex-profile-grid{grid-template-columns: repeat(4, minmax(0, 1fr));}
+}
+.dex-entry-shell .dex-profile-tile{padding:7px 9px;}
+.dex-entry-shell .dex-stats{gap:8px; margin-top:6px;}
+.dex-entry-shell .dex-stat{padding:6px 8px; border-radius:10px;}
+.dex-entry-shell .dex-stat-k{font-size:11px;}
+.dex-entry-shell .dex-stat-v{margin-top:1px;}
+.dex-entry-shell .dex-matchups{gap:8px; margin-top:6px;}
+.dex-entry-shell .dex-mu{padding:8px 10px;}
+.dex-entry-shell .dex-mu-plates{gap:6px; margin-top:6px;}
+
+/* Profile tiles */
+.dex-profile-grid{display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px;}
+.dex-profile-tile{
+  border:1px solid rgba(122,167,255,.18);
+  background: rgba(6,10,18,.30);
+  border-radius:12px;
+  padding:10px 12px;
+}
+.dex-profile-k{font-size:12px; color:var(--muted); font-weight:900;}
+.dex-profile-v{margin-top:4px; font-weight:1000;}
+.dex-profile-bst{border-color: rgba(255,209,102,.30); background: rgba(255,209,102,.08);}
+.dex-entry-spritewrap{
+  position:relative;
+  width:116px;
+  height:116px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+}
+.dex-entry-main{min-width:0; display:flex; flex-direction:column; gap:10px;}
+.dex-entry-titleRow{display:flex; align-items:center; gap:8px;}
+.dex-entry-titleRow .dex-state-inline{width:18px; height:18px; opacity:.98;}
+.dex-entry-titleRow .dex-state-inline::before{width:11px; height:11px;}
+.dex-entry-title{font-weight:1000; font-size:20px; letter-spacing:.2px;}
+.dex-entry-sub{font-size:12px; color:var(--muted);}
+.dex-entry-plates .dex-plategrid{grid-auto-rows: 26px;}
+.dex-entry-plates .dex-plate{font-size:12px; min-height:26px;}
+
+/* HERO plates: don't stretch pills to fill the entire hero width (this is what makes it feel bloated).
+   Keep the grid snug and left-aligned. */
+.dex-entry-hero .dex-entry-plates{width:100%;}
+.dex-entry-hero .dex-plategrid{
+  /* Fill the hero width with two clean lanes (less "random" empty space). */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-content:stretch;
+}
+.dex-entry-hero .dex-plategrid .dex-plate{
+  width:100%;
+  justify-self:stretch;
+  justify-content:flex-start;
+  padding-left:10px;
+  padding-right:10px;
+}
+.dex-entry-hero .dex-plategrid .dex-ability{justify-content:flex-start;}
+.dex-entry-meta{display:flex; flex-wrap:wrap; gap:8px;}
+.dex-entry-meta .dex-meta{font-weight:900; opacity:.95;}
+.dex-entry-meta .dex-meta{padding:2px 10px;}
+.dex-entry-meta .dex-meta-warn{border-color: rgba(255,209,102,.32); background: rgba(255,209,102,.10);}
+
+
+/* Entry bottom panels (moveset + one-shot) */
+.dex-bottom-panel{margin:0;}
+
+/* Keep moveset compact in the entry view */
+.dex-entry-shell .dex-move-list{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap:10px;
+  margin-top:6px;
+}
+@media (max-width: 1100px){
+  .dex-entry-shell .dex-move-list{grid-template-columns: 1fr;}
+}
+.dex-entry-shell .dex-move-card{
+  padding:8px 10px;
+  border-radius:12px;
+}
+.dex-entry-shell .dex-move-desc{
+  margin-top:4px;
+  font-size:11px;
+  line-height:1.2;
+  max-height:2.4em;
+  overflow:hidden;
+}
+
+/* One-shot: this is the ONLY panel allowed to "eat" leftover space.
+   - If roster is small → empty space stays INSIDE this panel.
+   - If roster is large → table scrolls inside the panel (no layout blow-up).
+*/
+.dex-oneshot-panel{flex:1 1 auto; display:flex; flex-direction:column; min-height:0; overflow:hidden;}
+.dex-oneshot-scroll{
+  flex:1 1 auto;
+  min-height:0;
+  overflow:auto;
+  border-radius:12px;
+
+  /* Prevent layout "jumps" when the scrollbar appears. */
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+/* Keep the one-shot table headers visible while scrolling big rosters. */
+.dex-oneshot-panel .table thead th{
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(6,10,18,.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Compact one-shot table in Dex entry */
+.dex-oneshot-panel .table th,
+.dex-oneshot-panel .table td{
+  padding:6px 8px;
+}
+.dex-oneshot-panel .table th{font-size:11px;}
+.dex-oneshot-panel .pill{font-size:11px; padding:2px 8px;}
+
+/* Legacy hero styles (kept for any other pages still using it) */
+.dex-hero{display:flex; gap:14px; align-items:center; flex-wrap:wrap}
+.dex-hero-meta{min-width:0}
+.dex-hero-title{font-weight:1000; font-size:20px; letter-spacing:.2px}
+.dex-hero-sub{font-size:12px; color:var(--muted); margin-top:2px}
+.dex-hero-badges{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
+
+.dex-stats{
+  display:grid;
+  grid-template-columns: repeat(6, minmax(64px, 1fr));
+  gap:10px;
+  margin-top:6px;
+}
+@media (max-width: 720px){
+  .dex-stats{grid-template-columns: repeat(3, minmax(64px, 1fr));}
+}
+.dex-stat{
+  border:1px solid rgba(122,167,255,.18);
+  background: rgba(6,10,18,.35);
+  border-radius: 12px;
+  padding:8px 10px;
+  text-align:center;
+}
+.dex-stat-hp{border-color: rgba(79,227,161,.35); background: rgba(79,227,161,.08);}
+.dex-stat-atk{border-color: rgba(255,93,115,.35); background: rgba(255,93,115,.08);}
+.dex-stat-def{border-color: rgba(255,209,102,.35); background: rgba(255,209,102,.08);}
+.dex-stat-spa{border-color: rgba(122,167,255,.35); background: rgba(122,167,255,.08);}
+.dex-stat-spd{border-color: rgba(255,164,92,.35); background: rgba(255,164,92,.08);}
+.dex-stat-spe{border-color: rgba(235,130,255,.35); background: rgba(235,130,255,.08);}
+.dex-stat-k{font-size:12px; color:var(--muted); font-weight:900}
+.dex-stat-v{font-weight:900; margin-top:2px}
+
+/* Pokédex moveset cards */
+.dex-move-list{display:flex; flex-direction:column; gap:10px; margin-top:8px}
+.dex-move-card{
+  border:1px solid rgba(122,167,255,.18);
+  background: rgba(10,14,24,.45);
+  border-radius:14px;
+  padding:10px 12px;
+  box-shadow: 0 10px 22px rgba(0,0,0,.16);
+}
+.dex-move-card:hover{border-color: rgba(122,167,255,.30); background: rgba(10,14,24,.55);}
+.dex-move-top{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap}
+.dex-move-name{font-weight:1000;}
+.dex-move-tags{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.dex-move-desc{margin-top:6px; font-size:12px; color: var(--muted); line-height:1.25}
+
+.dex-meta-grid{display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px; margin-top:6px;}
+.dex-matchups{
+  display:grid;
+  gap:10px;
+  margin-top:6px;
+}
+.dex-matchups.no-immune{
+  /* Give RESIST more room; WEAK can be narrower (especially with 1-plate-per-row). */
+  grid-template-columns: minmax(0, .90fr) minmax(0, 1.35fr);
+}
+.dex-matchups.has-immune{
+  /* IMMUNE is often short; keep it smaller so WEAK/RESIST can breathe. */
+  grid-template-columns: minmax(0, .90fr) minmax(0, 1.35fr) minmax(140px, .65fr);
+}
+/* When RESIST is empty, collapse it entirely so we don't show a big "—" billboard. */
+.dex-matchups.no-resist.no-immune{
+  grid-template-columns: minmax(0, 1fr);
+}
+.dex-matchups.no-resist.has-immune{
+  grid-template-columns: minmax(0, 1.25fr) minmax(140px, .70fr);
+}
+.dex-mu{border:1px solid rgba(122,167,255,.18); background: rgba(6,10,18,.30); border-radius:12px; padding:8px 10px;}
+.dex-mu.mu-good{border-color: rgba(79,227,161,.30); background: rgba(79,227,161,.06);}
+.dex-mu.mu-bad{border-color: rgba(255,93,115,.30); background: rgba(255,93,115,.05);}
+.dex-mu.mu-danger{border-color: rgba(235,130,255,.30); background: rgba(235,130,255,.05);}
+.dex-mu-head{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+.dex-mu-tag{display:inline-flex; align-items:center; justify-content:center; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:1000; letter-spacing:.3px; border:1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.08);}
+.dex-mu-tag.good{border-color: rgba(79,227,161,.32); background: rgba(79,227,161,.10); color: rgba(215,255,236,.95);}
+.dex-mu-tag.bad{border-color: rgba(255,93,115,.32); background: rgba(255,93,115,.10); color: rgba(255,215,220,.95);}
+.dex-mu-tag.danger{border-color: rgba(235,130,255,.32); background: rgba(235,130,255,.10); color: rgba(245,224,255,.95);}
+.dex-mu-plates{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;}
+
+/* In WEAK, show plates as 1-per-row (less horizontal pressure → RESIST can breathe). */
+.dex-mu.mu-good .dex-mu-plates{flex-direction:column; flex-wrap:nowrap; align-items:flex-start;}
+
+/* Type badges */
+.type-badge{padding:4px 10px; border-radius:999px; font-size:13px; font-weight:900; line-height:1; letter-spacing:.2px; color:rgba(255,255,255,.95); text-shadow:0 1px 2px rgba(0,0,0,.65); border:1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.10);}
+.type-normal{background:rgba(168,168,120,.30);} 
+.type-fire{background:rgba(240,128,48,.30);} 
+.type-water{background:rgba(104,144,240,.30);} 
+.type-electric{background:rgba(248,208,48,.30);} 
+.type-grass{background:rgba(120,200,80,.30);} 
+.type-ice{background:rgba(152,216,216,.30);} 
+.type-fighting{background:rgba(192,48,40,.30);} 
+.type-poison{background:rgba(160,64,160,.30);} 
+.type-ground{background:rgba(224,192,104,.30);} 
+.type-flying{background:rgba(168,144,240,.30);} 
+.type-psychic{background:rgba(248,88,136,.30);} 
+.type-bug{background:rgba(168,184,32,.30);} 
+.type-rock{background:rgba(184,160,56,.30);} 
+.type-ghost{background:rgba(112,88,152,.30);} 
+.type-dragon{background:rgba(112,56,248,.30);} 
+.type-dark{background:rgba(112,88,72,.30);} 
+.type-steel{background:rgba(184,184,208,.30);} 
+.type-fairy{background:rgba(238,153,172,.30);} 
+
+.badge{
+  padding:3px 8px;
+  border-radius:999px;
+  border:1px solid rgba(120,170,255,.20);
+  background: rgba(6,10,18,.40);
+  font-size:12px;
+  color:var(--muted);
+}
+.badge.good{border-color: rgba(79,227,161,.35); color: rgba(79,227,161,.95)}
+.badge.warn{border-color: rgba(255,209,102,.35); color: rgba(255,209,102,.95)}
+
+.kv{display:grid; grid-template-columns: 120px 1fr; gap:8px; align-items:center; margin:8px 0}
+.kv .k{font-size:12px; color:var(--muted); font-weight:800}
+.hr{height:1px; background: rgba(120,170,255,.10); margin:12px 0}
+
+
+
+

@@ -33,7 +33,7 @@
     "accuracy": 100.0,
     "category": "Special",
     "name": "Air Slash",
-    "notes": null,
+    "notes": "Shrine accuracy assumed 100.",
     "power": 75.0,
     "targets": "SpD",
     "type": "Flying",
@@ -193,7 +193,7 @@
     "accuracy": 100.0,
     "category": "Physical",
     "name": "Crush Claw",
-    "notes": null,
+    "notes": "Shrine accuracy assumed 100.",
     "power": 75.0,
     "targets": "Def",
     "type": "Normal",
@@ -223,7 +223,7 @@
     "accuracy": 100.0,
     "category": "Special",
     "name": "Discharge",
-    "notes": null,
+    "notes": "AoE; Shrine accuracy assumed 100.",
     "power": 80.0,
     "targets": "SpD",
     "type": "Electric",
@@ -333,7 +333,7 @@
     "accuracy": 100.0,
     "category": "Physical",
     "name": "Dual Chop",
-    "notes": "Multi-hit (2) not modeled; power is per-hit.",
+    "notes": "2 hits (Skill Link interacts); Shrine accuracy assumed 100.",
     "power": 40.0,
     "targets": "Def",
     "type": "Dragon",
@@ -583,7 +583,7 @@
     "accuracy": 100.0,
     "category": "Physical",
     "name": "Headbutt",
-    "notes": null,
+    "notes": "Shrine accuracy assumed 100.",
     "power": 70.0,
     "targets": "Def",
     "type": "Normal",
@@ -603,7 +603,7 @@
     "accuracy": 100.0,
     "category": "Special",
     "name": "Heat Wave",
-    "notes": null,
+    "notes": "AoE; Shrine accuracy assumed 100.",
     "power": 95.0,
     "targets": "SpD",
     "type": "Fire",
@@ -961,7 +961,7 @@
     "accuracy": 100.0,
     "category": "Special",
     "name": "Muddy Water",
-    "notes": null,
+    "notes": "AoE; Shrine accuracy assumed 100.",
     "power": 90.0,
     "targets": "SpD",
     "type": "Water",
@@ -1056,6 +1056,14 @@
     "targets": "Def",
     "type": "Psychic",
     "uses": "Atk"
+  },
+  "Psyshock": {
+    "accuracy": 100,
+    "category": "Special",
+    "name": "Psyshock",
+    "power": 80,
+    "pp": 10,
+    "type": "Psychic"
   },
   "Quick Guard": {
     "accuracy": 100.0,
@@ -1231,7 +1239,7 @@
     "accuracy": 100.0,
     "category": "Special",
     "name": "Sludge Wave",
-    "notes": null,
+    "notes": "AoE; Shrine accuracy assumed 100.",
     "power": 95.0,
     "targets": "SpD",
     "type": "Poison",
@@ -1367,16 +1375,6 @@
     "type": "Electric",
     "uses": null
   },
-  "Thunderbolt": {
-    "accuracy": 100.0,
-    "category": "Special",
-    "name": "Thunderbolt",
-    "notes": null,
-    "power": 90.0,
-    "targets": "SpD",
-    "type": "Electric",
-    "uses": "SpA"
-  },
   "ThunderPunch": {
     "accuracy": 100.0,
     "category": "Physical",
@@ -1386,6 +1384,16 @@
     "targets": "Def",
     "type": "Electric",
     "uses": "Atk"
+  },
+  "Thunderbolt": {
+    "accuracy": 100.0,
+    "category": "Special",
+    "name": "Thunderbolt",
+    "notes": null,
+    "power": 90.0,
+    "targets": "SpD",
+    "type": "Electric",
+    "uses": "SpA"
   },
   "Toxic": {
     "accuracy": 100.0,
@@ -1454,6 +1462,16 @@
     "targets": "Def",
     "type": "Water",
     "uses": "Atk"
+  },
+  "Weather Ball": {
+    "accuracy": 100.0,
+    "category": "Special",
+    "name": "Weather Ball",
+    "notes": "Changes type to match weather; power doubles in weather (Gen 5).",
+    "power": 50.0,
+    "targets": "SpD",
+    "type": "Normal",
+    "uses": "SpA"
   },
   "Wild Charge": {
     "accuracy": 100.0,

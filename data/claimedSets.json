@@ -1,4 +1,15 @@
 {
+  "Abra": {
+    "ability": "Magic Guard",
+    "canClaim": 1,
+    "moves": [
+      "Psyshock",
+      "Signal Beam",
+      "Energy Ball",
+      "Protect"
+    ],
+    "species": "Abra"
+  },
   "Absol": {
     "ability": "Justified",
     "canClaim": 1,
@@ -11,13 +22,13 @@
     "species": "Absol"
   },
   "Aerodactyl": {
-    "ability": "TBD",
+    "ability": "Rock Head",
     "canClaim": 0,
     "moves": [
       "Rock Slide",
-      "Aerial Ace",
-      "Ice Beam",
-      "Thunderbolt"
+      "Stone Edge",
+      "Head Smash",
+      "Earthquake"
     ],
     "species": "Aerodactyl"
   },
@@ -33,13 +44,13 @@
     "species": "Aipom"
   },
   "Alakazam": {
-    "ability": "TBD",
-    "canClaim": 0,
+    "ability": "Magic Guard",
+    "canClaim": 1,
     "moves": [
-      "Return",
-      "Ice Beam",
-      "Thunderbolt",
-      "Earthquake"
+      "Psyshock",
+      "Signal Beam",
+      "Energy Ball",
+      "Protect"
     ],
     "species": "Alakazam"
   },
@@ -187,12 +198,12 @@
     "species": "Blitzle"
   },
   "Bouffalant": {
-    "ability": "TBD",
+    "ability": "Reckless",
     "canClaim": 0,
     "moves": [
-      "Return",
-      "Ice Beam",
-      "Thunderbolt",
+      "Body Slam",
+      "Double-Edge",
+      "Hyper Voice",
       "Earthquake"
     ],
     "species": "Bouffalant"
@@ -246,7 +257,7 @@
     "canClaim": 0,
     "moves": [
       "Flamethrower",
-      "Hidden Power (Flying)",
+      "Air Slash",
       "Dragon Pulse",
       "Dragon's Blessing"
     ],
@@ -295,6 +306,17 @@
       "After You"
     ],
     "species": "Cinccino"
+  },
+  "Clamperl": {
+    "ability": "Shell Armor",
+    "canClaim": 1,
+    "moves": [
+      "Muddy Water",
+      "Ice Beam",
+      "Hidden Power (Dark)",
+      "Protect"
+    ],
+    "species": "Clamperl"
   },
   "Cobalion": {
     "ability": "Justified",
@@ -506,12 +528,12 @@
     "species": "Drilbur"
   },
   "Druddigon": {
-    "ability": "TBD",
+    "ability": "Sheer Force",
     "canClaim": 0,
     "moves": [
+      "Dragon Claw",
       "Dragon Pulse",
-      "Ice Beam",
-      "Thunderbolt",
+      "Draco Meteor",
       "Earthquake"
     ],
     "species": "Druddigon"
@@ -659,16 +681,49 @@
     ],
     "species": "Excadrill"
   },
-  "Fearow": {
-    "ability": "TBD",
+  "Exploud": {
+    "ability": "Soundproof",
     "canClaim": 0,
     "moves": [
-      "Return",
-      "Aerial Ace",
+      "Hyper Voice",
+      "Flamethrower",
       "Ice Beam",
-      "Thunderbolt"
+      "Provoke"
+    ],
+    "species": "Exploud"
+  },
+  "Fearow": {
+    "ability": "Sniper",
+    "canClaim": 0,
+    "moves": [
+      "Body Slam",
+      "Double-Edge",
+      "Hyper Voice",
+      "Earthquake"
     ],
     "species": "Fearow"
+  },
+  "Feebas": {
+    "ability": "Swift Swim",
+    "canClaim": 1,
+    "moves": [
+      "Scald",
+      "Hydro Pump",
+      "Ice Beam",
+      "Earthquake"
+    ],
+    "species": "Feebas"
+  },
+  "Feraligatr": {
+    "ability": "Sheer Force",
+    "canClaim": 0,
+    "moves": [
+      "Waterfall",
+      "Ice Punch",
+      "Crunch",
+      "Protect"
+    ],
+    "species": "Feraligatr"
   },
   "Flaaffy": {
     "ability": "Static",
@@ -780,6 +835,17 @@
     ],
     "species": "Golduck"
   },
+  "Gorebyss": {
+    "ability": "Shell Armor",
+    "canClaim": 0,
+    "moves": [
+      "Muddy Water",
+      "Ice Beam",
+      "Hidden Power (Dark)",
+      "Protect"
+    ],
+    "species": "Gorebyss"
+  },
   "Granbull": {
     "ability": "Intimidate",
     "canClaim": 0,
@@ -792,13 +858,13 @@
     "species": "Granbull"
   },
   "Grovyle": {
-    "ability": "TBD",
+    "ability": "Overgrow",
     "canClaim": 0,
     "moves": [
-      "Energy Ball",
-      "Ice Beam",
-      "Thunderbolt",
-      "Earthquake"
+      "Grass Pledge",
+      "DynamicPunch",
+      "Hidden Power (Dragon)",
+      "Toxic"
     ],
     "species": "Grovyle"
   },
@@ -825,12 +891,12 @@
     "species": "Grumpig"
   },
   "Gyarados": {
-    "ability": "TBD",
+    "ability": "Intimidate",
     "canClaim": 0,
     "moves": [
-      "Return",
+      "Scald",
+      "Hydro Pump",
       "Ice Beam",
-      "Thunderbolt",
       "Earthquake"
     ],
     "species": "Gyarados"
@@ -869,13 +935,13 @@
     "species": "Hippopotas"
   },
   "Hippowdon": {
-    "ability": "TBD",
+    "ability": "Sand Stream",
     "canClaim": 0,
     "moves": [
       "Earthquake",
-      "Ice Beam",
-      "Thunderbolt",
-      "Shadow Ball"
+      "Rock Slide",
+      "Provoke",
+      "Slack Off"
     ],
     "species": "Hippowdon"
   },
@@ -946,13 +1012,13 @@
     "species": "Huntail"
   },
   "Hydreigon": {
-    "ability": "TBD",
+    "ability": "Hustle",
     "canClaim": 0,
     "moves": [
-      "Crunch",
       "Dragon Pulse",
-      "Ice Beam",
-      "Thunderbolt"
+      "Dark Pulse",
+      "Provoke",
+      "Dragon's Blessing"
     ],
     "species": "Hydreigon"
   },
@@ -967,6 +1033,39 @@
     ],
     "species": "Infernape"
   },
+  "Jigglypuff": {
+    "ability": "Competitive",
+    "canClaim": 1,
+    "moves": [
+      "Hyper Voice",
+      "Blizzard",
+      "Protective Aura",
+      "Healing Wind"
+    ],
+    "species": "Jigglypuff"
+  },
+  "Jumpluff": {
+    "ability": "Chlorophyll",
+    "canClaim": 0,
+    "moves": [
+      "Leaf Storm",
+      "Acrobatics",
+      "Stun Spore",
+      "Mending Prayer"
+    ],
+    "species": "Jumpluff"
+  },
+  "Kadabra": {
+    "ability": "Magic Guard",
+    "canClaim": 1,
+    "moves": [
+      "Psyshock",
+      "Signal Beam",
+      "Energy Ball",
+      "Protect"
+    ],
+    "species": "Kadabra"
+  },
   "Keldeo": {
     "ability": "Justified",
     "canClaim": 1,
@@ -979,24 +1078,24 @@
     "species": "Keldeo"
   },
   "Kingdra": {
-    "ability": "TBD",
+    "ability": "Swift Swim",
     "canClaim": 0,
     "moves": [
       "Scald",
-      "Ice Beam",
-      "Thunderbolt",
-      "Earthquake"
+      "Dragon Pulse",
+      "Clear Smog",
+      "Flash of Speed"
     ],
     "species": "Kingdra"
   },
   "Liepard": {
-    "ability": "TBD",
+    "ability": "Prankster",
     "canClaim": 0,
     "moves": [
-      "Crunch",
-      "Ice Beam",
-      "Thunderbolt",
-      "Earthquake"
+      "Dark Pulse",
+      "Fake Tears",
+      "Joyous Cheer",
+      "Flash of Speed"
     ],
     "species": "Liepard"
   },
@@ -1022,14 +1121,25 @@
     ],
     "species": "Lopunny"
   },
-  "Lucario": {
-    "ability": "TBD",
+  "Loudred": {
+    "ability": "Soundproof",
     "canClaim": 0,
     "moves": [
-      "Drain Punch",
-      "Iron Tail",
+      "Hyper Voice",
+      "Flamethrower",
       "Ice Beam",
-      "Thunderbolt"
+      "Provoke"
+    ],
+    "species": "Loudred"
+  },
+  "Lucario": {
+    "ability": "Inner Focus",
+    "canClaim": 0,
+    "moves": [
+      "Aura Sphere",
+      "Meteor Mash",
+      "Hidden Power (Dragon)",
+      "Protective Aura"
     ],
     "species": "Lucario"
   },
@@ -1055,25 +1165,36 @@
     ],
     "species": "Luxray"
   },
+  "Magikarp": {
+    "ability": "Swift Swim",
+    "canClaim": 1,
+    "moves": [
+      "Scald",
+      "Hydro Pump",
+      "Ice Beam",
+      "Earthquake"
+    ],
+    "species": "Magikarp"
+  },
   "Mamoswine": {
-    "ability": "TBD",
+    "ability": "Oblivious",
     "canClaim": 0,
     "moves": [
-      "Ice Beam",
+      "Icicle Crash",
       "Earthquake",
-      "Thunderbolt",
-      "Shadow Ball"
+      "Provoke",
+      "Protective Aura"
     ],
     "species": "Mamoswine"
   },
   "Manectric": {
-    "ability": "TBD",
+    "ability": "Lightning Rod",
     "canClaim": 0,
     "moves": [
-      "Thunderbolt",
-      "Ice Beam",
-      "Earthquake",
-      "Shadow Ball"
+      "Thunder",
+      "Flamethrower",
+      "Hidden Power (Ice)",
+      "Protective Aura"
     ],
     "species": "Manectric"
   },
@@ -1101,7 +1222,7 @@
   },
   "Marill": {
     "ability": "Huge Power",
-    "canClaim": 1,
+    "canClaim": 0,
     "moves": [
       "Aqua Tail",
       "Superpower",
@@ -1111,13 +1232,13 @@
     "species": "Marill"
   },
   "Marowak": {
-    "ability": "TBD",
+    "ability": "Lightningrod",
     "canClaim": 0,
     "moves": [
-      "Earthquake",
-      "Ice Beam",
-      "Thunderbolt",
-      "Shadow Ball"
+      "Bonemerang",
+      "DynamicPunch",
+      "ThunderPunch",
+      "Mending Prayer"
     ],
     "species": "Marowak"
   },
@@ -1166,13 +1287,13 @@
     "species": "Mienfoo"
   },
   "Mienshao": {
-    "ability": "TBD",
+    "ability": "Inner Focus",
     "canClaim": 0,
     "moves": [
-      "Drain Punch",
-      "Ice Beam",
-      "Thunderbolt",
-      "Earthquake"
+      "Jump Kick",
+      "Dual Chop",
+      "Fake Out",
+      "Healing Wind"
     ],
     "species": "Mienshao"
   },
@@ -1188,12 +1309,12 @@
     "species": "Mightyena"
   },
   "Milotic": {
-    "ability": "TBD",
+    "ability": "Marvel Scale",
     "canClaim": 0,
     "moves": [
       "Scald",
+      "Hydro Pump",
       "Ice Beam",
-      "Thunderbolt",
       "Earthquake"
     ],
     "species": "Milotic"
@@ -1265,13 +1386,13 @@
     "species": "Murkrow"
   },
   "Musharna": {
-    "ability": "TBD",
+    "ability": "Telepathy",
     "canClaim": 0,
     "moves": [
       "Psychic",
-      "Ice Beam",
-      "Thunderbolt",
-      "Earthquake"
+      "Shadow Ball",
+      "Signal Beam",
+      "Mending Prayer"
     ],
     "species": "Musharna"
   },
@@ -1288,12 +1409,12 @@
   },
   "Nidoqueen": {
     "ability": "Sheer Force",
-    "canClaim": 0,
+    "canClaim": 1,
     "moves": [
-      "Sludge Bomb",
-      "Earth Power",
-      "Blizzard",
-      "Toxic"
+      "Earthquake",
+      "Sludge Wave",
+      "Ice Beam",
+      "Protect"
     ],
     "species": "Nidoqueen"
   },
@@ -1389,9 +1510,9 @@
     "ability": "Torrent",
     "canClaim": 1,
     "moves": [
-      "Water Pledge",
       "Acrobatics",
-      "Hidden Power (Dragon)",
+      "Water Pledge",
+      "Hidden Power (Ground)",
       "Ice Beam"
     ],
     "species": "Panpour"
@@ -1441,13 +1562,13 @@
     "species": "Phanpy"
   },
   "Pidgeot": {
-    "ability": "TBD",
+    "ability": "Big Pecks",
     "canClaim": 0,
     "moves": [
+      "Brave Bird",
       "Return",
-      "Aerial Ace",
-      "Ice Beam",
-      "Thunderbolt"
+      "U-turn",
+      "Steel Wing"
     ],
     "species": "Pidgeot"
   },
@@ -1528,6 +1649,17 @@
     ],
     "species": "Plusle"
   },
+  "Politoed": {
+    "ability": "Drizzle",
+    "canClaim": 1,
+    "moves": [
+      "Weather Ball",
+      "Energy Ball",
+      "Thunderbolt",
+      "Ice Beam"
+    ],
+    "species": "Politoed"
+  },
   "Ponyta": {
     "ability": "Flash Fire",
     "canClaim": 1,
@@ -1562,13 +1694,13 @@
     "species": "Primeape"
   },
   "Prinplup": {
-    "ability": "TBD",
+    "ability": "Competitive",
     "canClaim": 0,
     "moves": [
       "Scald",
-      "Ice Beam",
-      "Thunderbolt",
-      "Earthquake"
+      "Hidden Power (Steel)",
+      "Icy Wind",
+      "Protective Aura"
     ],
     "species": "Prinplup"
   },
@@ -1606,13 +1738,13 @@
     "species": "Purugly"
   },
   "Quilava": {
-    "ability": "TBD",
+    "ability": "Flash Fire",
     "canClaim": 0,
     "moves": [
-      "Flamethrower",
-      "Ice Beam",
-      "Thunderbolt",
-      "Earthquake"
+      "Eruption",
+      "Extrasensory",
+      "Will-O-Wisp",
+      "Provoke"
     ],
     "species": "Quilava"
   },
@@ -1661,13 +1793,13 @@
     "species": "Rattata"
   },
   "Rhydon": {
-    "ability": "TBD",
+    "ability": "Lightningrod",
     "canClaim": 0,
     "moves": [
-      "Earthquake",
+      "Drill Run",
       "Rock Slide",
-      "Ice Beam",
-      "Thunderbolt"
+      "Dragon Rush",
+      "Provoke"
     ],
     "species": "Rhydon"
   },
@@ -1683,13 +1815,13 @@
     "species": "Rhyhorn"
   },
   "Rhyperior": {
-    "ability": "TBD",
+    "ability": "Lightningrod",
     "canClaim": 0,
     "moves": [
-      "Earthquake",
+      "Drill Run",
       "Rock Slide",
-      "Ice Beam",
-      "Thunderbolt"
+      "Dragon Rush",
+      "Provoke"
     ],
     "species": "Rhyperior"
   },
@@ -1716,24 +1848,24 @@
     "species": "Rufflet"
   },
   "Salamence": {
-    "ability": "TBD",
+    "ability": "Rock Head",
     "canClaim": 0,
     "moves": [
-      "Dragon Pulse",
-      "Aerial Ace",
-      "Ice Beam",
-      "Thunderbolt"
+      "Dragon Rush",
+      "Brick Break",
+      "Wish",
+      "Protect"
     ],
     "species": "Salamence"
   },
   "Samurott": {
-    "ability": "TBD",
+    "ability": "Torrent",
     "canClaim": 0,
     "moves": [
-      "Scald",
+      "Water Pledge",
+      "Sacred Sword",
       "Ice Beam",
-      "Thunderbolt",
-      "Earthquake"
+      "Provoke"
     ],
     "species": "Samurott"
   },
@@ -1749,13 +1881,13 @@
     "species": "Sandshrew"
   },
   "Sandslash": {
-    "ability": "TBD",
+    "ability": "Sand Rush",
     "canClaim": 0,
     "moves": [
       "Earthquake",
-      "Ice Beam",
-      "Thunderbolt",
-      "Shadow Ball"
+      "Stone Edge",
+      "X-Scissor",
+      "Healing Wind"
     ],
     "species": "Sandslash"
   },
@@ -1771,57 +1903,68 @@
     "species": "Sawsbuck"
   },
   "Sceptile": {
-    "ability": "TBD",
+    "ability": "Overgrow",
     "canClaim": 0,
     "moves": [
-      "Energy Ball",
-      "Ice Beam",
-      "Thunderbolt",
-      "Earthquake"
+      "Grass Pledge",
+      "DynamicPunch",
+      "Hidden Power (Dragon)",
+      "Toxic"
     ],
     "species": "Sceptile"
   },
   "Scrafty": {
-    "ability": "TBD",
+    "ability": "Moxie",
     "canClaim": 0,
     "moves": [
       "Crunch",
-      "Drain Punch",
-      "Ice Beam",
-      "Thunderbolt"
+      "Dark Pulse",
+      "Night Slash",
+      "Earthquake"
     ],
     "species": "Scrafty"
   },
+  "Scraggy": {
+    "ability": "Moxie",
+    "canClaim": 1,
+    "moves": [
+      "Crunch",
+      "Dark Pulse",
+      "Night Slash",
+      "Earthquake"
+    ],
+    "species": "Scraggy"
+  },
   "Seadra": {
-    "ability": "TBD",
+    "ability": "Swift Swim",
     "canClaim": 0,
     "moves": [
       "Scald",
-      "Ice Beam",
-      "Thunderbolt",
-      "Earthquake"
+      "Dragon Pulse",
+      "Clear Smog",
+      "Flash of Speed"
     ],
     "species": "Seadra"
   },
   "Serperior": {
-    "ability": "TBD",
+    "ability": "Contrary",
     "canClaim": 0,
     "moves": [
-      "Energy Ball",
-      "Ice Beam",
-      "Thunderbolt",
-      "Earthquake"
+      "Leaf Storm",
+      "Dragon Pulse",
+      "Hidden Power (Rock)",
+      "Gastro Acid"
     ],
     "species": "Serperior"
   },
   "Servine": {
-    "ability": "TBD",
+    "ability": "Contrary",
     "canClaim": 0,
     "moves": [
-      "Energy Ball",
-      "Ice Beam",
-      "Thunderbolt",
-      "Earthquake"
+      "Leaf Storm",
+      "Twister",
+      "Hidden Power (Rock)",
+      "Gastro Acid"
     ],
     "species": "Servine"
   },
@@ -1873,9 +2016,9 @@
     "ability": "Torrent",
     "canClaim": 0,
     "moves": [
-      "Water Pledge",
       "Acrobatics",
-      "Hidden Power (Dragon)",
+      "Water Pledge",
+      "Hidden Power (Ground)",
       "Ice Beam"
     ],
     "species": "Simipour"
@@ -1903,15 +2046,26 @@
     "species": "Simisear"
   },
   "Skarmory": {
-    "ability": "TBD",
+    "ability": "Sturdy",
     "canClaim": 0,
     "moves": [
+      "Flash Cannon",
+      "Iron Head",
       "Iron Tail",
-      "Aerial Ace",
-      "Ice Beam",
-      "Thunderbolt"
+      "Earthquake"
     ],
     "species": "Skarmory"
+  },
+  "Skiploom": {
+    "ability": "Chlorophyll",
+    "canClaim": 0,
+    "moves": [
+      "Leaf Storm",
+      "Acrobatics",
+      "Stun Spore",
+      "Mending Prayer"
+    ],
+    "species": "Skiploom"
   },
   "Skitty": {
     "ability": "Normalize",
@@ -1925,13 +2079,13 @@
     "species": "Skitty"
   },
   "Slaking": {
-    "ability": "TBD",
+    "ability": "Truant",
     "canClaim": 0,
     "moves": [
-      "Return",
-      "Ice Beam",
-      "Thunderbolt",
-      "Earthquake"
+      "Mega Kick",
+      "Gunk Shot",
+      "X-Scissor",
+      "Slack Off"
     ],
     "species": "Slaking"
   },
@@ -2002,13 +2156,13 @@
     "species": "Snubbull"
   },
   "Spearow": {
-    "ability": "TBD",
+    "ability": "Sniper",
     "canClaim": 0,
     "moves": [
-      "Return",
-      "Aerial Ace",
-      "Ice Beam",
-      "Thunderbolt"
+      "Body Slam",
+      "Double-Edge",
+      "Hyper Voice",
+      "Earthquake"
     ],
     "species": "Spearow"
   },
@@ -2123,12 +2277,12 @@
     "species": "Swoobat"
   },
   "Tauros": {
-    "ability": "TBD",
+    "ability": "Intimidate",
     "canClaim": 0,
     "moves": [
-      "Return",
-      "Ice Beam",
-      "Thunderbolt",
+      "Body Slam",
+      "Double-Edge",
+      "Hyper Voice",
       "Earthquake"
     ],
     "species": "Tauros"
@@ -2177,6 +2331,17 @@
     ],
     "species": "Totodile"
   },
+  "Trapinch": {
+    "ability": "Hyper Cutter",
+    "canClaim": 1,
+    "moves": [
+      "Hidden Power (Dragon)",
+      "Dig",
+      "Superpower",
+      "Dragon's Blessing"
+    ],
+    "species": "Trapinch"
+  },
   "Treecko": {
     "ability": "Overgrow",
     "canClaim": 1,
@@ -2200,13 +2365,13 @@
     "species": "Tynamo"
   },
   "Typhlosion": {
-    "ability": "TBD",
+    "ability": "Flash Fire",
     "canClaim": 0,
     "moves": [
-      "Flamethrower",
-      "Ice Beam",
-      "Thunderbolt",
-      "Earthquake"
+      "Eruption",
+      "Extrasensory",
+      "Will-O-Wisp",
+      "Provoke"
     ],
     "species": "Typhlosion"
   },

@@ -2,7 +2,7 @@
 // v13 — roster entry construction + charm rules
 
 import { EVO_OVERRIDES, EVO_PRESET } from '../services/pokeApi.js';
-import { applyMovesetOverrides, defaultNatureForSpecies } from './shrineRules.js';
+import { applyMovesetOverrides } from './shrineRules.js';
 
 export const STARTERS = new Set(['Cobalion','Keldeo','Terrakion','Virizion']);
 
@@ -81,7 +81,6 @@ export function makeRosterEntryFromClaimedSet(data, species){
     effectiveSpecies: species,
     active: true,
     evo: false,
-    nature: defaultNatureForSpecies(species),
     // Starters: Strength charm is forced ON by default.
     strength: isStarterSpecies(species) ? true : false,
     ability: set.ability || '',
@@ -89,29 +88,6 @@ export function makeRosterEntryFromClaimedSet(data, species){
     item: null,
   };
   return entry;
-}
-
-// Like makeRosterEntryFromClaimedSet, but can inherit the set from another species (e.g., base form).
-// Used to allow adding evolved forms even when only the base form exists in claimedSets.
-export function makeRosterEntryFromClaimedSetWithFallback(data, species, fallbackSpecies=null){
-  const s = String(species||'').trim();
-  const fb = fallbackSpecies ? String(fallbackSpecies).trim() : null;
-  const set = (data.claimedSets?.[s]) || (fb ? data.claimedSets?.[fb] : null) || {ability:'', moves:[]};
-  const rawMoves = Array.isArray(set.moves) ? set.moves : [];
-  const fixedMoves = applyMovesetOverrides(s, rawMoves);
-  const id = `r_${s}_${Math.random().toString(16).slice(2,9)}`;
-  return {
-    id,
-    baseSpecies: s,
-    effectiveSpecies: s,
-    active: true,
-    evo: false,
-    nature: defaultNatureForSpecies(s),
-    strength: isStarterSpecies(s) ? true : false,
-    ability: set.ability || '',
-    movePool: buildDefaultMovePool(data, s, fixedMoves || [], 'base'),
-    item: null,
-  };
 }
 
 export function getEvoTarget(data, base, evoCache){
@@ -141,9 +117,10 @@ export function applyCharmRulesSync(data, state, entry){
     entry.movePool = entry.movePool || [];
     const names = entry.movePool.map(m => m.name);
     const overridden = applyMovesetOverrides(eff, names);
-    const looksBase = entry.movePool.length <= 4 && entry.movePool.every(m => (m.source || 'base') === 'base');
+    const isSetOverride = Array.isArray(overridden) && overridden.length && overridden.join('|') !== names.slice(0, overridden.length).join('|');
 
     // If the override is a full 4-move set, only enforce it when the pool still looks "base".
+    const looksBase = entry.movePool.length <= 4 && entry.movePool.every(m => (m.source || 'base') === 'base');
     if (looksBase && overridden && overridden.length === 4 && !overridden.every((v,i)=>v===names[i])){
       const prev = new Map(entry.movePool.map(m => [m.name, m]));
       const rebuilt = buildDefaultMovePool(data, eff, overridden, 'base');
@@ -168,6 +145,7 @@ export function applyCharmRulesSync(data, state, entry){
         const newName = overridden[i];
         if (newName && newName !== oldName){
           entry.movePool[i].name = newName;
+          // Recompute default priority since move identity changed.
           entry.movePool[i].prio = defaultPrioForMove(data, eff, newName);
         }
       }

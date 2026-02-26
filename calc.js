@@ -57,6 +57,12 @@
     return `https://img.pokemondb.net/sprites/black-white/anim/normal/${slug}.gif`;
   }
 
+  // Static BW sprites (PNG). Intended for Pokédex grid for performance/clarity.
+  function spriteUrlPokemonDbBWStatic(name){
+    const slug = slugifyPokemonDb(name);
+    return `https://img.pokemondb.net/sprites/black-white/normal/${slug}.png`;
+  }
+
   function stageMultiplier(stages, stage){
     const s = clamp(Number(stage)||0, -6, 6);
     return stages[String(s)] ?? stages[s] ?? 1;
@@ -153,9 +159,7 @@
     D = applyDefensiveItemMult(settings.defenderItem, mv.category, D);
 
     // Base damage (Gen5-ish rounding)
-    let power = mv.power;
-    // Acrobatics: double BP when attacker holds no item.
-    if (moveName === 'Acrobatics' && !(settings.attackerItem)) power = power * 2;
+    const power = mv.power;
     const base1 = Math.floor((2 * L) / 5) + 2;
     let dmg = Math.floor(Math.floor(Math.floor(base1 * power * A / D) / 50) + 2);
 
@@ -320,7 +324,13 @@
 
   function pickCandidateMoves(movePool){
     // movePool: [{name, prio, use}]
-    const enabled = (movePool || []).filter(m => m && m.use && m.name);
+    const enabled = (movePool || []).filter(m => {
+      if (!m || !m.use || !m.name) return false;
+      // PP support (planner default is 12 for every move): if pp is present, it must be > 0.
+      const pp = (m.pp === undefined || m.pp === null) ? null : Number(m.pp);
+      if (pp === null) return true;
+      return Number.isFinite(pp) ? (pp > 0) : true;
+    });
     // Lower number means more preferred (P1 > P2 > P3)
     enabled.sort((a,b) => (normPrio(a.prio) - normPrio(b.prio)) || a.name.localeCompare(b.name));
     return enabled;
@@ -510,6 +520,7 @@
 
   window.SHRINE_CALC = {
     spriteUrlPokemonDbBW,
+    spriteUrlPokemonDbBWStatic,
     computeDamageRange,
     computeGenericDamageRange,
     chooseBestMove,

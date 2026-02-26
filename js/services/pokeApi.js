@@ -23,14 +23,24 @@ export const BASE_OVERRIDES = {
   Ampharos: 'Mareep',
 };
 
+
+const EVO_LINE_OVERRIDES = {
+  Eevee: ['Eevee','Espeon'],
+};
+
 function normName(s){
+  // IMPORTANT: keep Nidoran♀/♂ distinct.
+  // Also aligns with PokéAPI names nidoran-f / nidoran-m.
   return String(s||'')
     .toLowerCase()
+    .replace(/♀/g,'-f')
+    .replace(/♂/g,'-m')
     .replace(/['.:%]/g,'')
     .replace(/\s+/g,'')
     .replace(/[^a-z0-9-]/g,'')
     .replace(/-/g,'');
 }
+
 
 export function toApiSlug(name){
   return String(name||'')
@@ -86,8 +96,10 @@ export function createPokeApi(data){
   }
 
   function bestDexKeyForApiName(apiName){
-    return apiNameToDexKey(apiName) || titleCaseName(apiName);
+    // Only return names that exist in our local dex.json (Gen5 scope).
+    return apiNameToDexKey(apiName) || null;
   }
+
 
   function flattenEvoChainNonBaby(chain){
     // Returns [{apiName,is_baby}...] in a stable traversal order.
@@ -311,8 +323,14 @@ export function createPokeApi(data){
       };
       walk(chJson.chain);
 
-      const uniqLine = Array.from(new Set(out));
+      let uniqLine = Array.from(new Set(out));
       if (!uniqLine.length) uniqLine.push(root);
+
+      const ovLine = EVO_LINE_OVERRIDES[root];
+      if (Array.isArray(ovLine) && ovLine.length){
+        uniqLine = ovLine.filter(nm => data.dex?.[nm]);
+        if (!uniqLine.length) uniqLine = [root];
+      }
 
       return { base: root, line: uniqLine, updates: updates || { [s]: root } };
     }catch(e){
@@ -343,7 +361,14 @@ export function createPokeApi(data){
         .filter(x => !x.is_baby)
         .map(x => bestDexKeyForApiName(x.apiName))
         .filter(Boolean);
-      const line = Array.from(new Set(flat.length ? flat : [root]));
+      let line = Array.from(new Set(flat.length ? flat : [root]));
+
+      // Tool overrides: restrict certain multi-branch lines.
+      const ovLine = EVO_LINE_OVERRIDES[root];
+      if (Array.isArray(ovLine) && ovLine.length){
+        line = ovLine.filter(nm => data.dex?.[nm]);
+        if (!line.length) line = [root];
+      }
 
       // Ensure base mapping for everything we discovered.
       const upd = updates || {};
