@@ -1,6 +1,6 @@
 // js/app/app.js
-// v2.0.0-beta
-// Abundant Shrine — Roster Planner (settings layout + credits refresh).
+// alpha_v1_sim v1.0.1
+// Main single-page UI renderer and event wiring.
 
 import { $, $$, el, pill, formatPct, clampInt, sprite, ensureFormFieldA11y } from '../ui/dom.js';
 import { fixName } from '../data/nameFixes.js';
@@ -23,11 +23,18 @@ import {
 } from '../domain/waves.js';
 import {
   ITEM_CATALOG,
+  TYPES_NO_FAIRY,
+  plateName,
+  gemName,
   lootBundle,
+  normalizeBagKey,
   computeRosterUsage,
   availableCount,
   enforceBagConstraints,
+  isGem,
+  isPlate,
   priceOfItem,
+  buyOffer,
 } from '../domain/items.js';
 import { initBattleForWave, stepBattleTurn, resetBattle, setManualAction, chooseReinforcement, ensurePPForRosterMon, setPP, battleLabelForRowKey, DEFAULT_MOVE_PP, isAoeMove, aoeHitsAlly, immuneFromAllyAbilityItem, spreadMult } from '../domain/battle.js';
 import { applyMovesetOverrides, defaultNatureForSpecies } from '../domain/shrineRules.js';
@@ -1100,18 +1107,6 @@ export function startApp(ctx){
       const fixedLoot = (data.waveLoot && data.waveLoot[waveKey]) ? data.waveLoot[waveKey] : null;
       const fixedName = (fixedLoot && typeof fixedLoot === 'string') ? fixedLoot : null;
 
-      const lootOptions = fixedName ? [fixedName] : ITEM_CATALOG.slice();
-      const curLoot = state.wavePlans?.[waveKey]?.waveItem || null;
-
-      const sel = el('select', {class:'sel-mini wave-loot-sel', title:'Selecting adds it to the shared Bag (gems are x5, Rare Candy can be x1/x2).'}, [
-        el('option', {value:''}, fixedName ? '— claim loot —' : '— loot —'),
-        ...lootOptions.map(name=>{
-          const b = lootBundle(name);
-          const label = b ? `${b.key}${b.qty>1 ? ` (x${b.qty})` : ''}` : name;
-          return el('option', {value:name, selected:curLoot===name}, label);
-        }),
-      ]);
-
       const applyLootDelta = (s, itemName, dir)=>{
         const b = lootBundle(itemName);
         if (!b) return;
@@ -1133,14 +1128,159 @@ export function startApp(ctx){
         });
       }
 
-      sel.addEventListener('change', ()=>{
-        const next = sel.value || null;
-        updateLootInState(next);
-      });
+      const curLoot = state.wavePlans?.[waveKey]?.waveItem || null;
 
+      // Fixed loot (no picker needed)
+      if (fixedName){
+        const sel = el('select', {class:'sel-mini wave-loot-sel', title:'Selecting adds it to the shared Bag.'}, [
+          el('option', {value:''}, '— claim loot —'),
+          (function(){
+            const b = lootBundle(fixedName);
+            const label = b ? `${b.key}${b.qty>1 ? ` (x${b.qty})` : ''}` : fixedName;
+            return el('option', {value:fixedName, selected:curLoot===fixedName}, label);
+          })(),
+        ]);
+        sel.addEventListener('change', ()=> updateLootInState(sel.value || null));
+        return el('div', {class:'wave-loot'}, [
+          el('span', {class:'lbl'}, 'Loot'),
+          sel,
+        ]);
+      }
+
+      // Split the huge list into compact selectors (gems/plates are type-based)
+      const bundles = ['Air Balloon x5', 'Copper Coin x5'];
+
+      const otherItems = uniq(ITEM_CATALOG.slice())
+        .filter(n=>!isGem(n))
+        .filter(n=>!isPlate(n))
+        .filter(n=>!String(n).startsWith('Rare Candy'))
+        .filter(n=>!bundles.includes(n))
+        .sort((a,b)=>a.localeCompare(b));
+
+      const typeFromGemItem = (name)=>{
+        for (const t of TYPES_NO_FAIRY) if (gemName(t) === name) return t;
+        return null;
+      };
+      const typeFromPlateItem = (name)=>{
+        for (const t of TYPES_NO_FAIRY) if (plateName(t) === name) return t;
+        return null;
+      };
+      const rareQtyFromItem = (name)=>{
+        const s = String(name||'');
+        if (s === 'Rare Candy') return 1;
+        if (s === 'Rare Candy x2') return 2;
+        if (s === 'Rare Candy x3') return 3;
+        return null;
+      };
+
+      function detectCategory(itemName){
+        const n = String(itemName||'');
+        if (!n) return {cat:'', val:''};
+        if (isGem(n)) return {cat:'gem', val: typeFromGemItem(n) || TYPES_NO_FAIRY[0]};
+        if (isPlate(n)) return {cat:'plate', val: typeFromPlateItem(n) || TYPES_NO_FAIRY[0]};
+        if (String(n).startsWith('Rare Candy')) return {cat:'rare', val: String(rareQtyFromItem(n) || 1)};
+        if (bundles.includes(n)) return {cat:'bundle', val:n};
+        return {cat:'other', val:n};
+      }
+
+      function resolveItem(cat, val){
+        if (!cat) return null;
+        if (cat === 'gem') return gemName(val);
+        if (cat === 'plate') return plateName(val);
+        if (cat === 'rare'){
+          const q = Number(val||1);
+          if (q === 1) return 'Rare Candy';
+          if (q === 2) return 'Rare Candy x2';
+          if (q === 3) return 'Rare Candy x3';
+          return 'Rare Candy';
+        }
+        if (cat === 'bundle') return val || null;
+        if (cat === 'other') return val || null;
+        return null;
+      }
+
+      const init = detectCategory(curLoot);
+      const catSel = el('select', {class:'sel-mini wave-loot-cat', title:'Wave loot adds to the shared Bag.'}, [
+        el('option', {value:''}, '— loot —'),
+        el('option', {value:'gem', selected:init.cat==='gem'}, 'Gem (x5)'),
+        el('option', {value:'plate', selected:init.cat==='plate'}, 'Plate'),
+        el('option', {value:'rare', selected:init.cat==='rare'}, 'Rare Candy'),
+        el('option', {value:'bundle', selected:init.cat==='bundle'}, 'Bundles'),
+        el('option', {value:'other', selected:init.cat==='other'}, 'Other items'),
+      ]);
+
+      const itemSel = el('select', {class:'sel-mini wave-loot-item'});
+
+      function fillItemOptions(cat, curVal){
+        itemSel.innerHTML = '';
+        itemSel.disabled = !cat;
+        if (!cat) return;
+
+        if (cat === 'gem' || cat === 'plate'){
+          for (const t of TYPES_NO_FAIRY){
+            itemSel.appendChild(el('option', {value:t, selected:String(curVal||'')===String(t)}, t));
+          }
+          return;
+        }
+        if (cat === 'rare'){
+          const qs = [1,2,3];
+          for (const q of qs){
+            itemSel.appendChild(el('option', {value:String(q), selected:String(curVal||'')===String(q)}, `x${q}`));
+          }
+          return;
+        }
+        if (cat === 'bundle'){
+          for (const b of bundles){
+            const lbl = (function(){
+              const bb = lootBundle(b);
+              return bb ? `${bb.key} (x${bb.qty})` : b;
+            })();
+            itemSel.appendChild(el('option', {value:b, selected:String(curVal||'')===String(b)}, lbl));
+          }
+          return;
+        }
+        if (cat === 'other'){
+          itemSel.appendChild(el('option', {value:''}, '— select —'));
+          for (const n of otherItems){
+            const bb = lootBundle(n);
+            const lbl = bb ? `${bb.key}${bb.qty>1 ? ` (x${bb.qty})` : ''}` : n;
+            itemSel.appendChild(el('option', {value:n, selected:String(curVal||'')===String(n)}, lbl));
+          }
+          return;
+        }
+      }
+
+      function commitFromSelectors(){
+        const cat = catSel.value || '';
+        const val = itemSel.value || '';
+        const next = resolveItem(cat, val);
+        updateLootInState(next);
+      }
+
+      fillItemOptions(init.cat, init.val);
+      if (init.cat) itemSel.value = String(init.val||'');
+
+      catSel.addEventListener('change', ()=>{
+        const cat = catSel.value || '';
+        // Set a safe default value per category
+        const defVal = (cat === 'gem' || cat === 'plate') ? TYPES_NO_FAIRY[0]
+          : (cat === 'rare') ? '1'
+          : (cat === 'bundle') ? (bundles[0] || '')
+          : (cat === 'other') ? ''
+          : '';
+        fillItemOptions(cat, defVal);
+        if (cat) itemSel.value = String(defVal||'');
+        commitFromSelectors();
+      });
+      itemSel.addEventListener('change', commitFromSelectors);
+
+      // Layout: compact and wrap-friendly without needing CSS changes.
       return el('div', {class:'wave-loot'}, [
         el('span', {class:'lbl'}, 'Loot'),
-        sel,
+        el('span', {style:'display:flex; gap:6px; align-items:center; flex-wrap:wrap'}, [
+          catSel,
+          itemSel,
+        ]),
       ]);
     })();
 
@@ -4860,66 +5000,168 @@ const headLeft = el('div', {}, [
 
     bagPanel.appendChild(tbl);
 
+    
     // Politoed shop (buy)
     const shopPanel = el('div', {class:'panel', style:'margin-top:12px'}, [
       el('div', {class:'panel-title'}, "Politoed's Shop"),
-      el('div', {class:'muted small'}, 'Buy items with gold (placeholder prices). Selling uses the buttons above. Coins are loot-only.'),
+      el('div', {class:'muted small'}, 'Shop sells Plates as singles, Gems as bundles (x5), and Rare Candy as a bundle (x1/x2/x3). Selling via the table above is always 1 unit. Coins are loot-only.'),
     ]);
 
-    const shopItems = uniq(ITEM_CATALOG
+    const buyOfferFor = (itemName)=> buyOffer(itemName);
+
+    const doBuyOffer = (off)=>{
+      if (!off) return;
+      store.update(s=>{
+        s.shop = s.shop || {gold:0, ledger:[]};
+        const g = Math.max(0, Math.floor(Number(s.shop.gold||0)));
+        const cost = Math.max(0, Math.floor(Number(off.cost||0)));
+        const qty = Math.max(1, Math.floor(Number(off.qty||1)));
+        if (!(cost > 0)) return;
+        if (g < cost){
+          alert('Not enough gold.');
+          return;
+        }
+
+        s.shop.gold = g - cost;
+        s.shop.ledger = Array.isArray(s.shop.ledger) ? s.shop.ledger : [];
+        s.shop.ledger.push({ts:Date.now(), type:'buy', item:off.item, qty, goldDelta:-cost});
+        if (s.shop.ledger.length > 80) s.shop.ledger.splice(0, s.shop.ledger.length - 80);
+
+        s.bag = s.bag || {};
+        const k = normalizeBagKey ? normalizeBagKey(off.item) : off.item;
+        s.bag[k] = Number(s.bag[k]||0) + qty;
+
+        // keep wallet in sync if it exists
+        if (s.wallet && typeof s.wallet === 'object'){
+          s.wallet.gold = Math.max(0, Math.floor(Number(s.shop.gold||0)));
+        }
+
+        enforceBagConstraints(data, s, applyCharmRulesSync);
+      });
+    };
+
+    const doBuy = (itemName)=>{
+      const off = buyOfferFor(itemName);
+      if (!off) return;
+      doBuyOffer(off);
+    };
+
+    const grid = el('div', {class:'shop-grid'});
+
+    // --- Smart selectors (reduce 80+ variations) ---
+
+    // Gems (bundle x5)
+    (function(){
+      const sel = el('select', {class:'sel-mini'}, TYPES_NO_FAIRY.map(t=> el('option', {value:t}, t)));
+      const getItem = ()=> gemName(sel.value);
+      const buyBtn = el('button', {class:'btn-mini'}, 'Buy');
+      const priceLine = el('div', {class:'shop-price'});
+
+      const sync = ()=>{
+        const off = buyOfferFor(getItem());
+        const can = off && (gold >= (off.cost||0));
+        buyBtn.disabled = !can;
+        priceLine.textContent = off ? `price: ${off.cost}g · +${off.qty}` : 'price: —';
+      };
+      sel.addEventListener('change', sync);
+      buyBtn.addEventListener('click', ()=> doBuy(getItem()));
+      sync();
+
+      grid.appendChild(el('div', {class:'shop-card'}, [
+        el('div', {class:'shop-meta'}, [
+          el('div', {class:'shop-name'}, ['Gem (x5) · ', sel]),
+          priceLine,
+        ]),
+        buyBtn,
+      ]));
+    })();
+
+    // Plates (single)
+    (function(){
+      const sel = el('select', {class:'sel-mini'}, TYPES_NO_FAIRY.map(t=> el('option', {value:t}, t)));
+      const getItem = ()=> plateName(sel.value);
+      const buyBtn = el('button', {class:'btn-mini'}, 'Buy');
+      const priceLine = el('div', {class:'shop-price'});
+
+      const sync = ()=>{
+        const off = buyOfferFor(getItem());
+        const can = off && (gold >= (off.cost||0));
+        buyBtn.disabled = !can;
+        priceLine.textContent = off ? `price: ${off.cost}g` : 'price: —';
+      };
+      sel.addEventListener('change', sync);
+      buyBtn.addEventListener('click', ()=> doBuy(getItem()));
+      sync();
+
+      grid.appendChild(el('div', {class:'shop-card'}, [
+        el('div', {class:'shop-meta'}, [
+          el('div', {class:'shop-name'}, ['Plate · ', sel]),
+          priceLine,
+        ]),
+        buyBtn,
+      ]));
+    })();
+
+    // Rare Candy (x1/x2/x3)
+    (function(){
+      const sel = el('select', {class:'sel-mini'}, [1,2,3].map(n=> el('option', {value:String(n)}, `x${n}`)));
+      const buyBtn = el('button', {class:'btn-mini'}, 'Buy');
+      const priceLine = el('div', {class:'shop-price'});
+
+      const sync = ()=>{
+        const qty = Number(sel.value||1);
+        const cost = qty * 16;
+        buyBtn.disabled = gold < cost;
+        priceLine.textContent = `price: ${cost}g · +${qty}`;
+      };
+      sel.addEventListener('change', sync);
+      buyBtn.addEventListener('click', ()=>{
+        const qty = Number(sel.value||1);
+        const cost = qty * 16;
+        doBuyOffer({item:'Rare Candy', qty, cost, label:`Rare Candy x${qty}`});
+      });
+      sync();
+
+      grid.appendChild(el('div', {class:'shop-card'}, [
+        el('div', {class:'shop-meta'}, [
+          el('div', {class:'shop-name'}, ['Rare Candy · ', sel]),
+          priceLine,
+        ]),
+        buyBtn,
+      ]));
+    })();
+
+    // --- Remaining singles (no type variations) ---
+    const shopSingles = uniq(ITEM_CATALOG
       .map(n=>lootBundle(n))
       .filter(Boolean)
       .map(b=>b.key)
       .filter(Boolean)
     )
-    // Show only purchasable items.
-    // Loot-only (or otherwise non-buyable) items have price 0.
-    .filter(n=>priceOfItem(n) > 0)
-    // Copper Coin is shrine-loot only even though it has a nominal price.
-    .filter(n=>n !== 'Copper Coin')
-    .sort((a,b)=>a.localeCompare(b));
+      .filter(n=>!isGem(n) && !isPlate(n))
+      .filter(n=>n !== 'Copper Coin')
+      .filter(n=>n !== 'Air Balloon')
+      .filter(n=>n !== 'Rare Candy')
+      .filter(n=>!!buyOfferFor(n))
+      .sort((a,b)=>a.localeCompare(b));
 
-    const grid = el('div', {class:'shop-grid'});
-    for (const name of shopItems){
-      const price = priceOfItem(name);
+    for (const name of shopSingles){
+      const off = buyOfferFor(name);
+      if (!off) continue;
       const buyBtn = el('button', {class:'btn-mini'}, 'Buy');
-      if (!(price > 0) || gold < price) buyBtn.disabled = true;
-
-      buyBtn.addEventListener('click', ()=>{
-        store.update(s=>{
-          s.shop = s.shop || {gold:0, ledger:[]};
-          const g = Math.max(0, Math.floor(Number(s.shop.gold||0)));
-          const cost = priceOfItem(name);
-          if (!(cost > 0)) return;
-          if (g < cost){
-            alert('Not enough gold.');
-            return;
-          }
-
-          s.shop.gold = g - cost;
-          s.shop.ledger = Array.isArray(s.shop.ledger) ? s.shop.ledger : [];
-          s.shop.ledger.push({ts:Date.now(), type:'buy', item:name, qty:1, goldDelta:-cost});
-          if (s.shop.ledger.length > 80) s.shop.ledger.splice(0, s.shop.ledger.length - 80);
-
-          s.bag = s.bag || {};
-          s.bag[name] = Number(s.bag[name]||0) + 1;
-
-          enforceBagConstraints(data, s, applyCharmRulesSync);
-        });
-      });
-
+      if (gold < (off.cost||0)) buyBtn.disabled = true;
+      buyBtn.addEventListener('click', ()=> doBuy(name));
       grid.appendChild(el('div', {class:'shop-card'}, [
         el('div', {class:'shop-meta'}, [
           el('div', {class:'shop-name'}, name),
-          el('div', {class:'shop-price'}, (price > 0) ? `price: ${price}g` : 'price: —'),
+          el('div', {class:'shop-price'}, `price: ${off.cost}g${(off.qty||1) > 1 ? ` · +${off.qty}` : ''}`),
         ]),
         buyBtn,
       ]));
     }
 
     shopPanel.appendChild(grid);
-
-    // Recent transactions (compact)
+// Recent transactions (compact)
     const recent = ledger.slice(-10).reverse();
     const ledgerBox = el('div', {class:'shop-ledger'}, []);
     if (!recent.length){

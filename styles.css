@@ -1,4 +1,8 @@
-/* styles.css */
+/* styles.css
+ * alpha_v1_sim v1.0.0
+ * Styles for the Abundant Shrine Run tool.
+ */
+
 /* v2.0.0-beta */
 /* UI skin + layout tweaks (settings layout + micro-polish). */
 
@@ -1789,3 +1793,5 @@ select::-ms-expand{ display:none; }
 .dex-card .type-badge{font-size:14px; padding:6px 12px;}
 .dex-detail-wrap .panel-title{margin-bottom:8px;}
 .dex-detail-wrap .panel-subtitle{margin-bottom:8px;}
+
+.shop-type{margin-top:6px; padding:6px 8px; border-radius:10px; border:1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.25); color: inherit;}

@@ -1,5 +1,6 @@
 // js/state/store.js
-// Tiny local store with batched notifications.
+// alpha_v1_sim v1.0.0
+// Project source file.
 
 function deepClone(x){
   return JSON.parse(JSON.stringify(x));

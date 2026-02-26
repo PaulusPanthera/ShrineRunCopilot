@@ -1,6 +1,6 @@
 // js/data/moveFixes.js
-// v2.0.0-beta
-// Move-name normalization. The app should use ONE canonical move name everywhere.
+// alpha_v1_sim v1.0.0
+// Project source file.
 
 export const MOVE_FIX = {
   'Thunderbold': 'Thunderbolt',

@@ -1,5 +1,6 @@
 // js/services/pokeApi.js
-// v13 — PokeAPI lookups + evo/base mapping helpers
+// alpha_v1_sim v1.0.0
+// Project source file.
 
 import { fixName } from '../data/nameFixes.js';
 

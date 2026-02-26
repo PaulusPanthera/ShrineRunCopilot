@@ -1,5 +1,6 @@
 // js/ui/eggGame.js
-// v13 — hidden mini-game
+// alpha_v1_sim v1.0.0
+// Project source file.
 
 import { $ } from './dom.js';
 

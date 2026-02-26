@@ -1,5 +1,6 @@
 // js/services/storage.js
-// v13 — persistence and export/import helpers
+// alpha_v1_sim v1.0.0
+// Project source file.
 
 export function loadStoredState(storageKey, oldKeys=[]){
   try{

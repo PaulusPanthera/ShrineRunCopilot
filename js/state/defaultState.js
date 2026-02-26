@@ -1,6 +1,6 @@
 // js/state/defaultState.js
-// v2.0.0-beta
-// Default state factory
+// alpha_v1_sim v1.0.0
+// Project source file.
 
 export const STATE_VERSION = 13;
 export const STORAGE_KEY = 'abundantShrinePlanner_state_v13';

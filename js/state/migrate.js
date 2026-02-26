@@ -1,5 +1,6 @@
 // js/state/migrate.js
-// v13 — hydrate + migrate persisted state
+// alpha_v1_sim v1.0.0
+// Project source file.
 
 import { fixName } from '../data/nameFixes.js';
 import { fixMoveName } from '../data/moveFixes.js';

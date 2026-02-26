@@ -1,9 +1,6 @@
 // js/domain/battle.js
-// v2.0.0-beta
-// Battle simulator for Abundant Shrine — simple deterministic turn engine.
-// - Default PP is 12 for every move (until proven otherwise).
-// - Uses SHRINE_CALC computeDamageRange for min% damage and speed.
-// - Supports manual move + target selection and reinforcement choice.
+// alpha_v1_sim v1.0.0
+// Project source file.
 
 import { settingsForWave, enemyThreatForMatchup, assumedEnemyThreatForMatchup } from './waves.js';
 

@@ -1,6 +1,6 @@
 // js/domain/shrineRules.js
-// v2.0.0-beta
-// Shrine-run hard rules & rare, explicit exception overrides provided by the user.
+// alpha_v1_sim v1.0.0
+// Project source file.
 
 // Baseline rule:
 // - Every species has exactly 4 moves + 1 ability from claimedSets.

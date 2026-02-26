@@ -1,5 +1,6 @@
 // js/data/nameFixes.js
-// v13 — name normalization for sheet quirks
+// alpha_v1_sim v1.0.0
+// Project source file.
 
 export const NAME_FIX = {
   "Snub +": "Snubbull",

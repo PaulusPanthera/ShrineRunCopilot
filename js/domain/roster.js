@@ -1,5 +1,6 @@
 // js/domain/roster.js
-// v13 — roster entry construction + charm rules
+// alpha_v1_sim v1.0.0
+// Project source file.
 
 import { EVO_OVERRIDES, EVO_PRESET } from '../services/pokeApi.js';
 import { applyMovesetOverrides, defaultNatureForSpecies } from './shrineRules.js';

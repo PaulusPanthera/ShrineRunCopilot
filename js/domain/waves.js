@@ -1,6 +1,6 @@
 // js/domain/waves.js
-// v2.0.0-beta
-// Wave planning domain logic (state v13)
+// alpha_v1_sim v1.0.0
+// Project source file.
 
 import { fixName } from '../data/nameFixes.js';
 import { buildDefaultMovePool } from './roster.js';

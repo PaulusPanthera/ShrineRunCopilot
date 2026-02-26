@@ -1,7 +1,6 @@
 // calc.js
-// v2.0.0-beta
-// Damage calc utilities (Gen5-style) used by the Abundant Shrine tool.
-// Includes Sturdy (STU) full-HP KO prevention that correctly caps damage and respects current HP.
+// alpha_v1_sim v1.0.0
+// Damage calc core and helpers.
 
 (function(){
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
