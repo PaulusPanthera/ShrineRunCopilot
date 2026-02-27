@@ -1,6 +1,6 @@
 // js/state/migrate.js
-// alpha_v1_sim v1.0.0
-// Project source file.
+//
+// alpha v1
 
 import { fixName } from '../data/nameFixes.js';
 import { fixMoveName } from '../data/moveFixes.js';
@@ -17,6 +17,24 @@ function byId(arr, id){
 
 const DEFAULT_PP = 12;
 
+// Legacy (v1.0.5) default prio mapping used only to avoid clobbering user-edited prios.
+// If a move's prio still matches this legacy default, we can safely upgrade it to the new defaults.
+function legacyDefaultPrioForMove(data, species, moveName){
+  const mi = (data && data.moves) ? data.moves?.[moveName] : null;
+  if (!mi || !mi.type || !mi.category || !mi.power) return 1;
+  const cat = String(mi.category);
+  const bp = Number(mi.power) || 0;
+  if (!(cat === 'Physical' || cat === 'Special') || bp <= 0) return 1;
+
+  const d = data?.dex?.[species];
+  const stab = Array.isArray(d?.types) && d.types.includes(mi.type);
+  const t = String(mi.type);
+  if (stab && (t === 'Fighting' || t === 'Bug') && bp >= 80) return 3;
+  if (stab && bp >= 70) return 2;
+  if (!stab && bp >= 100) return 2;
+  return 1;
+}
+
 export function hydrateState(raw, defaultState, data){
   let state = raw ? {...deepClone(defaultState), ...raw} : deepClone(defaultState);
 
@@ -24,6 +42,11 @@ export function hydrateState(raw, defaultState, data){
   state.version = defaultState.version;
   state.settings = {...deepClone(defaultState.settings), ...(state.settings||{})};
   state.ui = {...deepClone(defaultState.ui), ...(state.ui||{})};
+
+  // Removed Sim tab: legacy saves may still point to it.
+  if (state.ui.tab === 'sim') state.ui.tab = 'waves';
+  if (state.ui.lastNonDexTab === 'sim') state.ui.lastNonDexTab = 'waves';
+
 
   // Deep-merge nested defaults
   state.settings.defaultAtkMods = {
@@ -42,6 +65,12 @@ export function hydrateState(raw, defaultState, data){
 
   // v20: AoE friendly-fire safety toggle
   if (!('allowFriendlyFire' in state.settings)) state.settings.allowFriendlyFire = false;
+
+  // Manual PP editing (debug / convenience) — default OFF.
+  if (!('allowManualPPEdit' in state.settings)) state.settings.allowManualPPEdit = false;
+
+  // Lazy conserve mode (default ON): when PP<=5, bump prio tier by +1 once for auto-managed moves.
+  if (!('autoBumpPrioLowPP' in state.settings)) state.settings.autoBumpPrioLowPP = true;
 
   state.unlocked = state.unlocked || {};
   state.cleared = state.cleared || {};
@@ -69,9 +98,7 @@ export function hydrateState(raw, defaultState, data){
   if (!state.ui.dexDefenderLevelByBase) state.ui.dexDefenderLevelByBase = {};
   if (!('dexReturnTab' in state.ui)) state.ui.dexReturnTab = null;
   if (!('lastNonDexTab' in state.ui)) state.ui.lastNonDexTab = (state.ui.tab && state.ui.tab !== 'unlocked') ? state.ui.tab : 'waves';
-  if (!('simWaveKey' in state.ui)) state.ui.simWaveKey = null;
-
-  // Politoed shop
+// Politoed shop
   state.shop = state.shop || {gold:0, ledger:[]};
   if (!('gold' in state.shop)) state.shop.gold = 0;
   if (!Array.isArray(state.shop.ledger)) state.shop.ledger = [];
@@ -104,7 +131,7 @@ export function hydrateState(raw, defaultState, data){
     if (!Array.isArray(r.movePool)) r.movePool = [];
     if (!('item' in r)) r.item = null;
 
-    // v13+: priorities must be 1/2/3
+    // v1.0.5+: priorities must be 1..5
     normalizeMovePool(r);
     // Canonicalize move names (remove legacy aliases/typos) and keep PP map consistent.
     if (Array.isArray(r.movePool)){
@@ -160,6 +187,200 @@ export function hydrateState(raw, defaultState, data){
     }
   }
 
+  // One-time upgrade: apply new default move priorities (1..5) while preserving user edits.
+  // Rule: only update a move when its current prio still matches the legacy (v1.0.5) default.
+  if (!state.ui._prioDefaultsV106Applied){
+    for (const r of state.roster){
+      if (!r) continue;
+      const eff = r.effectiveSpecies || r.baseSpecies;
+      for (const mv of (r.movePool||[])){
+        if (!mv || !mv.name) continue;
+        const cur = Number(mv.prio);
+        const legacy = legacyDefaultPrioForMove(data, eff, mv.name);
+        const next = defaultPrioForMove(data, eff, mv.name, r.ability || '', {state, entry:r});
+
+        if (!(cur === 1 || cur === 2 || cur === 3 || cur === 4 || cur === 5)) mv.prio = next;
+        else if (cur === legacy) mv.prio = next;
+      }
+      normalizeMovePool(r);
+    }
+    state.ui._prioDefaultsV106Applied = true;
+  }
+
+  // One-time upgrade (v1.0.7): recompute default move priorities (1..5) using the new tiering rules.
+  // This is only applied to "auto" priorities; manual changes will set mv.prioAuto=false in the UI going forward.
+  if (!state.ui._prioDefaultsV107Applied){
+    for (const r of state.roster){
+      if (!r) continue;
+      const eff = r.effectiveSpecies || r.baseSpecies;
+      for (const mv of (r.movePool||[])){
+        if (!mv || !mv.name) continue;
+        if (mv.prioAuto === false) continue;
+        mv.prio = defaultPrioForMove(data, eff, mv.name, r.ability || '', {state, entry:r});
+        mv.prioAuto = true;
+      }
+      normalizeMovePool(r);
+    }
+    state.ui._prioDefaultsV107Applied = true;
+  }
+
+
+  // One-time upgrade (v1.0.12): refresh auto priorities after default rule tweaks (e.g., strong Bug coverage tier).
+  // Only applies to mv.prioAuto=true; manual edits are preserved.
+  if (!state.ui._prioDefaultsV112Applied){
+    for (const r of state.roster){
+      if (!r) continue;
+      const eff = r.effectiveSpecies || r.baseSpecies;
+      for (const mv of (r.movePool||[])){
+        if (!mv || !mv.name) continue;
+        if (mv.prioAuto === false) continue;
+        mv.prio = defaultPrioForMove(data, eff, mv.name, r.ability || '', {state, entry:r});
+        mv.prioAuto = true;
+      }
+      normalizeMovePool(r);
+    }
+    state.ui._prioDefaultsV112Applied = true;
+  }
+
+
+  // One-time upgrade (v1.0.13): refresh auto priorities after strength-based tiering tweak.
+  // Only applies to mv.prioAuto=true; manual edits are preserved.
+  if (!state.ui._prioDefaultsV113Applied){
+    for (const r of state.roster){
+      if (!r) continue;
+      const eff = r.effectiveSpecies || r.baseSpecies;
+      for (const mv of (r.movePool||[])){
+        if (!mv || !mv.name) continue;
+        if (mv.prioAuto === false) continue;
+        mv.prio = defaultPrioForMove(data, eff, mv.name, r.ability || '', {state, entry:r});
+        mv.prioAuto = true;
+      }
+      normalizeMovePool(r);
+    }
+    state.ui._prioDefaultsV113Applied = true;
+  }
+
+
+  // One-time upgrade (prio AoE×0.75 classification): refresh auto priorities after AoE strength tweak.
+  // Only applies to mv.prioAuto=true; manual edits are preserved.
+  if (!state.ui._prioDefaultsAoe075Applied){
+    for (const r of state.roster){
+      if (!r) continue;
+      const eff = r.effectiveSpecies || r.baseSpecies;
+      for (const mv of (r.movePool||[])){
+        if (!mv || !mv.name) continue;
+        if (mv.prioAuto === false) continue;
+        if (mv.lowPpBumped === true) continue;
+        mv.prio = defaultPrioForMove(data, eff, mv.name, r.ability || '', {state, entry:r});
+        mv.prioAuto = true;
+      }
+      normalizeMovePool(r);
+    }
+    state.ui._prioDefaultsAoe075Applied = true;
+  }
+
+
+  // One-time upgrade (prio STAB math): fold STAB (×1.5) into strength-based tiering.
+  // Only applies to mv.prioAuto=true; manual edits are preserved.
+  if (!state.ui._prioDefaultsStabMathApplied){
+    for (const r of state.roster){
+      if (!r) continue;
+      const eff = r.effectiveSpecies || r.baseSpecies;
+      for (const mv of (r.movePool||[])){
+        if (!mv || !mv.name) continue;
+        if (mv.prioAuto === false) continue;
+        if (mv.lowPpBumped === true) continue;
+        mv.prio = defaultPrioForMove(data, eff, mv.name, r.ability || '', {state, entry:r});
+        mv.prioAuto = true;
+      }
+      normalizeMovePool(r);
+    }
+    state.ui._prioDefaultsStabMathApplied = true;
+  }
+
+
+  // One-time upgrade (prio strength thresholds v2): adjust tiers to
+  // P1<85, P2<100, P3<115, P4<130, P5>=130, while keeping Bug/Fighting reserve rules.
+  // Only applies to mv.prioAuto=true and not already low-PP bumped.
+  if (!state.ui._prioDefaultsStrengthThresholdsV2Applied){
+    for (const r of state.roster){
+      if (!r) continue;
+      const eff = r.effectiveSpecies || r.baseSpecies;
+      for (const mv of (r.movePool||[])){
+        if (!mv || !mv.name) continue;
+        if (mv.prioAuto === false) continue;
+        if (mv.lowPpBumped === true) continue;
+        mv.prio = defaultPrioForMove(data, eff, mv.name, r.ability || '', {state, entry:r});
+        mv.prioAuto = true;
+      }
+      normalizeMovePool(r);
+    }
+    state.ui._prioDefaultsStrengthThresholdsV2Applied = true;
+  }
+
+
+  // One-time upgrade (prio effective L50 stats): default prio strength now uses the actual
+  // Level/IV/EV/nature-based offensive stat (plus limited ability multipliers), instead of base stats.
+  // Only applies to mv.prioAuto=true and not already low-PP bumped.
+  if (!state.ui._prioDefaultsEffectiveL50Applied){
+    for (const r of state.roster){
+      if (!r) continue;
+      const eff = r.effectiveSpecies || r.baseSpecies;
+      for (const mv of (r.movePool||[])){
+        if (!mv || !mv.name) continue;
+        if (mv.prioAuto === false) continue;
+        if (mv.lowPpBumped === true) continue;
+        mv.prio = defaultPrioForMove(data, eff, mv.name, r.ability || '', {state, entry:r});
+        mv.prioAuto = true;
+      }
+      normalizeMovePool(r);
+    }
+    state.ui._prioDefaultsEffectiveL50Applied = true;
+  }
+
+
+  // One-time upgrade (prio meta bands): update default prio thresholds to
+  // P1<75, P2<105, P3<140, P4<190, P5>=190; refresh Bug/Fight reserve rules; and
+  // shift Normal-type attacking moves 1 tier earlier for stronger bands (P3–P5 → P2–P4).
+  // Only applies to mv.prioAuto=true and not already low-PP bumped.
+  if (!state.ui._prioDefaultsMetaBandsApplied){
+    for (const r of state.roster){
+      if (!r) continue;
+      const eff = r.effectiveSpecies || r.baseSpecies;
+      for (const mv of (r.movePool||[])){
+        if (!mv || !mv.name) continue;
+        if (mv.prioAuto === false) continue;
+        if (mv.lowPpBumped === true) continue;
+        mv.prio = defaultPrioForMove(data, eff, mv.name, r.ability || '', {state, entry:r});
+        mv.prioAuto = true;
+      }
+      normalizeMovePool(r);
+    }
+    state.ui._prioDefaultsMetaBandsApplied = true;
+  }
+
+
+  // One-time upgrade (prio meta bands v2): retune default strength thresholds to
+  // P1<75, P2<110, P3<160, P4<220, P5>=220 ("very strong" often >=260); keep Bug/Fight reserve rules; and
+  // keep Normal-type attacking moves shifted 1 tier earlier for stronger bands (P3–P5 → P2–P4).
+  // Only applies to mv.prioAuto=true and not already low-PP bumped.
+  if (!state.ui._prioDefaultsMetaBandsAppliedV2){
+    for (const r of state.roster){
+      if (!r) continue;
+      const eff = r.effectiveSpecies || r.baseSpecies;
+      for (const mv of (r.movePool||[])){
+        if (!mv || !mv.name) continue;
+        if (mv.prioAuto === false) continue;
+        if (mv.lowPpBumped === true) continue;
+        mv.prio = defaultPrioForMove(data, eff, mv.name, r.ability || '', {state, entry:r});
+        mv.prioAuto = true;
+      }
+      normalizeMovePool(r);
+    }
+    state.ui._prioDefaultsMetaBandsAppliedV2 = true;
+  }
+
+
   // One-time fix-up: starters should have correct default move priorities and forced Strength.
   if (!state.ui._starterDefaultsApplied){
     for (const r of state.roster){
@@ -167,7 +388,7 @@ export function hydrateState(raw, defaultState, data){
       if (!isStarterSpecies(r.baseSpecies)) continue;
       r.strength = true;
       for (const mv of (r.movePool||[])){
-        mv.prio = defaultPrioForMove(data, r.baseSpecies, mv.name);
+        mv.prio = defaultPrioForMove(data, r.baseSpecies, mv.name, r.ability || '', {state, entry:r});
       }
       normalizeMovePool(r);
     }

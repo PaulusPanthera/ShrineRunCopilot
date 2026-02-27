@@ -1,5 +1,5 @@
 // js/domain/battle.js
-// alpha_v1_sim v1.0.0
+// alpha_v1_sim v1.0.13
 // Project source file.
 
 import { settingsForWave, enemyThreatForMatchup, assumedEnemyThreatForMatchup } from './waves.js';
@@ -38,8 +38,9 @@ function clampDmgPct(x){
 
 function normPrio(x){
   const n = Number(x);
-  if (!Number.isFinite(n)) return 2;
-  return clampInt(n, 1, 3);
+  // Default midpoint for the expanded 1..5 tier system.
+  if (!Number.isFinite(n)) return 3;
+  return clampInt(n, 1, 5);
 }
 
 
@@ -125,6 +126,29 @@ function clampInt(v, lo, hi){
   return Math.max(lo, Math.min(hi, x));
 }
 
+function maybeAutoBumpPrioOnLowPP(state, rosterMonId, moveName, nextCur){
+  // Lazy conserve mode: if a move is about to run out (PP <= 5), bump its default prio tier by +1.
+  // Only applies once per move (lowPpBumped flag) and only while the move is still auto-managed.
+  if (!state || !state.settings || state.settings.autoBumpPrioLowPP === false) return;
+  const cur = Number(nextCur);
+  if (!Number.isFinite(cur) || cur > 5) return;
+
+  const r = byId(state.roster, rosterMonId);
+  if (!r) return;
+  const mv = (r.movePool||[]).find(m => m && m.name === moveName);
+  if (!mv) return;
+
+  // Respect manual overrides.
+  if (mv.prioAuto === false) return;
+  if (mv.lowPpBumped === true) return;
+
+  const p0 = Number(mv.prio);
+  const base = Number.isFinite(p0) ? p0 : 3;
+  mv.prio = clampInt(base + 1, 1, 5);
+  mv.prioAuto = true;
+  mv.lowPpBumped = true;
+}
+
 export function setPP(state, rosterMonId, moveName, nextCur){
   if (!state) return;
   state.pp = state.pp || {};
@@ -133,6 +157,8 @@ export function setPP(state, rosterMonId, moveName, nextCur){
   cur.max = Number.isFinite(Number(cur.max)) ? Number(cur.max) : DEFAULT_MOVE_PP;
   cur.cur = clampInt(nextCur, 0, cur.max);
   state.pp[rosterMonId][moveName] = cur;
+
+  maybeAutoBumpPrioOnLowPP(state, rosterMonId, moveName, cur.cur);
 }
 
 function getPP(state, rosterMonId, moveName){
@@ -205,7 +231,7 @@ function pickAutoActionForAttacker({data, calc, state, wp, waveKey, attackerId, 
     const defObj = defenderObj(state, ds);
     const instKey = ds._instKey || ds.rowKey;
     const curFrac = clampHpPct(battle?.hpDef?.[instKey] ?? 100) / 100;
-    const sW0 = settingsForWave(state, wp, attackerId, ds.rowKey);
+    const sW0 = settingsForWave(state, wp, attackerId, ds.rowKey, ds.defender);
     const sW = {...sW0, defenderCurHpFrac: curFrac};
     const atk = attackerObj(state, r);
 
@@ -304,8 +330,8 @@ function getAutoMovePool(state, attackerId, rosterMon, wp){
   const forcedName = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[attackerId] || null) : null;
   if (forcedName){
     const forced = pool.filter(m => m && m.name === forcedName);
+    // If the forced move has no PP, ignore the override and fall back to the remaining pool.
     if (forced.length) pool = forced;
-    else pool = []; // forced but no PP
   }
   return pool;
 }
@@ -704,7 +730,7 @@ function computeRangeForAttack({data, calc, state, wp, attackerId, defSlot, move
   if (!r) return null;
   const atk = attackerObj(state, r);
   const def = defenderObj(state, defSlot);
-  const sW0 = settingsForWave(state, wp, attackerId, defSlot.rowKey);
+  const sW0 = settingsForWave(state, wp, attackerId, defSlot.rowKey, defSlot.defender);
   const sW = {...sW0, defenderCurHpFrac: (defenderCurHpFrac ?? 1)};
 
   const rr = calc.computeDamageRange({
@@ -1348,7 +1374,7 @@ for (const tid of targetIds){
       attacker: defenderObj(state, defSlot),
       defender: rosterDefObj(state, tmon),
       moveName: act.move,
-      settings: settingsForWave(state, wp, null, defSlot.rowKey),
+      settings: settingsForWave(state, wp, null, defSlot.rowKey, defSlot.defender),
       tags: defSlot.tags || [],
     });
   }catch(e){ rr = null; }

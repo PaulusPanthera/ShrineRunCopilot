@@ -1532,5 +1532,15 @@
     "targets": "Def",
     "type": "Psychic",
     "uses": "Atk"
+  },
+  "Secret Sword": {
+    "accuracy": 100.0,
+    "category": "Special",
+    "name": "Secret Sword",
+    "notes": "Uses SpA but targets foe Defense.",
+    "power": 90.0,
+    "targets": "Def",
+    "type": "Fighting",
+    "uses": "SpA"
   }
 }

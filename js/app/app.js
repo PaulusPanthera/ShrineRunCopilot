@@ -1,6 +1,6 @@
 // js/app/app.js
-// alpha_v1_sim v1.0.2
-// Main single-page UI renderer and event wiring.
+//
+// alpha v1
 
 import { $, $$, el, pill, formatPct, clampInt, sprite, ensureFormFieldA11y } from '../ui/dom.js';
 import { fixName } from '../data/nameFixes.js';
@@ -30,6 +30,7 @@ import {
   normalizeBagKey,
   computeRosterUsage,
   availableCount,
+  availableCountWithItemOverrides,
   enforceBagConstraints,
   isGem,
   isPlate,
@@ -65,6 +66,21 @@ function groupBy(arr, fn){
   return out;
 }
 
+function recomputeAutoPriosForRoster(data, st){
+  for (const r of (st.roster||[])){
+    if (!r) continue;
+    const eff = r.effectiveSpecies || r.baseSpecies;
+    for (const mv of (r.movePool||[])){
+      if (!mv || !mv.name) continue;
+      if (mv.prioAuto === false) continue;
+      if (mv.lowPpBumped === true) continue;
+      mv.prio = defaultPrioForMove(data, eff, mv.name, r.ability || '', {state:st, entry:r});
+      mv.prioAuto = true;
+    }
+    normalizeMovePool(r);
+  }
+}
+
 // Cached fight outcome previews for the Fight plan panel.
 // Keyed by a compact signature so we don't re-simulate on every render.
 const FIGHT_OUTCOME_PREVIEW_CACHE = new Map();
@@ -75,7 +91,8 @@ function uniq(arr){
 
 function rosterLabel(r){
   const eff = r.effectiveSpecies || r.baseSpecies;
-  if (eff !== r.baseSpecies) return `${eff} (${r.baseSpecies})`;
+  // Always show the true/effective form (base or evolved under Evo Charm).
+  // The older "Eff (Base)" label was cluttery and made the UI harder to scan.
   return eff;
 }
 
@@ -95,6 +112,23 @@ function formatPrioAvg(n){
   return Number.isInteger(x) ? String(x) : x.toFixed(1);
 }
 
+// PP-aware move pool helpers (used by previews/solvers so PP=0 moves are never suggested).
+function ppCurFor(ppMap, monId, moveName){
+  const n = Number(ppMap?.[monId]?.[moveName]?.cur);
+  return Number.isFinite(n) ? n : DEFAULT_MOVE_PP;
+}
+function filterMovePoolForCalc({ppMap, monId, movePool, forcedMoveName=null}){
+  const base = (movePool||[]).filter(m => m && m.use !== false && m.name && ppCurFor(ppMap, monId, m.name) > 0);
+  if (forcedMoveName){
+    // Only enforce a forced move if it still has PP.
+    if (ppCurFor(ppMap, monId, forcedMoveName) > 0){
+      const forced = base.filter(m => m.name === forcedMoveName);
+      if (forced.length) return forced;
+    }
+  }
+  return base;
+}
+
 function waveOrderKey(wk){
   const m = /^P(\d+)W(\d+)$/.exec(wk);
   if (!m) return 999999;
@@ -109,7 +143,6 @@ export function startApp(ctx){
   const tabRoster = $('#tabRoster');
   const tabBag = $('#tabBag');
   const tabSettings = $('#tabSettings');
-  const tabSim = $('#tabSim');
   const tabUnlocked = $('#tabUnlocked');
   const unlockedCountEl = $('#unlockedCount');
 
@@ -527,9 +560,7 @@ export function startApp(ctx){
     tabWaves.classList.toggle('hidden', state.ui.tab !== 'waves');
     tabRoster.classList.toggle('hidden', state.ui.tab !== 'roster');
     tabBag.classList.toggle('hidden', state.ui.tab !== 'bag');
-    tabSettings.classList.toggle('hidden', state.ui.tab !== 'settings');
-    tabSim.classList.toggle('hidden', state.ui.tab !== 'sim');
-    tabUnlocked.classList.toggle('hidden', state.ui.tab !== 'unlocked');
+    tabSettings.classList.toggle('hidden', state.ui.tab !== 'settings');tabUnlocked.classList.toggle('hidden', state.ui.tab !== 'unlocked');
   }
 
   function attachTabHandlers(){
@@ -632,7 +663,7 @@ export function startApp(ctx){
         data,
         attacker: atk,
         defender: defObj,
-        movePool: r.movePool||[],
+        movePool: filterMovePoolForCalc({ppMap: state.pp || {}, monId: r.id, movePool: r.movePool || []}),
         settings: {...state.settings, attackerItem: r.item || null, defenderItem: null},
         tags,
       });
@@ -718,7 +749,7 @@ export function startApp(ctx){
         data,
         attacker: atk,
         defender: defObj,
-        movePool: r.movePool||[],
+        movePool: filterMovePoolForCalc({ppMap: state.pp || {}, monId: r.id, movePool: r.movePool || []}),
         settings: settingsForWave(state, dummyWp, r.id, null),
         tags: tags || [],
       });
@@ -859,6 +890,8 @@ export function startApp(ctx){
       ]));
     }
 
+    const manualPPEdit = !!state.settings.allowManualPPEdit;
+
     const grid = el('div', {class:'battle-grid'});
 
     // Attackers
@@ -909,10 +942,14 @@ export function startApp(ctx){
       const ppList = el('div', {class:'pp-list'});
       for (const m of moves){
         const p = state.pp?.[id]?.[m.name] || {cur:DEFAULT_MOVE_PP, max:DEFAULT_MOVE_PP};
-        const inp = el('input', {type:'number', min:'0', max:String(p.max ?? DEFAULT_MOVE_PP), step:'1', value:String(p.cur ?? DEFAULT_MOVE_PP), class:'inp-mini'});
-        inp.addEventListener('change', ()=>{
-          store.update(s=>{ setPP(s, id, m.name, clampInt(inp.value, 0, Number(p.max ?? DEFAULT_MOVE_PP))); });
-        });
+        const inp = el('input', {type:'number', min:'0', max:String(p.max ?? DEFAULT_MOVE_PP), step:'1', value:String(p.cur ?? DEFAULT_MOVE_PP), class:'inp-mini', disabled: !manualPPEdit});
+        if (manualPPEdit){
+          inp.addEventListener('change', ()=>{
+            store.update(s=>{ setPP(s, id, m.name, clampInt(inp.value, 0, Number(p.max ?? DEFAULT_MOVE_PP))); });
+          });
+        } else {
+          inp.title = 'Manual PP editing is disabled in Settings.';
+        }
         ppList.appendChild(el('div', {class:'pp-row'}, [
           el('div', {class:'pp-move'}, m.name),
           el('div', {class:'pp-box'}, [inp, el('span', {class:'muted small'}, ` / ${p.max ?? DEFAULT_MOVE_PP}`)]),
@@ -1325,7 +1362,7 @@ export function startApp(ctx){
 
     const panel = el('div', {class:'panel'}, [
       el('div', {class:'panel-title'}, `Wave fights — ${doneCount}/4 done`),
-      el('div', {class:'muted small'}, 'Quick tracker for the 4 in-game fights on this wave. Moves are auto-picked from your roster priorities. Use the Sim tab for full PP + turn-by-turn simulation.'),
+      el('div', {class:'muted small'}, 'Quick tracker for the 4 in-game fights on this wave. Moves are auto-picked from your roster priorities.'),
     ]);
 
     // Map rowKey -> base species (global) for claim revert checks.
@@ -1426,6 +1463,7 @@ export function startApp(ctx){
     const bestMoveFor = (attId, defSlot)=>{
       const r = byId(state.roster, attId);
       if (!r || !defSlot) return null;
+      const forced = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[attId] || null) : null;
       const atk = {
         species:(r.effectiveSpecies||r.baseSpecies),
         level: state.settings.claimedLevel,
@@ -1437,8 +1475,8 @@ export function startApp(ctx){
         data,
         attacker: atk,
         defender: def,
-        movePool: r.movePool||[],
-        settings: settingsForWave(state, wp, attId, defSlot.rowKey),
+        movePool: filterMovePoolForCalc({ppMap: state.pp || {}, monId: r.id, movePool: r.movePool || [], forcedMoveName: forced}),
+        settings: settingsForWave(state, wp, attId, defSlot.rowKey, defSlot.defender),
         tags: defSlot.tags||[],
       });
       return res?.best || null;
@@ -1504,6 +1542,7 @@ export function startApp(ctx){
       const bestMoveFor2 = (attId, defSlot)=>{
         const r = byId(st.roster, attId);
         if (!r || !defSlot) return null;
+        const forced = (st.wavePlans?.[waveKey]?.attackMoveOverride||{})[attId] || null;
         const atk = {
           species:(r.effectiveSpecies||r.baseSpecies),
           level: st.settings.claimedLevel,
@@ -1515,8 +1554,8 @@ export function startApp(ctx){
           data,
           attacker: atk,
           defender: def,
-          movePool: r.movePool||[],
-          settings: settingsForWave(st, st.wavePlans?.[waveKey] || {}, attId, defSlot.rowKey),
+          movePool: filterMovePoolForCalc({ppMap: st.pp || {}, monId: r.id, movePool: r.movePool || [], forcedMoveName: forced}),
+          settings: settingsForWave(st, st.wavePlans?.[waveKey] || {}, attId, defSlot.rowKey, defSlot.defender),
           tags: defSlot.tags||[],
         });
         return res?.best || null;
@@ -2292,6 +2331,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	    });
 
 	    for (const s of slots){
+      ensureDexApi(s.defender);
 	      const positions = selectedSlotsByKey[s.rowKey] || [];
 	      const isSelected = positions.length > 0;
 
@@ -2370,8 +2410,12 @@ function renderWavePlanner(state, waveKey, slots, wp){
     const activeRoster = state.roster.filter(r=>r.active).slice(0,16);
 
     // Fight plan + suggestions (same as current v13 feature set)
-    const planEl = el('div', {class:'panel'}, [
+    // NOTE: "Fight" should be the most obvious action on this screen, so the CTA lives in the panel title row.
+    const planTitleRow = el('div', {class:'panel-title-row fightplan-title-row'}, [
       el('div', {class:'panel-title'}, 'Fight plan'),
+    ]);
+    const planEl = el('div', {class:'panel'}, [
+      planTitleRow,
       el('div', {class:'muted small'}, 'Uses your ACTIVE roster from the Roster tab. Auto-match is always enabled. Use suggested lead pairs to quickly set starters.'),
     ]);
 
@@ -2386,6 +2430,13 @@ function renderWavePlanner(state, waveKey, slots, wp){
       ]);
       sel.addEventListener('change', ()=> onPick(sel.value));
       return sel;
+    };
+
+    const starterSpriteEl = (monId)=>{
+      const rm = byId(state.roster||[], monId);
+      const sp = rm ? (rm.effectiveSpecies||rm.baseSpecies) : null;
+      if (!sp) return el('span', {class:'sprite sprite-sm'});
+      return el('img', {class:'sprite sprite-sm', src: spriteStatic(calc, sp), title: sp, alt: sp});
     };
 
     let selA = null;
@@ -2434,11 +2485,26 @@ function renderWavePlanner(state, waveKey, slots, wp){
       });
     });
 
+    // Small static sprites next to the starter selectors (Fight plan only).
+    row.appendChild(starterSpriteEl(starterA));
     row.appendChild(selA);
     row.appendChild(el('span', {class:'muted small'}, '+'));
+    row.appendChild(starterSpriteEl(starterB));
     row.appendChild(selB);
     row.appendChild(autoBtn);
     planEl.appendChild(row);
+
+    // Primary action: Fight (log next fight). This should be the most obvious action in the Fight plan.
+    // Place it in the Fight plan title row (top-right), as the main CTA.
+    const logLenNow = Number((wp.fightLog||[]).length || 0);
+    const selDefsNow = (wp.defenders||[]).slice(0, defLimit).filter(Boolean).length;
+    const startersNow = (starterA && starterB) ? 2 : (wp.attackerStart||wp.attackerOrder||[]).slice(0,2).filter(Boolean).length;
+    let primaryFightBtn = el('button', {
+      class:'btn btn-fight-primary',
+      disabled: (logLenNow >= 4) || (selDefsNow < 2) || (startersNow < 2),
+      title: 'Simulate and log the next fight using the current Fight plan (max 4 fights).'
+    }, logLenNow >= 4 ? 'Fight (4/4)' : 'Fight');
+    planTitleRow.appendChild(primaryFightBtn);
 
     // Move override pickers (optional)
     const makeMoveOverrideSel = (attId)=>{
@@ -2448,7 +2514,12 @@ function renderWavePlanner(state, waveKey, slots, wp){
       const opts = [el('option', {value:'', selected: !cur}, 'Auto')];
       for (const mv of (mon.movePool||[])){
         if (!mv || mv.use === false || !mv.name) continue;
-        opts.push(el('option', {value: mv.name, selected: cur === mv.name}, mv.name));
+        const curPP = ppCurFor(state.pp || {}, attId, mv.name);
+        const label = `${mv.name}${curPP <= 0 ? ' (0 PP)' : ''}`;
+        // If the move is out of PP, it cannot be newly selected.
+        // If it is currently selected, keep it selectable so the UI doesn't break; the solver will ignore it.
+        const disabled = (cur !== mv.name) && (curPP <= 0);
+        opts.push(el('option', {value: mv.name, selected: cur === mv.name, disabled}, label));
       }
       const sel = el('select', {class:'sel-mini'}, opts);
       sel.addEventListener('change', ()=>{
@@ -2484,6 +2555,68 @@ function renderWavePlanner(state, waveKey, slots, wp){
     ]);
     planEl.appendChild(moveRow);
 
+
+    // Item override pickers (optional): select a held item for this wave from the Bag.
+    // This does NOT change the roster's held item; it only affects Fight plan + solver simulations.
+    const bagItemKeys = Object.keys(state.bag||{}).filter(k => Number(state.bag[k]||0) > 0);
+    const sortedBagItems = bagItemKeys.slice().sort((a,b)=>String(a).localeCompare(String(b)));
+
+    const makeItemOverrideSel = (attId)=>{
+      const mon = byId(state.roster||[], attId);
+      if (!mon) return el('span', {class:'muted small'}, '—');
+      const cur = (wp.itemOverride||{})[attId] || '';
+
+      // Respect Bag availability *with the wave overrides applied as swaps*.
+      // (If you override a mon, it frees its roster-held item and consumes the override item instead.)
+      const ovrMap = (wp.itemOverride && typeof wp.itemOverride === 'object') ? wp.itemOverride : {};
+
+      const opts = [el('option', {value:'', selected: !cur}, 'Auto (roster held)')];
+      if (!sortedBagItems.length){
+        return el('select', {class:'sel-mini', disabled:true}, opts);
+      }
+
+      for (const it of sortedBagItems){
+        const avail = availableCountWithItemOverrides(state, ovrMap, it);
+        // Allow keeping the current selection even if it would be over-allocated.
+        const disabled = (it !== cur) && (avail <= 0);
+        opts.push(el('option', {value: it, selected: cur === it, disabled}, `${it} (bag: ${Number(state.bag?.[it]||0)})`));
+      }
+
+      const sel = el('select', {class:'sel-mini'}, opts);
+      sel.addEventListener('change', ()=>{
+        const v = String(sel.value||'');
+        store.update(s=>{
+          const w = s.wavePlans[waveKey];
+          w.itemOverride = (w.itemOverride && typeof w.itemOverride === 'object') ? w.itemOverride : {};
+          if (!v) delete w.itemOverride[attId];
+          else w.itemOverride[attId] = v;
+          ensureWavePlan(data, s, waveKey, slots);
+        });
+      });
+      return sel;
+    };
+
+    const clearItemOverridesBtn = el('button', {class:'btn-mini'}, 'Clear');
+    clearItemOverridesBtn.addEventListener('click', ()=>{
+      store.update(s=>{
+        const w = s.wavePlans[waveKey];
+        if (!w.itemOverride) return;
+        delete w.itemOverride[starterA];
+        delete w.itemOverride[starterB];
+        ensureWavePlan(data, s, waveKey, slots);
+      });
+    });
+
+    const itemRow = el('div', {style:'display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:6px'}, [
+      el('span', {class:'muted small'}, 'Items:'),
+      makeItemOverrideSel(starterA),
+      el('span', {class:'muted small'}, '+'),
+      makeItemOverrideSel(starterB),
+      clearItemOverridesBtn,
+      el('span', {class:'muted small'}, '· uses Bag availability; sim assumes you equipped it'),
+    ]);
+    planEl.appendChild(itemRow);
+
     const slotByKey2 = new Map(slots.map(s=>[s.rowKey,s]));
     const selectedPlanKeys = (wp.defenders||[]).slice(0, defLimit);
     const picked = selectedPlanKeys
@@ -2501,18 +2634,14 @@ function renderWavePlanner(state, waveKey, slots, wp){
       const def = {species:defSlot.defender, level:defSlot.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
 
       const forced = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[att.id] || null) : null;
-      let pool = att.movePool||[];
-      if (forced){
-        const filtered = pool.filter(m => m && m.use !== false && m.name === forced);
-        if (filtered.length) pool = filtered;
-      }
+      const pool = filterMovePoolForCalc({ppMap: state.pp || {}, monId: att.id, movePool: att.movePool || [], forcedMoveName: forced});
 
       return calc.chooseBestMove({
         data,
         attacker: atk,
         defender: def,
         movePool: pool,
-        settings: settingsForWave(state, wp, att.id, defSlot.rowKey),
+        settings: settingsForWave(state, wp, att.id, defSlot.rowKey, defSlot.defender),
         tags: defSlot.tags||[],
       }).best;
     };
@@ -2593,7 +2722,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
           });
 
           const rrVsDef = (attMon, moveName, defSlot, curFrac)=>{
-            const s0 = settingsForWave(state, wp, attMon.id, defSlot.rowKey);
+            const s0 = settingsForWave(state, wp, attMon.id, defSlot.rowKey, defSlot.defender);
             const s = {...s0, defenderCurHpFrac: (curFrac ?? 1)};
             const rr = calc.computeDamageRange({data, attacker: atkObj(attMon, s), defender: defObj(defSlot), moveName, settings: s, tags: defSlot.tags || []});
             return (rr && rr.ok) ? rr : null;
@@ -2717,7 +2846,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
                 ivAll: (otherDef.ivAll ?? state.settings.wildIV ?? 0),
                 evAll: (otherDef.evAll ?? state.settings.wildEV ?? 0),
               };
-              const s0 = settingsForWave(state, wp, x.att.id, otherDef.rowKey);
+              const s0 = settingsForWave(state, wp, x.att.id, otherDef.rowKey, otherDef.defender);
               const s = {...s0, defenderCurHpFrac: 1};
               const rr = calc.computeDamageRange({data, attacker: atk, defender: defOther, moveName: best.move, settings: s, tags: otherDef.tags || []});
               if (rr && rr.ok && Number.isFinite(rr.minPct)){
@@ -2739,7 +2868,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
           try{
             const atk = {species:(x.att.effectiveSpecies||x.att.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: x.att.strength?state.settings.strengthEV:state.settings.claimedEV};
             const defAlly = {species:(ally.effectiveSpecies||ally.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: ally.strength?state.settings.strengthEV:state.settings.claimedEV};
-            const sFF0 = settingsForWave(state, wp, x.att.id, x.def.rowKey);
+            const sFF0 = settingsForWave(state, wp, x.att.id, x.def.rowKey, x.def.defender);
             const sFF = {...sFF0, defenderItem: ally.item || null, defenderHpFrac: 1, applyINT: false, applySTU: false};
             const rr = calc.computeDamageRange({data, attacker: atk, defender: defAlly, moveName: best.move, settings: sFF, tags: []});
             if (rr && rr.ok){
@@ -2923,8 +3052,11 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	      if (!aId || !bId || String(aId) === String(bId)) return null;
 
 	      const ovr = wp.attackMoveOverride || {};
+      const iovr = wp.itemOverride || {};
 	      const okeys = Object.keys(ovr).slice().sort((x,y)=>String(x).localeCompare(String(y)));
 	      const oBits = okeys.map(k => `${k}:${ovr[k]}`).join('|');
+      const ikeys = Object.keys(iovr).slice().sort((x,y)=>String(x).localeCompare(String(y)));
+      const iBits = ikeys.map(k => `${k}:${iovr[k]}`).join('|');
 
 	      const ppSig = (id)=>{
 	        const mon = byId(state.roster||[], id);
@@ -2938,6 +3070,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	        `defs:${defs.join(',')}`,
 	        `atk:${aId},${bId}`,
 	        `ovr:${oBits}`,
+        `iovr:${iBits}`,
 	        `ff:${state.settings?.allowFriendlyFire?1:0}`,
 	        `stu:${state.settings?.applySTU?1:0}`,
 	        `stuaoe:${state.settings?.sturdyAoeSolve?1:0}`,
@@ -3267,7 +3400,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	      for (const id of ids) undoEntryById(id);
 	    };
 
-	    const fightBtn = el('button', {class:'btn-mini'}, 'Fight');
+	    // Manual fight logging action (invoked by the primary Fight button in the Fight plan).
 	    const undoBtn = el('button', {class:'btn-mini'}, 'Undo');
 	    const auto4Btn = el('button', {class:'btn-mini'}, 'Auto x4');
 	    const countLabel = el('div', {class:'muted small', style:'margin-right:auto'}, `Fights: ${(wp.fightLog||[]).length}/4`);
@@ -3293,7 +3426,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
         }
 	    };
 
-	    fightBtn.addEventListener('click', ()=>{
+	    const runManualFight = ()=>{
 	      const cur = store.getState();
 	      const w = cur.wavePlans?.[waveKey];
 	      const logLen = (w?.fightLog||[]).length;
@@ -3318,7 +3451,9 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	        const entry = makeFightEntry(s, ww, atks[0], atks[1], defs);
 	        pushEntry(s, ww, entry);
 	      });
-	    });
+	    };
+
+      primaryFightBtn.addEventListener('click', runManualFight);
 
 	    undoBtn.addEventListener('click', ()=>{
 	      const w = store.getState().wavePlans?.[waveKey];
@@ -3360,8 +3495,11 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	        parts.push(`altlim:${Number(st.settings?.variationLimit ?? 8)}`);
 	        parts.push(`altcap:${Number(st.settings?.variationGenCap ?? 5000)}`);
         const ovr = curW.attackMoveOverride || {};
+        const iovr = curW.itemOverride || {};
         const okeys = Object.keys(ovr).slice().sort((a,b)=>String(a).localeCompare(String(b)));
         const oBits = okeys.map(k => `${k}:${ovr[k]}`).join('|');
+      const ikeys = Object.keys(iovr).slice().sort((x,y)=>String(x).localeCompare(String(y)));
+      const iBits = ikeys.map(k => `${k}:${iovr[k]}`).join('|');
         parts.push(`ovr:${oBits}`);
         parts.push(`ff:${st.settings?.allowFriendlyFire?1:0}`);
 	        const ids = act.map(r=>r.id).slice().sort((a,b)=>String(a).localeCompare(String(b)));
@@ -3472,13 +3610,9 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	            }
 	            const atk = {species:(r.effectiveSpecies||r.baseSpecies), level: st.settings.claimedLevel, ivAll: st.settings.claimedIV, evAll: r.strength?st.settings.strengthEV:st.settings.claimedEV};
 	            const def = {species:defSlot.defender, level:defSlot.level, ivAll: st.settings.wildIV, evAll: st.settings.wildEV};
-	            let mp = r.movePool||[];
 	            const forced = (st.wavePlans?.[waveKey]?.attackMoveOverride||{})[attId] || null;
-	            if (forced){
-	              const filtered = mp.filter(m=>m && m.use !== false && m.name===forced);
-	              if (filtered.length) mp = filtered;
-	            }
-	            const res = calc.chooseBestMove({data, attacker:atk, defender:def, movePool:mp, settings: settingsForWave(st, st.wavePlans?.[waveKey]||{}, attId, defSlot.rowKey), tags: defSlot.tags||[]});
+	            const mp = filterMovePoolForCalc({ppMap: ppAfterClear || {}, monId: r.id, movePool: r.movePool || [], forcedMoveName: forced});
+	            const res = calc.chooseBestMove({data, attacker:atk, defender:def, movePool:mp, settings: settingsForWave(st, st.wavePlans?.[waveKey]||{}, attId, defSlot.rowKey, defSlot.defender), tags: defSlot.tags||[]});
 	            const best = res?.best || null;
 	            moveCache.set(key, best);
 	            return best;
@@ -3562,7 +3696,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	            const sl = slotByKey.get(String(defKey));
 	            if (!atk || !def || !sl) return null;
 	            const wpSolve = st.wavePlans?.[waveKey] || {};
-	            const s0 = settingsForWave(st, wpSolve, attId, sl.rowKey);
+	            const s0 = settingsForWave(st, wpSolve, attId, sl.rowKey, sl.defender);
 	            const s = {...s0, defenderCurHpFrac: (Number.isFinite(Number(curHpFrac)) ? Number(curHpFrac) : 1)};
 	            try{
 	              const rr = calc.computeDamageRange({data, attacker: atk, defender: def, moveName, settings: s, tags: sl.tags||[]});
@@ -3605,7 +3739,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	            const withSpe = (actions||[]).map(a=>{
 	              const sampleKey = a.sampleTargetKey || a.targetKey || defKeys[0];
 	              const rr = rrVsDef(a.attackerId, a.move, sampleKey, (hp[sampleKey] ?? 100) / 100);
-	              const pr = Number.isFinite(Number(a.prio)) ? Number(a.prio) : defaultPrioForMove(a.move);
+	              const pr = Number.isFinite(Number(a.prio)) ? Number(a.prio) : 3;
               return {...a, actorSpe: Number(rr?.attackerSpe)||0, actorPrio: pr};
 	            });
 	            withSpe.sort((a,b)=>{
@@ -3660,7 +3794,7 @@ const sturdyAoeSolveScore = (aId, bId, stuKey, otherKey)=>{
   if (!poolA.length || !poolB.length) return null;
 
   let best = null;
-  const prioOf = (m)=> (Number.isFinite(Number(m?.prio)) ? Number(m.prio) : defaultPrioForMove(m?.name));
+  const prioOf = (m)=> (Number.isFinite(Number(m?.prio)) ? Number(m.prio) : 3);
 
   for (const mA of poolA){
     const isAoeA = isAoeMove(mA.name);
@@ -3928,7 +4062,7 @@ const sturdyAoeSolveScore = (aId, bId, stuKey, otherKey)=>{
 	                      attacker: atk,
 	                      defender: defAdd,
 	                      moveName: mv.name,
-	                      settings: settingsForWave(st, wpSolve, aoeUserId, slotAdd.rowKey),
+	                      settings: settingsForWave(st, wpSolve, aoeUserId, slotAdd.rowKey, slotAdd.defender),
 	                      tags: slotAdd.tags||[],
 	                    });
 	                    rrStu = calc.computeDamageRange({
@@ -3936,7 +4070,7 @@ const sturdyAoeSolveScore = (aId, bId, stuKey, otherKey)=>{
 	                      attacker: atk,
 	                      defender: defStu,
 	                      moveName: mv.name,
-	                      settings: settingsForWave(st, wpSolve, aoeUserId, slotStu.rowKey),
+	                      settings: settingsForWave(st, wpSolve, aoeUserId, slotStu.rowKey, slotStu.defender),
 	                      tags: slotStu.tags||[],
 	                    });
 	                  }catch(e){ rrAdd = null; rrStu = null; }
@@ -4588,7 +4722,6 @@ const headLeft = el('div', {}, [
     viewCombosBtn.addEventListener('click', openCombosModal);
     const controlsRow = el('div', {style:'display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px'}, [
       countLabel,
-      fightBtn,
       undoBtn,
       auto4Btn,
       viewCombosBtn,
@@ -4607,7 +4740,9 @@ const headLeft = el('div', {}, [
 
     const fightHead = el('div', {style:'display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap'}, [
       el('div', {class:'panel-title', style:'margin-bottom:0'}, 'Fight log'),
-      toggleExpandBtn,
+      el('div', {style:'display:flex; gap:8px; align-items:center; flex-wrap:wrap'}, [
+          toggleExpandBtn,
+      ]),
     ]);
 
     const fightPanel = el('div', {class:'panel fightlog-panel'}, [
@@ -4670,6 +4805,11 @@ const headLeft = el('div', {}, [
           const a = atkMons[i];
           const b = atkMons[j];
 
+          const forcedA = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[a.id] || null) : null;
+          const forcedB = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[b.id] || null) : null;
+          const poolA = filterMovePoolForCalc({ppMap: state.pp || {}, monId: a.id, movePool: a.movePool || [], forcedMoveName: forcedA});
+          const poolB = filterMovePoolForCalc({ppMap: state.pp || {}, monId: b.id, movePool: b.movePool || [], forcedMoveName: forcedB});
+
           const defLeft = {species:d0.defender, level:d0.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
           const defRight = {species:d1.defender, level:d1.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
 
@@ -4678,32 +4818,32 @@ const headLeft = el('div', {}, [
             data,
             attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV},
             defender:defLeft,
-            movePool: ((wp && wp.attackMoveOverride && wp.attackMoveOverride[a.id]) ? (a.movePool||[]).filter(m=>m && m.use !== false && m.name === wp.attackMoveOverride[a.id]) : (a.movePool||[])),
-            settings: settingsForWave(state, wp, a.id, d0.rowKey),
+            movePool: poolA,
+            settings: settingsForWave(state, wp, a.id, d0.rowKey, d0.defender),
             tags: d0.tags||[],
           }).best;
           const bestA1 = calc.chooseBestMove({
             data,
             attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV},
             defender:defRight,
-            movePool: ((wp && wp.attackMoveOverride && wp.attackMoveOverride[a.id]) ? (a.movePool||[]).filter(m=>m && m.use !== false && m.name === wp.attackMoveOverride[a.id]) : (a.movePool||[])),
-            settings: settingsForWave(state, wp, a.id, d1.rowKey),
+            movePool: poolA,
+            settings: settingsForWave(state, wp, a.id, d1.rowKey, d1.defender),
             tags: d1.tags||[],
           }).best;
           const bestB0 = calc.chooseBestMove({
             data,
             attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV},
             defender:defLeft,
-            movePool: ((wp && wp.attackMoveOverride && wp.attackMoveOverride[b.id]) ? (b.movePool||[]).filter(m=>m && m.use !== false && m.name === wp.attackMoveOverride[b.id]) : (b.movePool||[])),
-            settings: settingsForWave(state, wp, b.id, d0.rowKey),
+            movePool: poolB,
+            settings: settingsForWave(state, wp, b.id, d0.rowKey, d0.defender),
             tags: d0.tags||[],
           }).best;
           const bestB1 = calc.chooseBestMove({
             data,
             attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV},
             defender:defRight,
-            movePool: ((wp && wp.attackMoveOverride && wp.attackMoveOverride[b.id]) ? (b.movePool||[]).filter(m=>m && m.use !== false && m.name === wp.attackMoveOverride[b.id]) : (b.movePool||[])),
-            settings: settingsForWave(state, wp, b.id, d1.rowKey),
+            movePool: poolB,
+            settings: settingsForWave(state, wp, b.id, d1.rowKey, d1.defender),
             tags: d1.tags||[],
           }).best;
 
@@ -4729,8 +4869,8 @@ const headLeft = el('div', {}, [
           let clearAll = 0;
           for (const ds of allDef){
             const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
-            const b0 = calc.chooseBestMove({data, attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool: ((wp && wp.attackMoveOverride && wp.attackMoveOverride[a.id]) ? (a.movePool||[]).filter(m=>m && m.use !== false && m.name === wp.attackMoveOverride[a.id]) : (a.movePool||[])), settings: settingsForWave(state, wp, a.id, ds.rowKey), tags: ds.tags||[]}).best;
-            const b1 = calc.chooseBestMove({data, attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool: ((wp && wp.attackMoveOverride && wp.attackMoveOverride[b.id]) ? (b.movePool||[]).filter(m=>m && m.use !== false && m.name === wp.attackMoveOverride[b.id]) : (b.movePool||[])), settings: settingsForWave(state, wp, b.id, ds.rowKey), tags: ds.tags||[]}).best;
+            const b0 = calc.chooseBestMove({data, attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool: poolA, settings: settingsForWave(state, wp, a.id, ds.rowKey, ds.defender), tags: ds.tags||[]}).best;
+            const b1 = calc.chooseBestMove({data, attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool: poolB, settings: settingsForWave(state, wp, b.id, ds.rowKey, ds.defender), tags: ds.tags||[]}).best;
             if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) clearAll += 1;
           }
 
@@ -5542,11 +5682,13 @@ const headLeft = el('div', {}, [
     // Move pool list
     const mp = el('div', {}, [
       el('div', {class:'panel-subtitle'}, 'Move pool (set priority + enable moves)'),
-      el('div', {class:'muted small'}, 'Priority: P1 preferred, then P2. P3 only if P1/P2 cannot OHKO.'),
+      el('div', {class:'muted small'}, 'Priority tiers: P1 most preferred → P5 least preferred (strong STAB last). Solver uses the lowest tier that still wins.'),
       el('div', {id:'movePoolList'}),
     ]);
 
     const mpList = $('#movePoolList', mp);
+
+    const allowPPEdit = !!state.settings.allowManualPPEdit;
 
     const list = (r.movePool||[]).slice().sort((a,b)=>(Number(a.prio)-Number(b.prio))||a.name.localeCompare(b.name));
     for (const m of list){
@@ -5556,6 +5698,36 @@ const headLeft = el('div', {}, [
       const ppCur = Number(ppObj?.cur ?? DEFAULT_MOVE_PP);
       const ppMax = Number(ppObj?.max ?? DEFAULT_MOVE_PP);
       const ppMeta = `PP ${ppCur}/${ppMax}`;
+
+      const ppEdit = (function(){
+        const wrap = el('div', {class:'ppedit'});
+        const inpCur = el('input', {type:'number', min:'0', max:String(ppMax), step:'1', value:String(ppCur), class:'inp-mini', disabled: !allowPPEdit});
+        const inpMax = el('input', {type:'number', min:'1', max:'99', step:'1', value:String(ppMax), class:'inp-mini', disabled: !allowPPEdit});
+        inpCur.addEventListener('change', ()=>{
+          const v = clampInt(inpCur.value, 0, Number(inpMax.value)||ppMax);
+          store.update(s=>{ setPP(s, r.id, m.name, v); });
+        });
+        inpMax.addEventListener('change', ()=>{
+          const vMax = clampInt(inpMax.value, 1, 99);
+          store.update(s=>{
+            const curR = byId(s.roster, r.id);
+            if (!curR) return;
+            ensurePPForRosterMon(s, curR);
+            const rec = s.pp?.[r.id]?.[m.name];
+            if (!rec) return;
+            rec.max = vMax;
+            if (rec.cur > rec.max) rec.cur = rec.max;
+          });
+        });
+        // Keep cur input max in sync when max changes
+        inpMax.addEventListener('input', ()=>{ inpCur.max = String(clampInt(inpMax.value,1,99)); });
+        wrap.appendChild(el('span', {class:'muted small'}, 'PP'));
+        wrap.appendChild(inpCur);
+        wrap.appendChild(el('span', {class:'muted small'}, '/'));
+        wrap.appendChild(inpMax);
+        if (!allowPPEdit) wrap.title = 'Enable manual PP editing in Settings.';
+        return wrap;
+      })();
 
       const useChk = el('input', {type:'checkbox', checked: !!m.use});
       useChk.addEventListener('change', ()=>{
@@ -5567,13 +5739,13 @@ const headLeft = el('div', {}, [
         });
       });
 
-      const prioSel = el('select', {}, [1,2,3].map(p=>el('option',{value:String(p), selected:Number(m.prio)===p}, `prio ${p}`)));
+      const prioSel = el('select', {}, [1,2,3,4,5].map(p=>el('option',{value:String(p), selected:Number(m.prio)===p}, `P${p}`)));
       prioSel.addEventListener('change', ()=>{
         store.update(s=>{
           const cur = byId(s.roster, r.id);
           if (!cur) return;
           const mm = (cur.movePool||[]).find(x=>x.name===m.name);
-          if (mm) mm.prio = Number(prioSel.value) || 2;
+          if (mm){ mm.prio = Number(prioSel.value) || 3; mm.prioAuto = false; }
         });
       });
 
@@ -5595,6 +5767,7 @@ const headLeft = el('div', {}, [
         ]),
         el('div', {class:'row-right'}, [
           prioSel,
+          ppEdit,
           el('label', {class:'check', style:'margin:0'}, [useChk, el('span', {}, 'use')]),
           rmBtn,
         ]),
@@ -5621,8 +5794,8 @@ const headLeft = el('div', {}, [
         if (!cur) return;
         if ((cur.movePool||[]).some(x=>x.name===mv)) return;
         const species = cur.effectiveSpecies || cur.baseSpecies;
-        const prio = defaultPrioForMove(data, species, mv);
-        cur.movePool.push({name: mv, prio, use:true, source:'tm'});
+        const prio = defaultPrioForMove(data, species, mv, cur.ability || '', {state:s, entry:cur});
+        cur.movePool.push({name: mv, prio, prioAuto:true, use:true, source:'tm'});
       });
     });
 
@@ -6421,57 +6594,6 @@ const headLeft = el('div', {}, [
   }
 
 
-  // ---------------- Sim (full battle simulator) ----------------
-
-  function renderSim(state){
-    tabSim.innerHTML = '';
-
-    const wavesByKey = groupBy(data.calcSlots, s=>s.waveKey);
-    const waveKeys = Object.keys(wavesByKey).sort((a,b)=>waveOrderKey(a)-waveOrderKey(b));
-
-    const curKey = state.ui.simWaveKey && wavesByKey[state.ui.simWaveKey] ? state.ui.simWaveKey : (waveKeys[0] || null);
-
-    const sel = el('select', {style:'min-width:220px'}, [
-      ...waveKeys.map(k=>{
-        const first = wavesByKey[k]?.[0];
-        const label = first ? `${k} • ${first.animal} • Lv ${first.level}` : k;
-        return el('option', {value:k, selected:k===curKey}, label);
-      })
-    ]);
-
-    sel.addEventListener('change', ()=>{
-      store.update(s=>{ s.ui.simWaveKey = sel.value; });
-    });
-
-    const head = el('div', {class:'panel'}, [
-      el('div', {class:'panel-title'}, 'Simulator'),
-      el('div', {class:'muted small'}, 'Full step-by-step simulator (PP + manual moves/targets). In Waves, keep it simple — here you can deep-dive any matchup.'),
-      el('div', {style:'display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px'}, [
-        el('div', {class:'field', style:'margin:0'}, [el('label', {}, 'Wave'), sel]),
-        (function(){
-          const b = el('button', {class:'btn-mini'}, 'Open in Waves');
-          b.addEventListener('click', ()=>{
-            store.update(s=>{ s.ui.tab='waves'; s.ui.waveExpanded[curKey]=true; });
-          });
-          return b;
-        })(),
-      ]),
-    ]);
-
-    tabSim.appendChild(head);
-
-    if (!curKey){
-      tabSim.appendChild(el('div', {class:'muted'}, 'No wave data.'));
-      return;
-    }
-
-    const slots = wavesByKey[curKey] || [];
-    ensureWavePlan(data, state, curKey, slots);
-    const wp = store.getState().wavePlans?.[curKey];
-
-    // Reuse the existing detailed battle panel
-    tabSim.appendChild(renderBattlePanel(store.getState(), curKey, slots, wp));
-  }
 
   // ---------------- Settings ----------------
 
@@ -6531,10 +6653,10 @@ const headLeft = el('div', {}, [
       el('div', {class:'panel-subtitle'}, 'Global calc constants'),
       el('div', {class:'muted small'}, 'These affect damage calcs everywhere (Waves + Overview).'),
       el('div', {class:'core-fields'}, [
-        fieldNum('Claimed level', s.claimedLevel, {min:1,max:100,step:1}, v=>store.update(st=>{st.settings.claimedLevel=v;})),
-        fieldNum('Claimed IV (all stats)', s.claimedIV, {min:0,max:31,step:1}, v=>store.update(st=>{st.settings.claimedIV=v;})),
-        fieldNum('Claimed EV (all stats)', s.claimedEV, {min:0,max:252,step:1}, v=>store.update(st=>{st.settings.claimedEV=v;})),
-        fieldNum('Strength charm EV (all stats)', s.strengthEV, {min:0,max:252,step:1}, v=>store.update(st=>{st.settings.strengthEV=v;})),
+        fieldNum('Claimed level', s.claimedLevel, {min:1,max:100,step:1}, v=>store.update(st=>{st.settings.claimedLevel=v; recomputeAutoPriosForRoster(data, st);})),
+        fieldNum('Claimed IV (all stats)', s.claimedIV, {min:0,max:31,step:1}, v=>store.update(st=>{st.settings.claimedIV=v; recomputeAutoPriosForRoster(data, st);})),
+        fieldNum('Claimed EV (all stats)', s.claimedEV, {min:0,max:252,step:1}, v=>store.update(st=>{st.settings.claimedEV=v; recomputeAutoPriosForRoster(data, st);})),
+        fieldNum('Strength charm EV (all stats)', s.strengthEV, {min:0,max:252,step:1}, v=>store.update(st=>{st.settings.strengthEV=v; recomputeAutoPriosForRoster(data, st);})),
       ]),
       el('hr'),
       el('div', {class:'core-fields'}, [
@@ -6543,8 +6665,10 @@ const headLeft = el('div', {}, [
       ]),
       el('hr'),
       el('div', {class:'panel-subtitle'}, 'Move selection behavior'),
-      el('div', {class:'muted small'}, 'Priority is fixed: P1 preferred, P3 only if P1/P2 cannot OHKO.'),
+      el('div', {class:'muted small'}, 'Priority tiers are 1..5 (lower is more preferred). Solver always tries the lowest tier that still wins.'),
       fieldCheck('Conserve power (prefer closest-to-100% OHKO)', s.conservePower, v=>store.update(st=>{st.settings.conservePower=v;})),
+      fieldCheck('Allow manual PP editing (debug)', s.allowManualPPEdit, v=>store.update(st=>{st.settings.allowManualPPEdit=v;})),
+      fieldCheck('Auto-bump prio when PP ≤ 5 (lazy conserve)', s.autoBumpPrioLowPP, v=>store.update(st=>{st.settings.autoBumpPrioLowPP=v;})),
       el('div', {class:'core-fields'}, [
         fieldNum('STAB preference bonus (adds to score)', s.stabBonus, {min:0,max:50,step:1}, v=>store.update(st=>{st.settings.stabBonus=v;})),
         fieldNum('Other multiplier (damage)', s.otherMult, {min:0,max:10,step:0.05,isFloat:true}, v=>store.update(st=>{st.settings.otherMult=v;})),
@@ -6725,7 +6849,6 @@ const headLeft = el('div', {}, [
     else if (state.ui.tab === 'roster') renderRoster(state);
     else if (state.ui.tab === 'bag') renderBag(state);
     else if (state.ui.tab === 'settings') renderSettings(state);
-    else if (state.ui.tab === 'sim') renderSim(state);
     else if (state.ui.tab === 'unlocked') renderUnlocked(state);
     scheduleA11y();
   }

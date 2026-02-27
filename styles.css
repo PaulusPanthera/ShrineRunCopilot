@@ -1,7 +1,29 @@
 /* styles.css
- * alpha_v1_sim v1.0.0
+ * alpha_v1_sim v1.0.10
  * Styles for the Abundant Shrine Run tool.
  */
+
+/* Primary "Fight" CTA in the Fight plan */
+.panel-title-row{display:flex; align-items:center; justify-content:space-between; gap:12px}
+.panel-title-row .panel-title{margin-bottom:0}
+
+/* Legacy (kept for compatibility if other panels still use it) */
+.fight-primary-row{display:flex; justify-content:flex-end; margin-top:10px}
+.btn-fight-primary{
+  padding:12px 18px;
+  border-radius:12px;
+  font-weight:900;
+  font-size:16px;
+  letter-spacing:.4px;
+  border-color: rgba(122,167,255,.55);
+  background:
+    radial-gradient(520px 160px at 18% 20%, rgba(122,167,255,.20), transparent 60%),
+    rgba(16,22,35,.75);
+  box-shadow: 0 14px 34px rgba(0,0,0,.32);
+}
+.btn-fight-primary:hover{border-color: rgba(122,167,255,.78)}
+.btn-fight-primary:active{transform: scale(.98)}
+.btn-fight-primary:disabled{opacity:.45; cursor:not-allowed; box-shadow:none; transform:none}
 
 /* v2.0.0-beta */
 /* UI skin + layout tweaks (settings layout + micro-polish). */
@@ -1047,6 +1069,8 @@ body::after{
 /* Mini controls used throughout the planner */
 .sel-mini{font-size:12px; padding:4px 6px; border-radius:10px; border:1px solid rgba(120,170,255,.18); background-color: rgba(0,0,0,.25); color: var(--text)}
 .inp-mini{font-size:12px; padding:4px 6px; border-radius:10px; border:1px solid rgba(120,170,255,.18); background: rgba(0,0,0,.25); color: var(--text); width:64px}
+.ppedit{display:flex; align-items:center; gap:6px;}
+.ppedit .inp-mini{width:56px}
 
 /* --- Scrollbar polish (global) --- */
 /* Remove visible scrollbar entirely (scroll still works). */

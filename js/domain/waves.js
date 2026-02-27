@@ -1,5 +1,5 @@
 // js/domain/waves.js
-// alpha_v1_sim v1.0.0
+// alpha_v1_sim v1.0.13
 // Project source file.
 
 import { fixName } from '../data/nameFixes.js';
@@ -42,6 +42,12 @@ export function ensureWaveMods(wp){
   wp.monMods = wp.monMods || {atk:{}, def:{}};
   wp.monMods.atk = wp.monMods.atk || {};
   wp.monMods.def = wp.monMods.def || {};
+
+  // Optional per-wave held item overrides (used for Fight plan + solver sims).
+  // Keys are roster mon ids, values are item names.
+  wp.itemOverride = (wp.itemOverride && typeof wp.itemOverride === 'object') ? wp.itemOverride : {};
+  // NOTE: pruning invalid override keys happens in ensureWavePlan (where state.roster is available).
+  // Prune overrides that reference missing mons.
   return wp.monMods;
 }
 
@@ -68,9 +74,11 @@ export function getWaveAtkMods(settings, wp, attackerId){
   return {...defaultWaveAtkMods(settings), ...((wp.monMods?.atk && wp.monMods.atk[attackerId]) || {})};
 }
 
-export function settingsForWave(state, wp, attackerId, defenderRowKey){
+export function settingsForWave(state, wp, attackerId, defenderRowKey, defenderSpecies=null){
   const rosterMon = attackerId ? byId(state.roster||[], attackerId) : null;
-  const attackerItem = rosterMon?.item || null;
+  // Held item: roster assignment, with optional per-wave override.
+  const itemOvr = (wp && wp.itemOverride && attackerId) ? (wp.itemOverride[attackerId] || null) : null;
+  const attackerItem = itemOvr || (rosterMon?.item || null);
 
   // Attacker mods are GLOBAL (stored on the roster mon), with optional per-wave overrides.
   const globalAm = (rosterMon && rosterMon.mods) ? rosterMon.mods : {};
@@ -82,12 +90,23 @@ export function settingsForWave(state, wp, attackerId, defenderRowKey){
 
   const hpPct = clampInt((dm.hpPct ?? 100), 1, 100);
 
+
+  // Weight (kg) for weight-based base power moves (Low Kick / Grass Knot).
+  // Uses PokéAPI cache when available; Waves UI triggers caching for displayed defenders.
+  const defSp = defenderSpecies ? fixName(defenderSpecies) : null;
+  const api = defSp ? (state.dexApiCache?.[defSp] || null) : null;
+  const defenderWeightKg = api?.weightHg ? (api.weightHg / 10) : null;
+
+
   return {
     ...state.settings,
 
     // Held items
     attackerItem,
+    attackerAbility: rosterMon?.ability || null,
     defenderItem: null,
+
+    defenderWeightKg,
 
     // Attacker modifiers (per-mon)
     atkStage: clampInt((am.atkStage ?? 0), -6, 6),
@@ -420,6 +439,11 @@ export function ensureWavePlan(data, state, waveKey, slots){
   const slotByKey = new Map(slots.map(s=>[s.rowKey, s]));
   const baseKey = (k)=> String(k||'').split('#')[0];
   ensureWaveMods(wp);
+  // Prune item overrides that reference missing roster mons.
+  const rosterIdsAll = new Set((state.roster||[]).map(r=>r && r.id).filter(Boolean));
+  for (const k of Object.keys(wp.itemOverride||{})){
+    if (!rosterIdsAll.has(k)) delete wp.itemOverride[k];
+  }
   wp.defenders = (wp.defenders||[]).filter(rk => slotByKey.has(baseKey(rk))).slice(0, limit);
 
   if (!wp.defenders.length){
@@ -438,6 +462,11 @@ export function ensureWavePlan(data, state, waveKey, slots){
   // Global pool: always derived from active roster (up to 16).
   wp.attackers = activeRoster.slice(0,16).map(r=>r.id);
   if (wp.attackers.length < 2) wp.attackers = activeRoster.slice(0,2).map(r=>r.id);
+  // Prune item overrides that are not in this wave's attacker pool.
+  for (const k of Object.keys(wp.itemOverride||{})){
+    if (!wp.attackers.includes(k)) delete wp.itemOverride[k];
+  }
+
 
   wp.attackerStart = (wp.attackerStart||[]).filter(id=>wp.attackers.includes(id)).slice(0,2);
   if (wp.attackerStart.length < 2) wp.attackerStart = wp.attackers.slice(0,2);
@@ -511,7 +540,7 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
     });
 
     const bestVs = (att, def, defSlot)=>{
-      const sW = settingsForWave(state, wp, att.id, defSlot.rowKey);
+      const sW = settingsForWave(state, wp, att.id, defSlot.rowKey, defSlot.defender);
       return window.SHRINE_CALC.chooseBestMove({
         data,
         attacker: atkObj(att, sW),
@@ -546,7 +575,7 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
         });
 
         const rrVsDef = (attMon, moveName, defSlot, curFrac)=>{
-          const s0 = settingsForWave(state, wp, attMon.id, defSlot.rowKey);
+          const s0 = settingsForWave(state, wp, attMon.id, defSlot.rowKey, defSlot.defender);
           const s = {...s0, defenderCurHpFrac: (curFrac ?? 1)};
           const rr = window.SHRINE_CALC.computeDamageRange({data, attacker: atkObj2(attMon, s), defender: defObj2(defSlot), moveName, settings: s, tags: defSlot.tags||[]});
           return (rr && rr.ok) ? rr : null;
@@ -681,7 +710,7 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
         attacker:{species:(aL.effectiveSpecies||aL.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aL.strength?state.settings.strengthEV:state.settings.claimedEV},
         defender:defObj,
         movePool: movePoolForWave(wp, aL),
-        settings: settingsForWave(state, wp, aL.id, ds.rowKey),
+        settings: settingsForWave(state, wp, aL.id, ds.rowKey, ds.defender),
         tags: ds.tags||[],
       }).best;
       const b1 = window.SHRINE_CALC.chooseBestMove({
@@ -689,7 +718,7 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
         attacker:{species:(aR.effectiveSpecies||aR.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aR.strength?state.settings.strengthEV:state.settings.claimedEV},
         defender:defObj,
         movePool: movePoolForWave(wp, aR),
-        settings: settingsForWave(state, wp, aR.id, ds.rowKey),
+        settings: settingsForWave(state, wp, aR.id, ds.rowKey, ds.defender),
         tags: ds.tags||[],
       }).best;
       if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) startersClear += 1;
@@ -773,7 +802,7 @@ export function autoPickOrdersForWave(data, state, wp, slotByKey){
       attacker:{species:(aL.effectiveSpecies||aL.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aL.strength?state.settings.strengthEV:state.settings.claimedEV},
       defender:defLeft,
       movePool: movePoolForWave(wp, aL),
-      settings: settingsForWave(state, wp, aL.id, dL.rowKey),
+      settings: settingsForWave(state, wp, aL.id, dL.rowKey, dL.defender),
       tags: dL.tags||[],
     }).best;
     const bestR = window.SHRINE_CALC.chooseBestMove({
@@ -781,7 +810,7 @@ export function autoPickOrdersForWave(data, state, wp, slotByKey){
       attacker:{species:(aR.effectiveSpecies||aR.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aR.strength?state.settings.strengthEV:state.settings.claimedEV},
       defender:defRight,
       movePool: movePoolForWave(wp, aR),
-      settings: settingsForWave(state, wp, aR.id, dR.rowKey),
+      settings: settingsForWave(state, wp, aR.id, dR.rowKey, dR.defender),
       tags: dR.tags||[],
     }).best;
 
@@ -799,7 +828,7 @@ export function autoPickOrdersForWave(data, state, wp, slotByKey){
         attacker:{species:(aL.effectiveSpecies||aL.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aL.strength?state.settings.strengthEV:state.settings.claimedEV},
         defender:defObj,
         movePool: movePoolForWave(wp, aL),
-        settings: settingsForWave(state, wp, aL.id, ds.rowKey),
+        settings: settingsForWave(state, wp, aL.id, ds.rowKey, ds.defender),
         tags: ds.tags||[],
       }).best;
       const b1 = window.SHRINE_CALC.chooseBestMove({
@@ -807,7 +836,7 @@ export function autoPickOrdersForWave(data, state, wp, slotByKey){
         attacker:{species:(aR.effectiveSpecies||aR.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aR.strength?state.settings.strengthEV:state.settings.claimedEV},
         defender:defObj,
         movePool: movePoolForWave(wp, aR),
-        settings: settingsForWave(state, wp, aR.id, ds.rowKey),
+        settings: settingsForWave(state, wp, aR.id, ds.rowKey, ds.defender),
         tags: ds.tags||[],
       }).best;
       if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) startersClear += 1;

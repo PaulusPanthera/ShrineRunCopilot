@@ -1,5 +1,5 @@
 // calc.js
-// alpha_v1_sim v1.0.0
+// alpha_v1_sim v1.0.13
 // Damage calc core and helpers.
 
 (function(){
@@ -110,15 +110,34 @@
     return D;
   }
 
+  
+  // Weight-based base power moves (Gen 5 brackets; same as later gens).
+  // Low Kick / Grass Knot: base power depends on the TARGET's weight.
+  function weightBasedPowerKg(weightKg){
+    const w = Number(weightKg);
+    if (!isNum(w) || w <= 0) return null;
+    if (w < 10) return 20;
+    if (w < 25) return 40;
+    if (w < 50) return 60;
+    if (w < 100) return 80;
+    if (w < 200) return 100;
+    return 120;
+  }
+
   function computeDamageRange({data, attacker, defender, moveName, settings, tags}){
     const {dex, moves, typing, rules, stages} = data;
     const mv = moves[moveName];
-    if (!mv || !mv.type || !mv.category || !isNum(mv.power) || mv.power <= 0) {
+    const varPower = (moveName === 'Low Kick' || moveName === 'Grass Knot');
+    if (!mv || !mv.type || !mv.category || (!varPower && (!isNum(mv.power) || mv.power <= 0))) {
       return {ok:false, reason:"non-damaging"};
     }
     const atkMon = dex[attacker.species];
     const defMon = dex[defender.species];
     if (!atkMon || !defMon) return {ok:false, reason:"missing species"};
+
+    const abRaw = (settings && (settings.attackerAbility ?? settings.atkAbility)) ?? attacker.ability;
+    const ab = String(abRaw || '').trim();
+    const abLc = ab.toLowerCase();
 
     const L = attacker.level;
     const levelDef = defender.level;
@@ -151,20 +170,42 @@
       ? statOther(atkMon.base.atk, L, atkIV, atkEV)
       : statOther(atkMon.base.spa, L, atkIV, atkEV);
 
-    const A = Math.floor(A0 * stageMultiplier(stages, atkStage));
+    let A = Math.floor(A0 * stageMultiplier(stages, atkStage));
+    // Ability offensive scaling (minimal set for shrine planning)
+    if (uses === 'Atk' && (abLc === 'huge power' || abLc === 'pure power')) A = Math.floor(A * 2);
 
     // Defender defensive stat + stages
-    const isSpecial = (mv.targets === 'SpD' || mv.category === 'Special');
-    const D0 = isSpecial
+    // Most moves target the defensive stat implied by category, but some moves (e.g. Secret Sword)
+    // use SpA offensively while targeting the foe's Defense.
+    const defKey = (mv.targets === 'Def' || mv.targets === 'SpD')
+      ? mv.targets
+      : (mv.category === 'Special' ? 'SpD' : 'Def');
+
+    const D0 = (defKey === 'SpD')
       ? statOther(defMon.base.spd, levelDef, defIV, defEV)
       : statOther(defMon.base.def, levelDef, defIV, defEV);
 
-    const defStage = isSpecial ? (settings.enemySpdStage ?? 0) : (settings.enemyDefStage ?? 0);
+    const defStage = (defKey === 'SpD')
+      ? (settings.enemySpdStage ?? 0)
+      : (settings.enemyDefStage ?? 0);
     let D = Math.max(1, Math.floor(D0 * stageMultiplier(stages, defStage)));
-    D = applyDefensiveItemMult(settings.defenderItem, mv.category, D);
 
+    // Defensive item scaling should follow the targeted defensive stat (e.g. AV only affects SpD).
+    const defCat = (defKey === 'SpD') ? 'Special' : 'Physical';
+    D = applyDefensiveItemMult(settings.defenderItem, defCat, D);
     // Base damage (Gen5-ish rounding)
-    let power = mv.power;
+    let power = isNum(mv.power) ? mv.power : 0;
+    if (varPower){
+      const wKg = (settings && (settings.defenderWeightKg ?? (isNum(settings.defenderWeightHg) ? (settings.defenderWeightHg/10) : null))) ?? null;
+      const wp = weightBasedPowerKg(wKg);
+      if (wp) power = wp;
+      else power = 60; // safe mid default when weight is unknown
+    }
+    // Multi-hit moves (deterministic): model as full hit count when known.
+    // This affects planning + solver decisions without adding RNG.
+    if (moveName === 'Bonemerang') power = power * 2;
+    if (moveName === 'Dual Chop') power = power * 2;
+    if (moveName === 'DoubleSlap') power = power * ((abLc === 'skill link') ? 5 : 2);
     // Acrobatics: double BP when attacker holds no item.
     if (moveName === 'Acrobatics' && !(settings.attackerItem)) power = power * 2;
     const base1 = Math.floor((2 * L) / 5) + 2;
@@ -179,8 +220,20 @@
 
     const other = settings.otherMult ?? 1;
 
+    // Ability multipliers (deterministic; assumes ability is active for planning).
+    let abMult = 1;
+    if (mv.category === 'Physical' && abLc === 'toxic boost') abMult *= 1.5;
+    if (abLc === 'iron fist'){
+      const punch = new Set(['Drain Punch','ThunderPunch','Fire Punch','Ice Punch','DynamicPunch','Bullet Punch','Mach Punch']);
+      if (punch.has(moveName)) abMult *= 1.2;
+    }
+    if (abLc === 'reckless'){
+      const reckless = new Set(['Brave Bird','Double-Edge','Head Smash','Jump Kick','High Jump Kick','Take Down','Wild Charge']);
+      if (reckless.has(moveName)) abMult *= 1.2;
+    }
+
     const itemMult = itemOffenseMult(settings.attackerItem, mv.type, mv.category, eff);
-    const modifier = stabMult * eff * hhMult * other * itemMult;
+    const modifier = stabMult * eff * hhMult * other * itemMult * abMult;
 
     dmg = Math.floor(dmg * modifier);
 
@@ -332,9 +385,10 @@
 
   function normPrio(p){
     const n = Number(p);
-    if (!Number.isFinite(n)) return 2;
-    // clamp to 1..3
-    return clamp(n, 1, 3);
+    // Default midpoint for the expanded 1..5 tier system.
+    if (!Number.isFinite(n)) return 3;
+    // clamp to 1..5
+    return clamp(n, 1, 5);
   }
 
   function pickCandidateMoves(movePool){

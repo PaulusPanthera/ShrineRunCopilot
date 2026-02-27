@@ -1,5 +1,5 @@
 // js/domain/items.js
-// alpha_v1_sim v1.0.2
+// alpha_v1_sim v1.0.3
 // Shared item catalog + shop economy + bag helpers.
 
 // Starters have Strength Charm forced ON, but it does NOT consume the shared bag.
@@ -142,6 +142,36 @@ export function computeRosterUsage(state){
   }
   return used;
 }
+
+// Compute bag usage while applying an optional per-mon item override map.
+// This lets the Waves "Fight plan" treat temporary item overrides as swapping
+// the held item (i.e. it frees the original item and consumes the override).
+export function computeRosterUsageWithItemOverrides(state, itemOverride){
+  const used = {};
+  const ovr = (itemOverride && typeof itemOverride === 'object') ? itemOverride : null;
+  for (const r of (state.roster||[])){
+    if (!r) continue;
+    if (r.evo) used['Evo Charm'] = (used['Evo Charm']||0) + 1;
+    // Starters: Strength is forced/free (ignore for bag usage).
+    if (r.strength && !isStarterSpecies(r.baseSpecies)) used['Strength Charm'] = (used['Strength Charm']||0) + 1;
+
+    let item = r.item;
+    const k = r.id;
+    if (ovr && k && ovr[k]) item = ovr[k];
+    if (item) used[item] = (used[item]||0) + 1;
+  }
+  return used;
+}
+
+// Like availableCount(), but respects temporary per-mon item overrides.
+export function availableCountWithItemOverrides(state, itemOverride, itemName){
+  const bag = state.bag || {};
+  const used = computeRosterUsageWithItemOverrides(state, itemOverride);
+  const total = Number(bag[itemName]||0);
+  const u = Number(used[itemName]||0);
+  return total - u;
+}
+
 
 export function availableCount(state, itemName){
   const bag = state.bag || {};

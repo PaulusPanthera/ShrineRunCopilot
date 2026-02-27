@@ -1,6 +1,6 @@
 // js/state/defaultState.js
-// alpha_v1_sim v1.0.0
-// Project source file.
+//
+// alpha v1
 
 export const STATE_VERSION = 13;
 export const STORAGE_KEY = 'abundantShrinePlanner_state_v13';
@@ -47,6 +47,12 @@ export function createDefaultState(data){
       // If OFF (default), auto move selection will avoid AoE spread moves that could KO your partner.
       // Manual/forced moves can still friendly-fire, but the log will warn.
       allowFriendlyFire: false,
+
+      // If ON, allow manually editing PP numbers in the battle panel UI.
+      // Default OFF to keep PP tracking honest.
+      allowManualPPEdit: false,
+      // If ON (default), when a move drops to PP<=5 we bump its prio tier by +1 (once) to conserve scarce moves.
+      autoBumpPrioLowPP: true,
       movesPerMon: 3,
       stabBonus: 2,
       conservePower: false,
@@ -109,8 +115,7 @@ export function createDefaultState(data){
       dexSelectedForm: null,
       dexReturnTab: null,
       lastNonDexTab: 'waves',
-      simWaveKey: null,
-      dexDefenderLevelByBase: {},
+dexDefenderLevelByBase: {},
       attackOverview: null, // {defender, level, tags, source}
       overviewCollapsed: true,
     },
