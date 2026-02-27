@@ -1,6 +1,6 @@
 // js/main.js
-// alpha_v1_sim v1.0.0
-// App bootstrap and initialization.
+// alpha v1
+// App bootstrap and top-level initialization.
 
 import { loadData } from './data/loadData.js';
 import { createPokeApi } from './services/pokeApi.js';

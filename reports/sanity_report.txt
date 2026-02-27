@@ -1,3 +1,5 @@
+DEPRECATED: patch notes live in /REPORT.md (kept for archive)
+
 SANITY REPORT — alpha_v1_sim (patched)
 Generated: 2026-02-26 10:15 UTC
 

@@ -1,7 +1,7 @@
-/* styles.css
- * alpha_v1_sim v1.0.10
- * Styles for the Abundant Shrine Run tool.
- */
+/* styles.css */
+/* alpha v1 */
+/* Styles for the Abundant Shrine Run tool. */
+
 
 /* Primary "Fight" CTA in the Fight plan */
 .panel-title-row{display:flex; align-items:center; justify-content:space-between; gap:12px}
@@ -25,7 +25,6 @@
 .btn-fight-primary:active{transform: scale(.98)}
 .btn-fight-primary:disabled{opacity:.45; cursor:not-allowed; box-shadow:none; transform:none}
 
-/* v2.0.0-beta */
 /* UI skin + layout tweaks (settings layout + micro-polish). */
 
 :root{
@@ -556,6 +555,21 @@ body::after{
 .row-right{display:flex; gap:8px; align-items:center}
 
 
+/* Roster details: two-column content to reduce wasted space */
+.roster-details-grid{
+  display:grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap:14px;
+  align-items:start;
+}
+.roster-details-stack{min-width:0}
+.roster-details-stack .hr{margin:12px 0}
+@media (max-width: 980px){
+  .roster-layout{grid-template-columns: 1fr}
+  .roster-details-grid{grid-template-columns: 1fr}
+}
+
+
 
 /* --- Type chips (Pokédex-like) --- */
 .typechips{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px}
@@ -844,6 +858,11 @@ body::after{
 .fightlog-entry[open] > summary{border-bottom:1px solid rgba(120,170,255,.12)}
 .fightlog-sumleft{display:flex; flex-direction:column; gap:2px; min-width:0}
 .fightlog-prio{font-weight:900}
+
+.fightlog-meta{display:flex; gap:6px; flex-wrap:wrap; margin-top:4px}
+.fightlog-actions{display:flex; gap:6px; align-items:center}
+.fightlog-body-actions{padding:8px 12px 0; display:flex; gap:8px; flex-wrap:wrap}
+.fightlog-body .fightlog-lines{padding-top:8px}
 .fightlog-lines{padding:0 12px 10px; margin-top:0}
 .pick-grid{
   display:flex;
@@ -953,6 +972,25 @@ body::after{
 }
 
 /* --- Bag (v13) --- */
+
+.bag-tabs{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+.tabpill{
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background: rgba(6,10,18,.40);
+  color: var(--muted);
+  cursor:pointer;
+  font-size:12px;
+  font-weight:800;
+}
+.tabpill:hover{border-color: rgba(122,167,255,.35); color: var(--text); background: rgba(6,10,18,.60)}
+.tabpill.active{
+  border-color: rgba(122,167,255,.55);
+  color: var(--text);
+  background: rgba(22,32,56,.55);
+  box-shadow: 0 0 0 3px rgba(122,167,255,.10);
+}
 .bag-layout{ display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; }
 .bag-col{ flex: 1 1 320px; }
 .bag-form{ display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }

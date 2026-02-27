@@ -1,6 +1,6 @@
 // js/state/store.js
-// alpha_v1_sim v1.0.0
-// Project source file.
+// alpha v1
+// State store: update/apply + persistence wiring.
 
 function deepClone(x){
   return JSON.parse(JSON.stringify(x));

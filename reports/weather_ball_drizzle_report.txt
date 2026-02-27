@@ -1,3 +1,5 @@
+DEPRECATED: patch notes live in /REPORT.md (kept for archive)
+
 Weather Ball under Drizzle (Politoed)
 
 Current state:

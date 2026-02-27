@@ -1,14 +1,7 @@
 // js/domain/shrineRules.js
-// alpha_v1_sim v1.0.0
-// Project source file.
+// alpha v1
+// Run rules/constants for shrine planning.
 
-// Baseline rule:
-// - Every species has exactly 4 moves + 1 ability from claimedSets.
-// - Changes happen ONLY via explicit exceptions (below).
-
-// Nature rules (Shrine):
-// - All claimed mons use a neutral nature by default.
-// - Only the 4 starters differ: 3× Adamant, 1× Modest (Keldeo).
 export function defaultNatureForSpecies(species){
   const s = String(species || '').trim();
   // Special case: Politoed side-boss is always Modest (user-confirmed).

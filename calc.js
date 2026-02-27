@@ -1,5 +1,5 @@
 // calc.js
-// alpha_v1_sim v1.0.13
+// alpha v1
 // Damage calc core and helpers.
 
 (function(){

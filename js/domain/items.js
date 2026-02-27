@@ -1,8 +1,7 @@
 // js/domain/items.js
-// alpha_v1_sim v1.0.3
-// Shared item catalog + shop economy + bag helpers.
+// alpha v1
+// Bag items: pricing, effects, and helpers.
 
-// Starters have Strength Charm forced ON, but it does NOT consume the shared bag.
 import { isStarterSpecies } from './roster.js';
 
 export const TYPES_NO_FAIRY = [
@@ -331,9 +330,15 @@ export function buyOffer(item){
     return {item: name, qty: 5, cost: 6, label: 'Air Balloon x5'};
   }
 
-  // Rare Candy pack (shop sells as a bundle)
+  // Rare Candy (shop can sell 1/2/3; bag always stores single-unit counts)
   if (name === 'Rare Candy'){
-    return {item: name, qty: 3, cost: 48, label: 'Rare Candy x3'};
+    return {item: name, qty: 1, cost: 16, label: 'Rare Candy'};
+  }
+  if (name === 'Rare Candy x2'){
+    return {item: 'Rare Candy', qty: 2, cost: 32, label: 'Rare Candy x2'};
+  }
+  if (name === 'Rare Candy x3'){
+    return {item: 'Rare Candy', qty: 3, cost: 48, label: 'Rare Candy x3'};
   }
 
   // Plates sold as single.

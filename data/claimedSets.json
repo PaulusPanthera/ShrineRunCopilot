@@ -484,7 +484,7 @@
     "species": "Donphan"
   },
   "Dragonair": {
-    "ability": "Marvel Scale",
+    "ability": "Multiscale",
     "canClaim": 0,
     "moves": [
       "Dragon Pulse",
@@ -495,7 +495,7 @@
     "species": "Dragonair"
   },
   "Dragonite": {
-    "ability": "Marvel Scale",
+    "ability": "Multiscale",
     "canClaim": 0,
     "moves": [
       "Dragon Pulse",
@@ -506,7 +506,7 @@
     "species": "Dragonite"
   },
   "Dratini": {
-    "ability": "Marvel Scale",
+    "ability": "Multiscale",
     "canClaim": 1,
     "moves": [
       "Dragon Pulse",
@@ -1309,7 +1309,7 @@
     "species": "Mightyena"
   },
   "Milotic": {
-    "ability": "Marvel Scale",
+    "ability": "Multiscale",
     "canClaim": 0,
     "moves": [
       "Scald",

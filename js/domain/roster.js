@@ -1,6 +1,6 @@
 // js/domain/roster.js
-// alpha_v1_sim v1.0.13
-// Project source file.
+// alpha v1
+// Roster modeling and move pool utilities.
 
 import { EVO_OVERRIDES, EVO_PRESET } from '../services/pokeApi.js';
 import { applyMovesetOverrides, defaultNatureForSpecies } from './shrineRules.js';

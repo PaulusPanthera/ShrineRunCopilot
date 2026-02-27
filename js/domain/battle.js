@@ -1,6 +1,6 @@
 // js/domain/battle.js
-// alpha_v1_sim v1.0.13
-// Project source file.
+// alpha v1
+// Battle step resolution and turn simulation.
 
 import { settingsForWave, enemyThreatForMatchup, assumedEnemyThreatForMatchup } from './waves.js';
 

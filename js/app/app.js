@@ -1,6 +1,6 @@
 // js/app/app.js
-//
 // alpha v1
+// UI glue: rendering, handlers, and page wiring.
 
 import { $, $$, el, pill, formatPct, clampInt, sprite, ensureFormFieldA11y } from '../ui/dom.js';
 import { fixName } from '../data/nameFixes.js';
@@ -54,6 +54,25 @@ function spriteStatic(calcObj, name){
 
 function byId(arr, id){
   return arr.find(x => x.id === id);
+}
+
+// Resolve which roster entry should be re-selected when returning from Pokédex.
+// Primary: stored roster id. Fallback: stored base species name.
+function resolveDexReturnRosterId(state){
+  // Prefer new deterministic origin fields.
+  const id = state?.ui?.dexOriginRosterId || state?.ui?.dexReturnRosterId;
+  if (id && byId(state.roster||[], id)) return id;
+  const base = state?.ui?.dexOriginRosterBase || state?.ui?.dexReturnRosterBase;
+  if (base){
+    const b = fixName(base);
+    const hit = (state.roster||[]).find(r=>{
+      const rs = fixName(r?.baseSpecies);
+      const eff = fixName(r?.effectiveSpecies || r?.baseSpecies);
+      return rs === b || eff === b;
+    });
+    if (hit && hit.id) return hit.id;
+  }
+  return null;
 }
 
 function groupBy(arr, fn){
@@ -134,6 +153,9 @@ function waveOrderKey(wk){
   if (!m) return 999999;
   return (Number(m[1]) * 100) + Number(m[2]);
 }
+
+// Hard cap: roster can never exceed 16 entries.
+const MAX_ROSTER_SIZE = 16;
 
 export function startApp(ctx){
   const { data, calc, store, pokeApi } = ctx;
@@ -560,7 +582,8 @@ export function startApp(ctx){
     tabWaves.classList.toggle('hidden', state.ui.tab !== 'waves');
     tabRoster.classList.toggle('hidden', state.ui.tab !== 'roster');
     tabBag.classList.toggle('hidden', state.ui.tab !== 'bag');
-    tabSettings.classList.toggle('hidden', state.ui.tab !== 'settings');tabUnlocked.classList.toggle('hidden', state.ui.tab !== 'unlocked');
+    tabSettings.classList.toggle('hidden', state.ui.tab !== 'settings');
+    tabUnlocked.classList.toggle('hidden', state.ui.tab !== 'unlocked');
   }
 
   function attachTabHandlers(){
@@ -573,18 +596,36 @@ export function startApp(ctx){
           // - Leaving Pokédex clears its detail-layer state.
           if (t === 'unlocked'){
             s.ui.tab = 'unlocked';
+            // Entering Pokédex from the top nav starts a normal browsing session.
+            // Clear any stale roster-origin so "Back" doesn't randomly claim it's returning to roster.
+            s.ui.dexOrigin = 'unlocked';
+            s.ui.dexOriginRosterId = null;
+            s.ui.dexOriginRosterBase = null;
+            // Legacy fields kept for older saves.
             s.ui.dexReturnTab = 'unlocked';
+            s.ui.dexReturnRosterId = null;
+            s.ui.dexReturnRosterBase = null;
             s.ui.dexDetailBase = null;
             s.ui.dexSelectedForm = null;
             return;
           }
 
           // Any other tab: leave Pokédex entirely.
+          // If the Pokédex was opened from a roster mon, preserve the selection when returning.
+          if (t === 'roster'){
+            const rid = resolveDexReturnRosterId(s);
+            if (rid) s.ui.selectedRosterId = rid;
+          }
           s.ui.tab = t;
           s.ui.lastNonDexTab = t;
           s.ui.dexDetailBase = null;
           s.ui.dexSelectedForm = null;
+          s.ui.dexOrigin = null;
+          s.ui.dexOriginRosterId = null;
+          s.ui.dexOriginRosterBase = null;
           s.ui.dexReturnTab = null;
+          s.ui.dexReturnRosterId = null;
+          s.ui.dexReturnRosterBase = null;
         });
       });
     });
@@ -811,7 +852,7 @@ export function startApp(ctx){
 
     const panel = el('div', {class:'panel battle-panel'}, [
       header,
-      el('div', {class:'muted small'}, `Default PP: ${DEFAULT_MOVE_PP} for every move (temporary rule). Use Step turn to simulate; PP persists across waves.`),
+      el('div', {class:'muted small'}, `Default PP: ${DEFAULT_MOVE_PP} for every move (temporary rule). Use Step turn to step the fight; PP persists across waves.`),
     ]);
 
     const makeDefLabel = (rk)=>{
@@ -862,7 +903,7 @@ export function startApp(ctx){
     if (battle) btnRow.appendChild(resetBtn);
 
     if (!battle){
-      panel.appendChild(el('div', {class:'muted small', style:'margin-top:8px'}, 'Start a fight for this wave to simulate turns, track PP, and claim species.'));
+      panel.appendChild(el('div', {class:'muted small', style:'margin-top:8px'}, 'Start a fight for this wave to run turns, track PP, and claim species.'));
       return panel;
     }
 
@@ -875,6 +916,8 @@ export function startApp(ctx){
         el('option', {value:''}, '— choose —'),
         ...list.map(v=> el('option', {value:String(v)}, isAtk ? makeAtkLabel(v) : makeDefLabel(v))),
       ]);
+      // Default to the next bench entry (join order). User can override if desired.
+      if (list.length) sel.value = String(list[0]);
       const btn = el('button', {class:'btn-mini'}, 'Send in');
       btn.addEventListener('click', ()=>{
         const val = sel.value;
@@ -885,7 +928,7 @@ export function startApp(ctx){
       });
       panel.appendChild(el('div', {class:'battle-reinf'}, [
         pill('REINFORCEMENT','warn'),
-        el('div', {class:'muted small'}, isAtk ? 'Choose next attacker to send in.' : 'Choose next defender to send in.'),
+        el('div', {class:'muted small'}, isAtk ? 'Next attacker (join order).' : 'Next defender (join order).'),
         el('div', {style:'display:flex; gap:8px; align-items:center; flex-wrap:wrap'}, [sel, btn]),
       ]));
     }
@@ -1184,13 +1227,27 @@ export function startApp(ctx){
         ]);
       }
 
+
       // Split the huge list into compact selectors (gems/plates are type-based)
       const bundles = ['Air Balloon x5', 'Copper Coin x5'];
+
+      // Charms category (unclutter)
+      const charms = ['Evo Charm', 'Strength Charm'];
+
+      // Dedup: if a bundle exists, hide the single from "Other items"
+      const bundleDedupSingles = new Set([
+        'Air Balloon',
+        'Copper Coin',
+      ]);
+      const present = new Set(ITEM_CATALOG);
 
       const otherItems = uniq(ITEM_CATALOG.slice())
         .filter(n=>!isGem(n))
         .filter(n=>!isPlate(n))
         .filter(n=>!String(n).startsWith('Rare Candy'))
+        .filter(n=>!charms.includes(n))
+        // if single + bundle exists, hide single
+        .filter(n=>!(bundleDedupSingles.has(n) && present.has(`${n} x5`)))
         .filter(n=>!bundles.includes(n))
         .sort((a,b)=>a.localeCompare(b));
 
@@ -1217,6 +1274,7 @@ export function startApp(ctx){
         if (isPlate(n)) return {cat:'plate', val: typeFromPlateItem(n) || TYPES_NO_FAIRY[0]};
         if (String(n).startsWith('Rare Candy')) return {cat:'rare', val: String(rareQtyFromItem(n) || 1)};
         if (bundles.includes(n)) return {cat:'bundle', val:n};
+        if (charms.includes(n)) return {cat:'charms', val:n};
         return {cat:'other', val:n};
       }
 
@@ -1232,6 +1290,7 @@ export function startApp(ctx){
           return 'Rare Candy';
         }
         if (cat === 'bundle') return val || null;
+        if (cat === 'charms') return val || null;
         if (cat === 'other') return val || null;
         return null;
       }
@@ -1243,6 +1302,7 @@ export function startApp(ctx){
         el('option', {value:'plate', selected:init.cat==='plate'}, 'Plate'),
         el('option', {value:'rare', selected:init.cat==='rare'}, 'Rare Candy'),
         el('option', {value:'bundle', selected:init.cat==='bundle'}, 'Bundles'),
+        el('option', {value:'charms', selected:init.cat==='charms'}, 'Charms'),
         el('option', {value:'other', selected:init.cat==='other'}, 'Other items'),
       ]);
 
@@ -1276,6 +1336,12 @@ export function startApp(ctx){
           }
           return;
         }
+        if (cat === 'charms'){
+          for (const c of charms){
+            itemSel.appendChild(el('option', {value:c, selected:String(curVal||'')===String(c)}, c));
+          }
+          return;
+        }
         if (cat === 'other'){
           itemSel.appendChild(el('option', {value:''}, '— select —'));
           for (const n of otherItems){
@@ -1305,6 +1371,7 @@ export function startApp(ctx){
         const defVal = (cat === 'gem' || cat === 'plate') ? TYPES_NO_FAIRY[0]
           : (cat === 'rare') ? '1'
           : (cat === 'bundle') ? (bundles[0] || '')
+          : (cat === 'charms') ? (charms[0] || '')
           : (cat === 'other') ? ''
           : '';
         fillItemOptions(cat, defVal);
@@ -1362,7 +1429,7 @@ export function startApp(ctx){
 
     const panel = el('div', {class:'panel'}, [
       el('div', {class:'panel-title'}, `Wave fights — ${doneCount}/4 done`),
-      el('div', {class:'muted small'}, 'Quick tracker for the 4 in-game fights on this wave. Moves are auto-picked from your roster priorities.'),
+      el('div', {class:'muted small'}, 'Quick tracker for the 4 in-game fights on this wave. Moves are auto-picked from your roster priorities. Expand Fight log entries for turn-by-turn detail.'),
     ]);
 
     // Map rowKey -> base species (global) for claim revert checks.
@@ -1452,7 +1519,7 @@ export function startApp(ctx){
 
     const activeRoster = (state.roster||[]).filter(r=>r.active);
     if (activeRoster.length < 2){
-      panel.appendChild(el('div', {class:'muted small', style:'margin-top:10px'}, 'Need at least 2 active roster mons to simulate fights.'));
+      panel.appendChild(el('div', {class:'muted small', style:'margin-top:10px'}, 'Need at least 2 active roster mons to run fights.'));
       return panel;
     }
 
@@ -2003,9 +2070,9 @@ export function startApp(ctx){
                `B → ${chosen.b.target.defender}: ${chosen.b.best?.move||'—'} (P${chosen.b.best?.prio||'?'} ${formatPct(chosen.b.best?.minPct||0)}) | prioØ ${formatPrioAvg(prAvg)}`;
       })();
 
-      const summaryWrap = el('div', {class:'muted small', style:'margin-top:6px'}, fight.summary ? fight.summary.text : (plannedText || 'Not simulated yet.'));
+      const summaryWrap = el('div', {class:'muted small', style:'margin-top:6px'}, fight.summary ? fight.summary.text : (plannedText || 'No preview yet.'));
 
-      const simulateBtn = el('button', {class:'btn-mini'}, fight.done ? 'Re-sim' : 'Simulate');
+      const simulateBtn = el('button', {class:'btn-mini'}, fight.done ? 'Re-run' : 'Preview');
       const resetBtn = el('button', {class:'btn-mini'}, 'Reset');
 
       const pillEl = fight.done
@@ -2272,7 +2339,10 @@ function renderWavePlanner(state, waveKey, slots, wp){
     }
 
     const slotLabelFor = (i)=>{
-      return `#${i+1}`;
+      const n = i + 1;
+      if (n === 1) return 'Lead #1';
+      if (n === 2) return 'Lead #2';
+      return `Reinf #${n}`;
     };
 
     const makeSlot = (idx, curKey)=>{
@@ -2308,8 +2378,8 @@ function renderWavePlanner(state, waveKey, slots, wp){
 
 	    const selectionSummary = selectedKeys.length
 	      ? el('div', {class:'muted small', style:'margin-top:6px'},
-	          'Order: ' + selected
-	            .map((rk, i)=> rk ? `#${i+1} ${slotByKey.get(rk)?.defender || rk}` : null)
+	          'Join order: ' + selected
+	            .map((rk, i)=> rk ? `${slotLabelFor(i)} ${slotByKey.get(rk)?.defender || rk}` : null)
 	            .filter(Boolean)
 	            .join(' · ')
 	        )
@@ -2317,7 +2387,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
 
     const slotControls = el('div', {class:'panel'}, [
       el('div', {class:'panel-title'}, 'Selected enemies'),
-      el('div', {class:'muted small'}, `Pick up to ${defLimit} defenders for this wave (first two are the lead pair). Left click adds, right click removes. Click the same row twice to add it twice.`),
+      el('div', {class:'muted small'}, `Pick up to ${defLimit} defenders for this wave. Lead #1/#2 start. Reinf #3/#4 enter in that order when a slot opens. Left click adds, right click removes. Click the same row twice to add it twice.`),
       ...Array.from({length:defLimit}).map((_,i)=> makeSlot(i, selected[i] || null)),
       selectionSummary,
       el('div', {style:'margin-top:8px; display:flex; justify-content:flex-end'}, [clearAll]),
@@ -2414,9 +2484,13 @@ function renderWavePlanner(state, waveKey, slots, wp){
     const planTitleRow = el('div', {class:'panel-title-row fightplan-title-row'}, [
       el('div', {class:'panel-title'}, 'Fight plan'),
     ]);
+
+    // Wave toolbar slot (filled later once fight log controls are built)
+    const waveToolsSlot = el('div', {class:'wave-tools-slot'});
     const planEl = el('div', {class:'panel'}, [
       planTitleRow,
       el('div', {class:'muted small'}, 'Uses your ACTIVE roster from the Roster tab. Auto-match is always enabled. Use suggested lead pairs to quickly set starters.'),
+      waveToolsSlot,
     ]);
 
     // Starter pickers (optional manual override)
@@ -2502,7 +2576,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
     let primaryFightBtn = el('button', {
       class:'btn btn-fight-primary',
       disabled: (logLenNow >= 4) || (selDefsNow < 2) || (startersNow < 2),
-      title: 'Simulate and log the next fight using the current Fight plan (max 4 fights).'
+      title: 'Run and log the next fight using the current Fight plan (max 4 fights).'
     }, logLenNow >= 4 ? 'Fight (4/4)' : 'Fight');
     planTitleRow.appendChild(primaryFightBtn);
 
@@ -2613,7 +2687,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
       el('span', {class:'muted small'}, '+'),
       makeItemOverrideSel(starterB),
       clearItemOverridesBtn,
-      el('span', {class:'muted small'}, '· uses Bag availability; sim assumes you equipped it'),
+      el('span', {class:'muted small'}, '· uses Bag availability; preview assumes equipped'),
     ]);
     planEl.appendChild(itemRow);
 
@@ -2997,17 +3071,41 @@ function renderWavePlanner(state, waveKey, slots, wp){
         const aoe = !!th.aoe;
         const other = aoe ? (pickRes.target === rosterLabel(a0) ? t1 : t0) : null;
         const minA = Number(th.minPct||0);
+        const maxA = Number(th.maxPct ?? th.minPct ?? 0);
         const minB = aoe ? Number((other && other.move === th.move ? other.minPct : th.minPct) || 0) : 0;
+        const maxB = aoe ? Number((other && other.move === th.move ? other.maxPct : th.maxPct) || maxA) : 0;
         const displayMin = aoe ? Math.max(minA, minB) : minA;
+        const displayMax = aoe ? Math.max(maxA, maxB) : maxA;
         const target = aoe ? 'BOTH' : pickRes.target;
 
         const p = pill(th.oneShot ? 'IN OHKO' : `IN ${formatPct(displayMin)}`, th.oneShot ? 'bad' : 'warn');
         if (prevented) p.style.opacity = '0.55';
         const why = th.chosenReason === 'ohkoChance' ? 'chosen: OHKO chance' : (th.chosenReason === 'maxDamage' ? 'chosen: max damage' : '');
-        p.title = `Incoming: ${th.move}${aoe ? ' (AOE → BOTH)' : ''} · ${th.moveType} · ${th.category} · ${formatPct(displayMin)} min`
-          + (why ? ` · ${why}` : '')
-          + (th.assumed ? ' (assumed)' : '')
-          + (prevented ? ' · NOTE: this would be prevented by your faster OHKO' : '');
+        const linesTip = [];
+        linesTip.push(`Incoming: ${th.move}${aoe ? " (AOE → BOTH)" : ""}`);
+        linesTip.push(`Type: ${th.moveType} · ${th.category}` + (why ? ` · ${why}` : "") + (th.assumed ? " (assumed)" : ""));
+        linesTip.push(`Damage: ${formatPct(displayMin)}–${formatPct(displayMax)}` + (aoe ? " (worst target)" : ""));
+        if (aoe){
+          const n0 = rosterLabel(a0);
+          const n1 = rosterLabel(a1);
+          const a0Min = (t0 && t0.move === th.move) ? Number(t0.minPct||0) : minA;
+          const a0Max = (t0 && t0.move === th.move) ? Number(t0.maxPct ?? t0.minPct ?? 0) : maxA;
+          const a1Min = (t1 && t1.move === th.move) ? Number(t1.minPct||0) : minB;
+          const a1Max = (t1 && t1.move === th.move) ? Number(t1.maxPct ?? t1.minPct ?? 0) : maxB;
+          const a0Approx = (t0 && t0.move === th.move) ? '' : '~';
+          const a1Approx = (t1 && t1.move === th.move) ? '' : '~';
+          linesTip.push(`${n0}: ${a0Approx}${formatPct(a0Min)}–${a0Approx}${formatPct(a0Max)}`);
+          linesTip.push(`${n1}: ${a1Approx}${formatPct(a1Min)}–${a1Approx}${formatPct(a1Max)}`);
+        }
+        if (state.settings?.inTooltipCritWorstCase){
+          const cMin = displayMin * 2;
+          const cMax = displayMax * 2;
+          linesTip.push(`Crit worst-case (approx ×2): ${formatPct(cMin)}–${formatPct(cMax)} (crit not modeled)`);
+        }
+        if (prevented) linesTip.push('NOTE: this would be prevented by your faster OHKO');
+        const NL = String.fromCharCode(10);
+        p.title = linesTip.join(NL);
+        return el('div', {class:'muted small', style:'margin-top:6px'}, [`${defSlot.defender} incoming → ${target}: `, p]);
         return el('div', {class:'muted small', style:'margin-top:6px'}, [`${defSlot.defender} incoming → ${target}: `, p]);
       };
 
@@ -3186,7 +3284,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
 
 	      const logBox = el('div', {class:'preview-log'}, (preview.logLines||[]).map(l=>el('div', {}, l)));
 	      const details = el('details', {style:'margin-top:8px'}, [
-	        el('summary', {class:'muted small'}, 'Show simulated battle log'),
+	        el('summary', {class:'muted small'}, 'Show battle log'),
 	        logBox,
 	      ]);
 
@@ -3329,6 +3427,12 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	        }
 	      }
 
+        // Capture item overrides (UI metadata only). Only store explicit overrides.
+        const itemOverride = {};
+        const ovr = (wpLocal && typeof wpLocal.itemOverride === 'object') ? wpLocal.itemOverride : null;
+        if (ovr && ovr[aId]) itemOverride[aId] = ovr[aId];
+        if (ovr && ovr[bId]) itemOverride[bId] = ovr[bId];
+
 	      // Claims (applied when entry is pushed): all selected defenders by base rowKey.
 	      const claimRowKeys = Array.from(new Set(defs.map(k=>baseDefKey(k))));
 	      const claimBases = claimRowKeys.map(rk=>{
@@ -3359,6 +3463,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	        claimRowKeys,
 	        claimBases,
 	        ppDelta,
+	        itemOverride,
 	      };
 	    };
 
@@ -3431,7 +3536,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	      const w = cur.wavePlans?.[waveKey];
 	      const logLen = (w?.fightLog||[]).length;
 	      if (logLen >= 4){
-	        alert('Already have 4 fights logged. Undo one to re-sim.');
+	        alert('Already have 4 fights logged. Undo one to re-run.');
 	        return;
 	      }
 	      const defs = (w?.defenders||[]).slice(0, defLimit);
@@ -4720,11 +4825,8 @@ const headLeft = el('div', {}, [
     };
 
     viewCombosBtn.addEventListener('click', openCombosModal);
-    const controlsRow = el('div', {style:'display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px'}, [
+    const controlsRow = el('div', {style:'display:flex; gap:8px; flex-wrap:wrap; align-items:center'}, [
       countLabel,
-      undoBtn,
-      auto4Btn,
-      viewCombosBtn,
       altHint,
     ]);
 
@@ -4738,18 +4840,25 @@ const headLeft = el('div', {}, [
       });
     });
 
+    // Wave toolbar: keep controls near the Fight plan (less clutter inside the log itself)
+    if (waveToolsSlot){
+      waveToolsSlot.innerHTML = '';
+      waveToolsSlot.appendChild(el('div', {
+        style:'margin-top:8px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center'
+      }, [
+        el('div', {style:'display:flex; gap:8px; align-items:center; flex-wrap:wrap'}, [controlsRow]),
+        el('div', {style:'display:flex; gap:8px; align-items:center; flex-wrap:wrap'}, [undoBtn, auto4Btn, viewCombosBtn, toggleExpandBtn]),
+      ]));
+    }
+
     const fightHead = el('div', {style:'display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap'}, [
       el('div', {class:'panel-title', style:'margin-bottom:0'}, 'Fight log'),
-      el('div', {style:'display:flex; gap:8px; align-items:center; flex-wrap:wrap'}, [
-          toggleExpandBtn,
-      ]),
     ]);
 
     const fightPanel = el('div', {class:'panel fightlog-panel'}, [
       fightHead,
       el('div', {class:'muted small', style:'margin-top:6px'}, 'Sorted by prioØ (best first). Click an entry to expand.'),
     ]);
-    fightPanel.appendChild(controlsRow);
 
     const fightLog = (wp.fightLog||[]);
     const fightLogView = fightLog.slice().sort((a,b)=>{
@@ -4762,11 +4871,60 @@ const headLeft = el('div', {}, [
       const list = el('div', {class:'fightlog-list'}, []);
       for (const e of fightLogView){
         const pr = `prioØ ${formatPrioAvg(e.prioAvg)}`;
+        const turns = Number(e.turnCount || 0);
+        let ppSpent = 0;
+        const ppByMon = new Map();
+        for (const d of (e.ppDelta || [])){
+          const used = Number(d.prevCur||0) - Number(d.nextCur||0);
+          if (used > 0){
+            ppSpent += used;
+            const k = String(d.monId||'');
+            ppByMon.set(k, (ppByMon.get(k) || 0) + used);
+          }
+        }
+
+        const ppBreakdown = Array.from(ppByMon.entries())
+          .filter(([,v])=>Number(v||0) > 0)
+          .map(([monId, used])=>{
+            const m = byId(state.roster||[], monId);
+            const nm = m ? rosterLabel(m) : String(monId);
+            return `${nm}-${used}`;
+          })
+          .join(' · ');
+
+        const statusTxt = (e.status === 'won') ? 'WON' : (e.status === 'lost' ? 'LOST' : (e.status ? String(e.status).toUpperCase() : '—'));
+        const statusKind = (e.status === 'won') ? 'good' : (e.status === 'lost' ? 'bad' : 'warn');
 
         const sumLeft = el('div', {class:'fightlog-sumleft'}, [
           el('div', {class:'fightlog-prio'}, pr),
+          el('div', {class:'fightlog-meta'}, [
+            pill(statusTxt, statusKind),
+            pill(turns ? `${turns} turn${turns===1?'':'s'}` : '— turns', 'info'),
+            (function(){
+              const p = pill(ppSpent ? `PP -${ppSpent}` : 'PP —', 'info');
+              if (ppBreakdown) p.title = `PP spent: ${ppBreakdown}`;
+              return p;
+            })(),
+          ]),
           (e.summary ? el('div', {class:'muted small'}, e.summary) : null),
         ].filter(Boolean));
+
+        const setStartersBtn = el('button', {class:'btn-mini'}, 'Set starters');
+        setStartersBtn.title = 'Apply these attackers as the Fight plan starters (does not change moves/items).';
+        setStartersBtn.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          store.update(s=>{
+            const w = s.wavePlans?.[waveKey];
+            if (!w) return;
+            const atks = Array.isArray(e.attackers) ? e.attackers.slice(0,2) : [];
+            if (atks.length < 2) return;
+            w.attackerStart = atks;
+            w.attackerOrder = atks;
+            w.manualStarters = true;
+            ensureWavePlan(data, s, waveKey, slots);
+          });
+        });
 
         const undoEntryBtn = el('button', {class:'btn-mini'}, 'Undo');
         undoEntryBtn.addEventListener('click', (ev)=>{
@@ -4775,10 +4933,47 @@ const headLeft = el('div', {}, [
           undoEntryById(e.id);
         });
 
-        const summary = el('summary', {class:'fightlog-summary'}, [sumLeft, undoEntryBtn]);
-        const lines = el('div', {class:'muted small fightlog-lines'}, (e.lines||[]).map(t=>el('div', {class:'battle-log-line'}, t)));
+        const summary = el('summary', {class:'fightlog-summary'}, [sumLeft, el('div', {class:'fightlog-actions'}, [setStartersBtn, undoEntryBtn])]);
 
-        const details = el('details', {class:'fightlog-entry'}, [summary, lines]);
+        const setDefsBtn = el('button', {class:'btn-mini'}, 'Select enemies');
+        setDefsBtn.title = 'Apply these defenders as the selected enemies for this wave.';
+        setDefsBtn.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          store.update(s=>{
+            const w = s.wavePlans?.[waveKey];
+            if (!w) return;
+            const defs = Array.isArray(e.defenders) ? e.defenders.slice() : [];
+            if (!defs.length) return;
+            w.defenders = defs;
+            w.defenderStart = defs.slice(0,2);
+            ensureWavePlan(data, s, waveKey, slots);
+          });
+        });
+
+        const metaLines = [];
+        if (ppBreakdown) metaLines.push(el('div', {class:'muted small', style:'margin-top:6px'}, `PP spent: ${ppBreakdown}`));
+
+        const itemOvr = (e && e.itemOverride && typeof e.itemOverride === 'object') ? e.itemOverride : null;
+        if (itemOvr && Object.keys(itemOvr).length){
+          const parts = [];
+          for (const [monId, item] of Object.entries(itemOvr)){
+            if (!item) continue;
+            const m = byId(state.roster||[], monId);
+            const nm = m ? rosterLabel(m) : String(monId);
+            parts.push(`${nm}=${item}`);
+          }
+          if (parts.length) metaLines.push(el('div', {class:'muted small'}, `Items: ${parts.join(' · ')}`));
+        }
+
+        const lines = el('div', {class:'muted small fightlog-lines'}, (e.lines||[]).map(t=>el('div', {class:'battle-log-line'}, t)));
+        const body = el('div', {class:'fightlog-body'}, [
+          el('div', {class:'fightlog-body-actions'}, [setDefsBtn]),
+          ...metaLines,
+          lines,
+        ]);
+
+        const details = el('details', {class:'fightlog-entry'}, [summary, body]);
         if (expandAll) details.open = true;
         list.appendChild(details);
       }
@@ -5021,6 +5216,25 @@ const headLeft = el('div', {}, [
       ]),
     ]);
 
+
+
+    // Bag category tabs (UI only)
+    const bagTab = (state.ui && state.ui.bagTab) ? String(state.ui.bagTab) : 'all';
+    const tabBtn = (key, label)=>{
+      const b = el('button', {class: 'tabpill' + (bagTab===key ? ' active' : ''), type:'button'}, label);
+      b.addEventListener('click', ()=>{
+        store.update(s=>{ s.ui = s.ui || {}; s.ui.bagTab = key; });
+      });
+      return b;
+    };
+    const tabsRow = el('div', {class:'bag-tabs'}, [
+      tabBtn('all','All'),
+      tabBtn('charms','Charms'),
+      tabBtn('held','Held'),
+      tabBtn('plates','Plates'),
+      tabBtn('gems','Gems'),
+    ]);
+    bagPanel.appendChild(tabsRow);
     // Bag table
     const tbl = el('table', {class:'bag-table', style:'margin-top:10px'}, [
       el('thead', {}, el('tr', {}, [
@@ -5037,10 +5251,10 @@ const headLeft = el('div', {}, [
     const tbody = tbl.querySelector('tbody');
 
     const sections = [
-      {title:'Charms', filter:isCharm},
-      {title:'Hold items', filter:(n)=>!isCharm(n) && !isPlate(n) && !isGem(n)},
-      {title:'Plates', filter:isPlate},
-      {title:'Gems', filter:isGem},
+      {key:'charms', title:'Charms', filter:isCharm},
+      {key:'held', title:'Hold items', filter:(n)=>!isCharm(n) && !isPlate(n) && !isGem(n)},
+      {key:'plates', title:'Plates', filter:isPlate},
+      {key:'gems', title:'Gems', filter:isGem},
     ];
 
     const addSectionRow = (title)=>{
@@ -5132,7 +5346,11 @@ const headLeft = el('div', {}, [
         el('td', {colspan:'6', class:'muted'}, 'No items yet.'),
       ]));
     } else {
-      for (const sec of sections){
+      const sectionsToShow = (bagTab && bagTab !== 'all')
+        ? sections.filter(s=>s.key===bagTab)
+        : sections;
+
+      for (const sec of sectionsToShow){
         const list = bagNames.filter(sec.filter);
         if (!list.length) continue;
         addSectionRow(sec.title);
@@ -5382,6 +5600,7 @@ const headLeft = el('div', {}, [
       listBody.innerHTML = '';
       const q = search.value.toLowerCase().trim();
       const rows = candidates.filter(s => !q || s.toLowerCase().includes(q));
+      const full = (store.getState().roster||[]).length >= MAX_ROSTER_SIZE;
       for (const sp of rows){
         const img = el('img', {class:'sprite', src:sprite(calc, sp), alt:sp});
         img.onerror = ()=> img.style.opacity='0.25';
@@ -5406,11 +5625,16 @@ const headLeft = el('div', {}, [
         }
 
         const btn = el('button', {class:'btn-mini'}, 'Add');
-        if (!cs) btn.disabled = true;
+        if (!cs || full) btn.disabled = true;
 
         btn.addEventListener('click', ()=>{
+          if ((store.getState().roster||[]).length >= MAX_ROSTER_SIZE){
+            alert(`Roster limit reached (${MAX_ROSTER_SIZE}/${MAX_ROSTER_SIZE}). Remove a Pokémon first.`);
+            return;
+          }
           if (!cs) return;
           store.update(s=>{
+            if ((s.roster||[]).length >= MAX_ROSTER_SIZE) return;
             const base2 = pokeApi.baseOfSync(sp, s.baseCache||{});
             const entry = makeRosterEntryFromClaimedSetWithFallback(data, sp, base2);
             normalizeMovePool(entry);
@@ -5451,6 +5675,10 @@ const headLeft = el('div', {}, [
       if (!rows.length){
         listBody.appendChild(el('div', {class:'row'}, el('div', {class:'muted'}, 'No matches.')));
       }
+
+      if (full){
+        listBody.prepend(el('div', {class:'muted small', style:'padding:8px 4px'}, `Roster is full (${MAX_ROSTER_SIZE}/${MAX_ROSTER_SIZE}). Remove a Pokémon to add another.`));
+      }
     }
 
     search.addEventListener('input', render);
@@ -5465,13 +5693,18 @@ const headLeft = el('div', {}, [
     spImg.onerror = ()=> spImg.style.opacity = '0.25';
 
     const openDex = ()=>{
-      const base = r.baseSpecies;
+      const base = r.baseSpecies || r.effectiveSpecies || eff;
       store.update(s=>{
         s.ui.tab = 'unlocked';
         // Remember where we came from so the Dex back button can return.
+        s.ui.dexOrigin = 'roster';
+        s.ui.dexOriginRosterId = r.id || null;
+        s.ui.dexOriginRosterBase = base || null;
+        // Legacy fields (older saves).
         s.ui.dexReturnTab = 'roster';
         s.ui.lastNonDexTab = 'roster';
-        s.ui.dexReturnRosterId = r.id;
+        s.ui.dexReturnRosterId = r.id || null;
+        s.ui.dexReturnRosterBase = base || null;
         s.ui.dexDetailBase = base;
         s.ui.dexSelectedForm = base;
       });
@@ -5488,10 +5721,22 @@ const headLeft = el('div', {}, [
         .catch(()=>{});
     };
 
-    spImg.addEventListener('click', openDex);
+    let openDexDid = false;
+    const onOpenDex = (ev)=>{
+      ev?.preventDefault?.();
+      ev?.stopPropagation?.();
+      if (openDexDid) return;
+      openDexDid = true;
+      openDex();
+    };
+    spImg.addEventListener('pointerdown', onOpenDex, {passive:false});
+    spImg.addEventListener('mousedown', onOpenDex);
+    spImg.addEventListener('click', onOpenDex);
 
-    const dexBtn = el('button', {class:'btn-mini'}, 'Dex');
-    dexBtn.addEventListener('click', openDex);
+    const dexBtn = el('button', {class:'btn-mini', type:'button'}, 'Dex');
+    dexBtn.addEventListener('pointerdown', onOpenDex, {passive:false});
+    dexBtn.addEventListener('mousedown', onOpenDex);
+    dexBtn.addEventListener('click', onOpenDex);
 
     const removeBtn = el('button', {class:'btn-mini btn-danger'}, 'Remove');
 
@@ -5807,14 +6052,24 @@ const headLeft = el('div', {}, [
 
     container.appendChild(title);
     container.appendChild(el('div', {class:'hr'}));
-    container.appendChild(charms);
-    container.appendChild(el('div', {class:'hr'}));
-    container.appendChild(itemSec);
-    container.appendChild(el('div', {class:'hr'}));
-    container.appendChild(modsSec);
-    container.appendChild(el('div', {class:'hr'}));
-    container.appendChild(mp);
-    container.appendChild(addMove);
+
+    // Two-column layout to reduce wasted space.
+    const leftStack = el('div', {class:'roster-details-stack'}, [
+      charms,
+      el('div', {class:'hr'}),
+      itemSec,
+      el('div', {class:'hr'}),
+      modsSec,
+    ]);
+
+    const rightStack = el('div', {class:'roster-details-stack'}, [
+      mp,
+      el('div', {class:'hr'}),
+      addMove,
+    ]);
+
+    const grid = el('div', {class:'roster-details-grid'}, [leftStack, rightStack]);
+    container.appendChild(grid);
   }
 
   function renderRoster(state){
@@ -5822,7 +6077,7 @@ const headLeft = el('div', {}, [
 
     const left = el('div', {class:'list'}, [
       el('div', {class:'list-head'}, [
-        el('button', {class:'btn-mini', id:'btnAddRoster'}, 'Add'),
+        el('button', {class:'btn-mini', id:'btnAddRoster', disabled: (state.roster||[]).length >= MAX_ROSTER_SIZE}, 'Add'),
         el('input', {id:'searchRoster', type:'text', placeholder:'Search roster…', value: state.ui.searchRoster || ''}),
       ]),
       el('div', {class:'list-body', id:'rosterList'}),
@@ -5855,21 +6110,23 @@ const headLeft = el('div', {}, [
       });
 
       const editBtn = el('button', {class:'btn-mini'}, 'Edit');
-
-      const dexBtnRow = el('button', {class:'btn-mini'}, 'Dex');
-      dexBtnRow.addEventListener('click', (ev)=>{ ev.stopPropagation(); openDex(); });
       editBtn.addEventListener('click', ()=>{
         store.update(s=>{ s.ui.selectedRosterId = r.id; });
       });
 
       const openDex = ()=>{
-        const base = r.baseSpecies;
+        const base = r.baseSpecies || r.effectiveSpecies || eff;
         store.update(s=>{
           s.ui.tab = 'unlocked';
           // Remember where we came from so the Dex back button can return to Roster.
+          s.ui.dexOrigin = 'roster';
+          s.ui.dexOriginRosterId = r.id || null;
+          s.ui.dexOriginRosterBase = base || null;
+          // Legacy fields (older saves).
           s.ui.dexReturnTab = 'roster';
           s.ui.lastNonDexTab = 'roster';
-          s.ui.dexReturnRosterId = r.id;
+          s.ui.dexReturnRosterId = r.id || null;
+          s.ui.dexReturnRosterBase = base || null;
           // Ensure the starter row opens the same details when returning.
           s.ui.selectedRosterId = r.id;
           s.ui.dexDetailBase = base;
@@ -5887,7 +6144,17 @@ const headLeft = el('div', {}, [
           })
           .catch(()=>{});
       };
-      img.addEventListener('click', openDex);
+      let openDexDid = false;
+      const onOpenDex = (ev)=>{
+        ev?.preventDefault?.();
+        ev?.stopPropagation?.();
+        if (openDexDid) return;
+        openDexDid = true;
+        openDex();
+      };
+      img.addEventListener('pointerdown', onOpenDex, {passive:false});
+      img.addEventListener('mousedown', onOpenDex);
+      img.addEventListener('click', onOpenDex);
 
       const rowEl = el('div', {class:'row'}, [
         el('div', {class:'row-left'}, [
@@ -5899,12 +6166,16 @@ const headLeft = el('div', {}, [
         ]),
         el('div', {class:'row-right'}, [
           el('label', {class:'check', style:'margin:0'}, [activeChk, el('span', {}, 'active')]),
-          dexBtnRow,
           editBtn,
         ]),
       ]);
 
-      rowEl.querySelector('.row-title')?.addEventListener('click', openDex);
+      const rowTitle = rowEl.querySelector('.row-title');
+      if (rowTitle){
+        rowTitle.addEventListener('pointerdown', onOpenDex, {passive:false});
+        rowTitle.addEventListener('mousedown', onOpenDex);
+        rowTitle.addEventListener('click', onOpenDex);
+      }
 
       listBody.appendChild(rowEl);
     }
@@ -6185,23 +6456,52 @@ const headLeft = el('div', {}, [
           .catch(()=>{});
       };
 
-      const backLabel = (state.ui?.dexReturnTab === 'roster') ? '← Back to Roster' : '← Back to Pokédex';
-      const backBtn = el('button', {class:'btn-mini'}, backLabel);
-      backBtn.addEventListener('click', (ev)=>{
-        ev?.preventDefault?.();
-        ev?.stopPropagation?.();
+      const origin = state.ui?.dexOrigin || state.ui?.dexReturnTab || 'unlocked';
+      const backLabel = (origin === 'roster') ? '← Back to Roster' : '← Back to Pokédex';
+      // Use pointerdown to avoid "lost clicks" when Dex detail re-renders due to async cache updates.
+      const backBtn = el('button', {class:'btn-mini', type:'button'}, backLabel);
+
+      let backDidNav = false;
+      const doDexBack = ()=>{
+        if (backDidNav) return;
+        backDidNav = true;
         store.update(s=>{
-          const ret = s.ui.dexReturnTab || s.ui.lastNonDexTab || 'unlocked';
+          // Deterministic origin: roster => return to roster; otherwise return to Pokédex grid.
+          const origin2 = s.ui.dexOrigin || s.ui.dexReturnTab || 'unlocked';
+          const rid = resolveDexReturnRosterId(s);
+          const ret = (origin2 === 'roster') ? 'roster' : 'unlocked';
           s.ui.dexDetailBase = null;
           s.ui.dexSelectedForm = null;
-          s.ui.dexReturnTab = null;
-          if (ret === 'roster' && s.ui.dexReturnRosterId){
-            s.ui.selectedRosterId = s.ui.dexReturnRosterId;
+          // Clear legacy + origin routing when leaving the detail layer.
+          if (ret === 'roster'){
+            s.ui.dexOrigin = null;
+            s.ui.dexOriginRosterId = null;
+            s.ui.dexOriginRosterBase = null;
+            s.ui.dexReturnTab = null;
+          }else{
+            // Stay in Pokédex browsing mode.
+            s.ui.dexOrigin = 'unlocked';
+            s.ui.dexReturnTab = 'unlocked';
+          }
+          if (ret === 'roster' && rid){
+            s.ui.selectedRosterId = rid;
           }
           s.ui.dexReturnRosterId = null;
+          s.ui.dexReturnRosterBase = null;
+          s.ui.dexOriginRosterId = null;
+          s.ui.dexOriginRosterBase = null;
           if (ret) s.ui.tab = ret;
         });
-      });
+      };
+
+      const onDexBack = (ev)=>{
+        ev?.preventDefault?.();
+        ev?.stopPropagation?.();
+        doDexBack();
+      };
+      backBtn.addEventListener('pointerdown', onDexBack, {passive:false});
+      backBtn.addEventListener('mousedown', onDexBack);
+      backBtn.addEventListener('click', onDexBack);
 
       const lvlSel = (levels.length > 1) ? (function(){
         const sel = el('select', {class:'sel-mini'}, levels.map(v => el('option', {value:String(v), selected:Number(v)===Number(lvl)}, String(v))));
@@ -6569,7 +6869,13 @@ const headLeft = el('div', {}, [
       ]);
 
       card.addEventListener('click', ()=>{
-        store.update(s=>{ s.ui.dexReturnTab = 'unlocked'; s.ui.dexDetailBase = base; s.ui.dexSelectedForm = base; });
+        store.update(s=>{
+          // Normal browsing: only set origin if one isn't already established (e.g. opened from Roster).
+          if (!s.ui.dexOrigin) s.ui.dexOrigin = 'unlocked';
+          if (!s.ui.dexReturnTab) s.ui.dexReturnTab = 'unlocked';
+          s.ui.dexDetailBase = base;
+          s.ui.dexSelectedForm = base;
+        });
         pokeApi.resolveEvoLineNonBaby(base, store.getState().baseCache||{})
           .then(({base:resolved, line, updates})=>{
             store.update(st=>{
@@ -6592,8 +6898,6 @@ const headLeft = el('div', {}, [
       store.update(s=>{ s.ui.searchUnlocked = search.value; });
     });
   }
-
-
 
   // ---------------- Settings ----------------
 
@@ -6708,6 +7012,7 @@ const headLeft = el('div', {}, [
       fieldCheck('Enable threat model', s.threatModelEnabled, v=>store.update(st=>{st.settings.threatModelEnabled=v;})),
       fieldNum('Fallback: assumed move power', s.enemyAssumedPower, {min:1,max:250,step:1}, v=>store.update(st=>{st.settings.enemyAssumedPower=v;})),
       fieldCheck('Enemy acts first on speed tie', s.enemySpeedTieActsFirst, v=>store.update(st=>{st.settings.enemySpeedTieActsFirst=v;})),
+      fieldCheck('IN tooltip: show crit worst-case (approx ×2)', s.inTooltipCritWorstCase, v=>store.update(st=>{st.settings.inTooltipCritWorstCase=v;})),
     ]);
 
     // Defaults for per-mon wave modifiers

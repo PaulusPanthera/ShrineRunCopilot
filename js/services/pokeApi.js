@@ -1,6 +1,6 @@
 // js/services/pokeApi.js
-// alpha_v1_sim v1.0.0
-// Project source file.
+// alpha v1
+// PokéAPI loader + in-memory cache helpers.
 
 import { fixName } from '../data/nameFixes.js';
 

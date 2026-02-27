@@ -1,6 +1,6 @@
 // js/state/defaultState.js
-//
 // alpha v1
+// Default state schema and storage keys.
 
 export const STATE_VERSION = 13;
 export const STORAGE_KEY = 'abundantShrinePlanner_state_v13';
@@ -34,6 +34,8 @@ export function createDefaultState(data){
       threatModelEnabled: true,
       enemyAssumedPower: 80,
       enemySpeedTieActsFirst: true,
+      // Incoming tooltip detail (UI-only)
+      inTooltipCritWorstCase: false,
 
       // Default per-mon wave modifiers when no custom value exists yet
       defaultAtkMods: {hpPct:100, atkStage:0, spaStage:0, defStage:0, spdStage:0, speStage:0},
@@ -48,7 +50,7 @@ export function createDefaultState(data){
       // Manual/forced moves can still friendly-fire, but the log will warn.
       allowFriendlyFire: false,
 
-      // If ON, allow manually editing PP numbers in the battle panel UI.
+      // If ON, allow manually editing PP numbers in the UI.
       // Default OFF to keep PP tracking honest.
       allowManualPPEdit: false,
       // If ON (default), when a move drops to PP<=5 we bump its prio tier by +1 (once) to conserve scarce moves.
@@ -113,7 +115,16 @@ export function createDefaultState(data){
       searchUnlocked: '',
       dexDetailBase: null,
       dexSelectedForm: null,
+      // Pokédex origin routing: makes the "Back" button deterministic.
+      // - 'roster' means Dex was opened from a roster mon and should return there.
+      // - 'unlocked' means normal browsing (return to Pokédex grid).
+      dexOrigin: null,
+      dexOriginRosterId: null,
+      dexOriginRosterBase: null,
+      // Legacy fields (older saves); app.js prefers dexOrigin.
       dexReturnTab: null,
+      dexReturnRosterId: null,
+      dexReturnRosterBase: null,
       lastNonDexTab: 'waves',
 dexDefenderLevelByBase: {},
       attackOverview: null, // {defender, level, tags, source}

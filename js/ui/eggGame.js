@@ -1,6 +1,6 @@
 // js/ui/eggGame.js
-// alpha_v1_sim v1.0.0
-// Project source file.
+// alpha v1
+// Optional easter-egg mini-game.
 
 import { $ } from './dom.js';
 

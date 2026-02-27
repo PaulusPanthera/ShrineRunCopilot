@@ -1,6 +1,6 @@
 // js/domain/waves.js
-// alpha_v1_sim v1.0.13
-// Project source file.
+// alpha v1
+// Wave parsing, enemy modeling, and auto-solve helpers.
 
 import { fixName } from '../data/nameFixes.js';
 import { buildDefaultMovePool } from './roster.js';

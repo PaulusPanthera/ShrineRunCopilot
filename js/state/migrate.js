@@ -1,6 +1,6 @@
 // js/state/migrate.js
-//
 // alpha v1
+// State migrations between stored schema versions.
 
 import { fixName } from '../data/nameFixes.js';
 import { fixMoveName } from '../data/moveFixes.js';
@@ -17,7 +17,7 @@ function byId(arr, id){
 
 const DEFAULT_PP = 12;
 
-// Legacy (v1.0.5) default prio mapping used only to avoid clobbering user-edited prios.
+// Legacy (pre-alpha v1) default prio mapping used only to avoid clobbering user-edited prios.
 // If a move's prio still matches this legacy default, we can safely upgrade it to the new defaults.
 function legacyDefaultPrioForMove(data, species, moveName){
   const mi = (data && data.moves) ? data.moves?.[moveName] : null;
@@ -43,10 +43,10 @@ export function hydrateState(raw, defaultState, data){
   state.settings = {...deepClone(defaultState.settings), ...(state.settings||{})};
   state.ui = {...deepClone(defaultState.ui), ...(state.ui||{})};
 
-  // Removed Sim tab: legacy saves may still point to it.
+  // If an older save had the removed 'sim' tab selected, redirect to a safe tab.
   if (state.ui.tab === 'sim') state.ui.tab = 'waves';
-  if (state.ui.lastNonDexTab === 'sim') state.ui.lastNonDexTab = 'waves';
-
+  // Remove legacy sim UI state if present.
+  if ('simWaveKey' in state.ui) delete state.ui.simWaveKey;
 
   // Deep-merge nested defaults
   state.settings.defaultAtkMods = {
@@ -96,7 +96,13 @@ export function hydrateState(raw, defaultState, data){
   state.battles = state.battles || {};
   state.pp = state.pp || {};
   if (!state.ui.dexDefenderLevelByBase) state.ui.dexDefenderLevelByBase = {};
+  // New deterministic Pokédex origin routing (preferred over dexReturnTab).
+  if (!('dexOrigin' in state.ui)) state.ui.dexOrigin = null;
+  if (!('dexOriginRosterId' in state.ui)) state.ui.dexOriginRosterId = null;
+  if (!('dexOriginRosterBase' in state.ui)) state.ui.dexOriginRosterBase = null;
   if (!('dexReturnTab' in state.ui)) state.ui.dexReturnTab = null;
+  if (!('dexReturnRosterId' in state.ui)) state.ui.dexReturnRosterId = null;
+  if (!('dexReturnRosterBase' in state.ui)) state.ui.dexReturnRosterBase = null;
   if (!('lastNonDexTab' in state.ui)) state.ui.lastNonDexTab = (state.ui.tab && state.ui.tab !== 'unlocked') ? state.ui.tab : 'waves';
 // Politoed shop
   state.shop = state.shop || {gold:0, ledger:[]};
@@ -118,6 +124,23 @@ export function hydrateState(raw, defaultState, data){
     state.ui.selectedRosterId = state.roster[0]?.id || null;
   }
 
+  // Hard roster cap: the tool only supports 16 roster entries total.
+  // If an imported/legacy save exceeds this, keep the first 16 in stored order.
+  if (state.roster.length > 16){
+    const kept = state.roster.slice(0,16);
+    const keptIds = new Set(kept.map(r=>r?.id).filter(Boolean));
+    state.roster = kept;
+    if (state.ui.selectedRosterId && !keptIds.has(state.ui.selectedRosterId)){
+      state.ui.selectedRosterId = state.roster[0]?.id || null;
+    }
+    // Drop PP rows for removed mons (keeps state small and avoids stale UI).
+    if (state.pp && typeof state.pp === 'object'){
+      for (const id of Object.keys(state.pp)){
+        if (!keptIds.has(id)) delete state.pp[id];
+      }
+    }
+  }
+
   // Ensure roster species are unlocked + normalize roster entries
   for (const r of state.roster){
     if (!r || typeof r !== 'object') continue;
@@ -131,7 +154,7 @@ export function hydrateState(raw, defaultState, data){
     if (!Array.isArray(r.movePool)) r.movePool = [];
     if (!('item' in r)) r.item = null;
 
-    // v1.0.5+: priorities must be 1..5
+    // Legacy+: priorities must be 1..5
     normalizeMovePool(r);
     // Canonicalize move names (remove legacy aliases/typos) and keep PP map consistent.
     if (Array.isArray(r.movePool)){
@@ -188,7 +211,7 @@ export function hydrateState(raw, defaultState, data){
   }
 
   // One-time upgrade: apply new default move priorities (1..5) while preserving user edits.
-  // Rule: only update a move when its current prio still matches the legacy (v1.0.5) default.
+  // Rule: only update a move when its current prio still matches the legacy (pre-alpha v1) default.
   if (!state.ui._prioDefaultsV106Applied){
     for (const r of state.roster){
       if (!r) continue;
@@ -207,7 +230,7 @@ export function hydrateState(raw, defaultState, data){
     state.ui._prioDefaultsV106Applied = true;
   }
 
-  // One-time upgrade (v1.0.7): recompute default move priorities (1..5) using the new tiering rules.
+  // One-time upgrade (pre-alpha v1): recompute default move priorities (1..5) using the new tiering rules.
   // This is only applied to "auto" priorities; manual changes will set mv.prioAuto=false in the UI going forward.
   if (!state.ui._prioDefaultsV107Applied){
     for (const r of state.roster){
@@ -225,7 +248,7 @@ export function hydrateState(raw, defaultState, data){
   }
 
 
-  // One-time upgrade (v1.0.12): refresh auto priorities after default rule tweaks (e.g., strong Bug coverage tier).
+  // One-time upgrade (pre-alpha v1): refresh auto priorities after default rule tweaks (e.g., strong Bug coverage tier).
   // Only applies to mv.prioAuto=true; manual edits are preserved.
   if (!state.ui._prioDefaultsV112Applied){
     for (const r of state.roster){
@@ -243,7 +266,7 @@ export function hydrateState(raw, defaultState, data){
   }
 
 
-  // One-time upgrade (v1.0.13): refresh auto priorities after strength-based tiering tweak.
+  // One-time upgrade (pre-alpha v1): refresh auto priorities after strength-based tiering tweak.
   // Only applies to mv.prioAuto=true; manual edits are preserved.
   if (!state.ui._prioDefaultsV113Applied){
     for (const r of state.roster){

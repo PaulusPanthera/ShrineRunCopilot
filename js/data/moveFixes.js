@@ -1,6 +1,6 @@
 // js/data/moveFixes.js
-// alpha_v1_sim v1.0.0
-// Project source file.
+// alpha v1
+// Move data normalization and targeted fixes.
 
 export const MOVE_FIX = {
   'Thunderbold': 'Thunderbolt',

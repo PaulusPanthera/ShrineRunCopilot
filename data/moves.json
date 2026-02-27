@@ -415,6 +415,7 @@
     "name": "ExtremeSpeed",
     "notes": null,
     "power": 80.0,
+    "priority": 2,
     "targets": "Def",
     "type": "Normal",
     "uses": "Atk"
@@ -425,6 +426,7 @@
     "name": "Fake Out",
     "notes": null,
     "power": 40.0,
+    "priority": 3,
     "targets": "Def",
     "type": "Normal",
     "uses": "Atk"
@@ -615,6 +617,7 @@
     "name": "Helping Hand",
     "notes": null,
     "power": null,
+    "priority": 5,
     "targets": null,
     "type": "Normal",
     "uses": null
@@ -1013,6 +1016,7 @@
     "name": "Protect",
     "notes": null,
     "power": null,
+    "priority": 4,
     "targets": null,
     "type": "Normal",
     "uses": null
@@ -1133,6 +1137,16 @@
     "power": 80.0,
     "targets": "SpD",
     "type": "Water",
+    "uses": "SpA"
+  },
+  "Secret Sword": {
+    "accuracy": 100.0,
+    "category": "Special",
+    "name": "Secret Sword",
+    "notes": "Uses SpA but targets foe Defense.",
+    "power": 90,
+    "targets": "Def",
+    "type": "Fighting",
     "uses": "SpA"
   },
   "Seed Bomb": {
@@ -1301,6 +1315,7 @@
     "name": "Sucker Punch",
     "notes": null,
     "power": 80.0,
+    "priority": 1,
     "targets": "Def",
     "type": "Dark",
     "uses": "Atk"
@@ -1532,15 +1547,5 @@
     "targets": "Def",
     "type": "Psychic",
     "uses": "Atk"
-  },
-  "Secret Sword": {
-    "accuracy": 100.0,
-    "category": "Special",
-    "name": "Secret Sword",
-    "notes": "Uses SpA but targets foe Defense.",
-    "power": 90.0,
-    "targets": "Def",
-    "type": "Fighting",
-    "uses": "SpA"
   }
 }

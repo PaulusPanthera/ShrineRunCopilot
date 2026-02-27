@@ -1,6 +1,6 @@
 // js/data/nameFixes.js
-// alpha_v1_sim v1.0.0
-// Project source file.
+// alpha v1
+// Name normalization helpers (species/moves/forms).
 
 export const NAME_FIX = {
   "Snub +": "Snubbull",

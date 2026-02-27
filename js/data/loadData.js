@@ -1,6 +1,6 @@
 // js/data/loadData.js
-// alpha_v1_sim v1.0.0
-// Project source file.
+// alpha v1
+// Load JSON data and derive dynamic tags/caches.
 
 import { fixName } from './nameFixes.js';
 import { fixMoveName } from './moveFixes.js';
@@ -14,21 +14,22 @@ const SYSTEM_TAGS = new Set([
   'Rough','Skin','Rough Skin','Kel'
 ]);
 
-// Priority-move tag (Gen 5): any of these moves makes the mon have PRIO.
-const PRIORITY_MOVES = new Set([
-  'Fake Out',
-  'Protect',
-  'ExtremeSpeed',
-  'Sucker Punch',
-  // Shrine custom (if present in your move DB / sets):
-  'Flash of Speed',
-]);
+// PRIO tag means: the pinned set has at least one *attacking* move with explicit positive priority.
+// (We intentionally do NOT tag pure utility/status moves like Protect.)
+function isPriorityAttack(moveName, moveDb){
+  const mv = moveDb ? moveDb[moveName] : null;
+  if (!mv) return false;
+  const cat = String(mv.category || '').trim();
+  if (cat !== 'Physical' && cat !== 'Special') return false;
+  const p = Number(mv.priority || 0);
+  return p > 0;
+}
 
 function uniq(arr){
   return Array.from(new Set((arr||[]).filter(Boolean)));
 }
 
-function deriveTagsForSpecies(species, claimedSet){
+function deriveTagsForSpecies(species, claimedSet, moveDb){
   const out = [];
   const ability = String(claimedSet?.ability || '').trim();
   const rawMoves = Array.isArray(claimedSet?.moves) ? claimedSet.moves : [];
@@ -48,7 +49,7 @@ function deriveTagsForSpecies(species, claimedSet){
   if (fixedMoves.includes('Helping Hand')) out.push('HH');
 
   // Priority-move tag
-  if (fixedMoves.some(m => PRIORITY_MOVES.has(m))) out.push('PRIO');
+  if (fixedMoves.some(m => isPriorityAttack(m, moveDb))) out.push('PRIO');
 
   return uniq(out);
 }
@@ -94,7 +95,7 @@ export async function loadData(){
     const defender = fixName(x.defender);
     const baseTags = Array.isArray(x.tags) ? x.tags.filter(Boolean).map(t => String(t).trim()) : [];
     const kept = baseTags.filter(t => !SYSTEM_TAGS.has(t));
-    const derived = deriveTagsForSpecies(defender, claimedSets?.[defender]);
+    const derived = deriveTagsForSpecies(defender, claimedSets?.[defender], moves);
     const tags = Array.from(new Set([...kept, ...derived]));
 
     return {
