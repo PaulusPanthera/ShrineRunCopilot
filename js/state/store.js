@@ -2,7 +2,10 @@
 // alpha v1
 // State store: update/apply + persistence wiring.
 
-function deepClone(x){
+function cloneState(x){
+  // Prefer structuredClone when available (keeps Dates/Maps/etc), fall back to JSON.
+  // State is designed to be JSON-safe, so the fallback is acceptable.
+  if (typeof structuredClone === 'function') return structuredClone(x);
   return JSON.parse(JSON.stringify(x));
 }
 
@@ -17,7 +20,7 @@ export function createStore(initialState){
       subs.forEach(fn => fn(state));
     },
     update: (mutator)=>{
-      const next = deepClone(state);
+      const next = cloneState(state);
       mutator(next);
       api.setState(next);
     },

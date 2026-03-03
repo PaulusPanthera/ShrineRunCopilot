@@ -281,3 +281,855 @@ Files touched:
 Files touched:
 - `js/app/app.js`
 - `js/state/defaultState.js`
+
+## Patch — Crit + risk view (incoming), PP log clarity, outgoing crit tooltip (optional)
+
+- Base zip: `alpha_v1_sim_in_tooltip_minmax_crit_alpha_v1.zip`
+- Date: 2026-02-27
+- What was changed / checked:
+  - **Threat model**: Added real **crit-aware damage ranges** (no more “approx ×2”).
+    - Default crit multiplier: **1.5** (PokeMMO standard).
+    - Optional selector: **1.5** or **2.0**.
+  - **Incoming (IN) tooltip** (default ON): Added **risk view** using the true 16-roll distribution:
+    - OHKO chance (roll)
+    - OHKO chance (crit)
+    - Total OHKO chance (includes crit at 6.25%)
+    - Crit range line (worst-case range)
+  - **Outgoing**: Display remains **min% (no crit)**; optional **late-game tooltip** can show roll+crit ranges (default OFF).
+  - **Battle log**: PP lines now show **before→after** (e.g. `PP 12→11/12`) to make multi-fight PP behavior unambiguous.
+  - No changes to solver scoring, AoE spread rules, or move mechanics.
+
+Files touched:
+- `calc.js`
+
+## Patch — Incoming damage uses your held items + prevent phantom enemy actions
+
+- Base zip: `alpha_v1_sim_shell_bell_calc_fix_alpha_v1.zip`
+- Date: 2026-02-27
+- What was changed / checked:
+  - **Battle sim + fight logs**: Incoming damage (enemy → you) now correctly applies **your held item** (and per-wave **item override**) for defensive/speed effects.
+  - **Threat model**: Incoming threat calculations now also respect per-wave **item overrides** for your held item.
+  - **Battle sim UI**: “Incoming:” on enemy cards now reflects the **last executed** enemy action (prevents showing a move from a defender that fainted before acting).
+  - No changes to AoE spread rules, solver scoring, prio tiers, or PP mechanics.
+
+Files touched:
+- `js/domain/battle.js`
+- `js/domain/waves.js`
+- `REPORT.md`
+- `js/app/app.js`
+- `js/domain/waves.js`
+- `js/domain/battle.js`
+- `js/state/defaultState.js`
+- `js/state/migrate.js`
+- `styles.css`
+
+## Patch — Add Shell Bell to item catalog (UI-only)
+
+- Base zip: `alpha_v1_sim_crit_risk_ppfix_alpha_v1.zip`
+- Date: 2026-02-27
+- What was changed / checked:
+  - Added **Shell Bell** to the selectable held item catalog.
+  - No shop/economy pricing was introduced; item effect is not simulated yet (selection + bag tracking only).
+  - No solver / prio / PP / battle mechanics changes.
+
+Files touched:
+- `js/domain/items.js`
+- `REPORT.md`
+
+## Patch — Fix calc.js minPct ReferenceError (hotfix)
+
+- Base zip: `alpha_v1_sim_shell_bell_alpha_v1.zip`
+- Date: 2026-02-27
+- What was changed / checked:
+  - Fixed a runtime crash in `computeDamageRange()` where `minPct` was referenced but never defined.
+  - No mechanics changes; damage values and guarantees remain the same.
+
+Files touched:
+- `calc.js`
+
+## Patch — Helping Hand tag no longer boosts damage (opt-in only)
+
+- Base zip: `alpha_v1_sim_incoming_items_phantom_fix_alpha_v1.zip`
+- Date: 2026-02-28
+- What was changed / checked:
+  - Fixed an incorrect damage multiplier where the `HH` tag (used to mean “has Helping Hand in moveset”) was treated as “Helping Hand is active now”.
+  - Helping Hand is now **opt-in only** via `settings.helpingHandActive` (default false; no UI toggle added).
+  - Sanity check (matches in-game): Panpour Lv50 → Torchic Lv47 with Hidden Power (Ground) shows **74.7% min** (no HH). With HH active it becomes **113.1% min**.
+
+Files touched:
+- `calc.js`
+- `REPORT.md`
+
+
+---
+
+## Patch: 2v34_turnflow_stu_multihit_alpha_v1
+- **Base zip:** `alpha_v1_sim_incoming_items_hh_optin_alpha_v1.zip`
+- **Date:** 2026-02-28
+- **Scope:** 2v3/2v4 correctness (join order + PP spend) + stop phantom actions + STU multi-hit sanity
+
+### What changed / checked
+
+#### Battle engine (2v3 / 2v4)
+- **Deterministic reinforcements**: both sides now auto-fill empty active slots from bench in **join order** (#3/#4).
+  - Replacements are available for targeting immediately after a faint.
+  - Replacements do **not** get an action in the same turn (action list is built from turn-start actives).
+- **No phantom actions**: action execution now stops as soon as the battle is decided (prevents "late" enemy lines and prevents PP spend when no targets remain).
+- **Enemy retargeting**: for single-target enemy actions, if the chosen target fainted earlier in the turn, the enemy redirects to another alive active attacker.
+- **Dev-facing audit hooks**: battle state now records lightweight `_audit` info (JSON-safe) to help catch PP double-spend / duplicate execution keys.
+
+#### Damage calc (STU + deterministic multi-hit)
+- **STU (Sturdy) percent outputs fixed**: returned `min/max/minPct/maxPct` are now derived from the (possibly STU-capped) **16-roll distribution**.
+  - This makes displayed min% and solver decisions reflect STU correctly.
+- **Deterministic multi-hit beats STU**: for fixed-hit moves modeled deterministically (currently **Bonemerang, Dual Chop, DoubleSlap**), the STU "leave 1 HP" cap is **skipped**.
+  - This fixes the common "Bonemerang shows 99%" issue against full-HP STU targets.
+
+### Sanity invariants
+- AoE spread ×0.75 is still applied **exactly once** (calc stays single-target; battle applies spread at execution).
+- Outgoing display remains **min roll, no crit** (unchanged).
+- HH tag still does **not** auto-apply Helping Hand (unchanged).
+
+### Touched files
+- `js/domain/battle.js`
+- `calc.js`
+- `REPORT.md`
+
+
+---
+
+## Patch: global_intimidate_merge_alpha_v1
+- **Base zip:** `alpha_v1_sim_2v34_turnflow_stu_multihit_alpha_v1.zip`
+- **Date:** 2026-02-28
+- **Scope:** Global INT (lead-only) applied consistently (preview + autoscore + sim)
+
+### What changed / checked
+- **Global INT semantics implemented (lead-only):** if either enemy **lead** has `INT`, your physical attackers get `-1 Atk stage` for the fight start **regardless of which defender is targeted**.
+  - Reinforcement INT does **not** trigger (per spec).
+- **Damage calc support:** `calc.computeDamageRange()` now applies INT if either:
+  - target has `INT` tag, **or**
+  - `settings.globalIntimidate === true`
+- **Battle sim:** `initBattleForWave()` computes `battle.globalIntimidate` from the selected lead pair and propagates it into outgoing damage ranges.
+- **Autoscore + Fight plan:** lead INT is detected from the wave's selected defenders and passed to outgoing move evaluation and the 1-turn plan simulator.
+- **Incoming damage unchanged:** incoming uses `applyINT:false` already; global INT is not applied to enemy→you threat checks.
+
+### Sanity invariants
+- AoE spread ×0.75 still applied exactly once.
+- Outgoing display remains min-roll, no-crit (unless user enables outgoing tooltip; default OFF).
+- HH tag remains non-buffing by default.
+
+### Touched files
+- `calc.js`
+- `js/domain/battle.js`
+- `js/domain/waves.js`
+- `js/app/app.js`
+- `REPORT.md`
+
+
+---
+
+## Patch: intimidate_stack_join_competitive_alpha_v1
+- **Base zip:** `alpha_v1_sim_global_intimidate_merge_alpha_v1.zip`
+- **Date:** 2026-02-28
+- **Scope:** INT stacking + reinforcement triggers + Competitive reaction (preview + autoscore + sim parity)
+
+### What changed / checked
+- **INT stacking (leads):** if *both* enemy leads have `INT`, Intimidate now applies **twice** at battle start (equivalent to `-2 Atk stage` on affected attackers).
+- **INT triggers on defender entry:** when an `INT` defender joins as a reinforcement (#3/#4), Intimidate triggers again immediately and affects the currently active attackers.
+- **Competitive / Defiant reactions (modeled for INT only):**
+  - **Competitive**: affected attacker gains `+2 SpA stage` per Intimidate activation.
+  - **Defiant**: affected attacker gains `+2 Atk stage` per Intimidate activation (optional support; harmless if unused).
+- **Refactor: INT is no longer applied inside calc by tags/settings:**
+  - `calc.js` no longer auto-decrements Atk from `INT` tags or `settings.globalIntimidate`.
+  - Instead, callers pass the effective `atkStage/spaStage` (derived from battle state or lead-pair assumptions), eliminating double-count risk and enabling stacking.
+- **Parity guarantee:**
+  - **Battle sim** applies INT via `battle.stageDelta` at init and on defender joins.
+  - **Autoscore + Fight plan** apply the same lead-pair INT count and Competitive/Defiant adjustments when evaluating moves.
+
+### Sanity invariants
+- AoE spread ×0.75 still applied exactly once.
+- Outgoing display remains min-roll, no-crit (unless user enables outgoing tooltip; default OFF).
+- HH tag remains semantics-only (no auto Helping Hand buff).
+
+### Touched files
+- `calc.js`
+- `js/domain/battle.js`
+- `js/domain/waves.js`
+- `js/app/app.js`
+- `REPORT.md`
+
+---
+
+## Patch: outspeed_items_incoming_abilities_alpha_v1
+- **Base zip:** `alpha_v1_sim_bundle_allnext_alpha_v1.zip`
+- **Date:** 2026-02-28
+- **Scope:** Speed-aware Auto x4 ranking + Fight plan item tips + incoming ability immunities (threat model)
+
+### What changed / checked
+- **Auto x4 now respects outspeeding more (prio cap rule):**
+  - When a schedule is already in the *good* band (`prioØ ≤ 3.5`), schedule ranking prefers **fewer executed enemy actions** (proxy for outspeed / no-damage clears), before tie-breaking by turns/PP.
+  - Added per-fight `defActs` metric and schedule aggregates `defActsTotal/defActsMax`.
+  - Added a *local* speed preference in attacker-pair tuple scoring: when `avgPrio ≤ 3.5`, prefer fewer `SLOW` matchups (enemy acts first).
+- **Fight plan now recommends AVAILABLE bag items when they materially improve the lead matchup:**
+  - Tips trigger only when an item can flip **SLOW→FAST** (e.g., Choice Scarf), enable **OHKO**, or allow a **lower-prio OHKO**.
+  - Tips respect bag availability using `availableCountWithItemOverrides()` (no ghost suggestions).
+- **Incoming ability effects (threat model) now account for defender ability immunities + Thick Fat:**
+  - `waves.js` passes `settings.defenderAbility` for incoming computations.
+  - `calc.js` applies minimal defender-ability modifiers (when provided):
+    - immunities: Levitate (Ground), Lightning Rod/Motor Drive/Volt Absorb (Electric), Flash Fire (Fire), Water Absorb/Storm Drain/Dry Skin (Water), Sap Sipper (Grass)
+    - Thick Fat: halves Fire/Ice damage
+- **INT immunity parity:**
+  - `Clear Body / White Smoke / Hyper Cutter / Full Metal Body` now block Intimidate consistently in `waves.js` + Fight plan (and therefore also block Competitive/Defiant triggers).
+- **Parity fix:** Fight plan 1-turn preview now orders attacker actions by **speed-desc** (matches battle engine; move "prio" is a planning tier).
+
+### Sanity invariants
+- AoE spread ×0.75 still applied exactly once.
+- Outgoing display remains min-roll, no-crit (unless user enables outgoing tooltip; default OFF).
+- HH tag remains semantics-only (no auto Helping Hand buff).
+- Enemy IV baseline unchanged.
+
+### Touched files
+- `js/app/app.js`
+- `js/domain/waves.js`
+- `calc.js`
+- `REPORT.md`
+
+---
+
+## Patch: cleanup_shellbell_gems_alpha_v1
+- **Base zip:** `working build.zip` (apply on top of: `alpha_v1_sim_sprite_assets_patch.zip` when available)
+- **Date:** 2026-02-28
+- **Scope:** Standards cleanup + real Shell Bell healing + real Gem consumption semantics (battle engine)
+
+### What changed / checked
+- **Cleanup:** removed deprecated legacy logs: `reports/*.txt` (REPORT.md remains the only history log).
+- **Shell Bell (battle sim):** after a damaging attacker action, heal attacker by `floor(totalDamage/8)` (HP% space), clamped to max.
+  - **AoE note:** totalDamage is summed across all *opponent* targets damaged by the move (partner damage is ignored).
+- **Gems (battle sim):** modeled as true consumables:
+  - If attacker holds `<Type> Gem` and uses a move whose *computed* `moveType` matches (incl. Weather Ball), apply **×1.5** power for that action.
+  - Gem is then consumed for the rest of the battle via `battle.itemOverrideRuntime` (roster is not mutated).
+  - Planner / preview remains simplified (calc keeps always-on ×1.3 gem modeling unless the battle engine is used).
+- **Calc support:** added optional `settings.powerMult` (alias `settings.gemMult`) so the battle engine can apply consumable boosts without rewriting item logic.
+
+### Sanity invariants
+- AoE spread ×0.75 still applied exactly once.
+- Outgoing display remains min-roll, no-crit (tooltip default OFF).
+- Crit mult remains 1.5.
+- HH tag remains semantics-only (no auto Helping Hand buff).
+- Enemy IV baseline unchanged.
+
+### Touched files
+- `reports/sanity_report.txt` (deleted)
+- `reports/weather_ball_drizzle_report.txt` (deleted)
+- `calc.js`
+- `js/domain/battle.js`
+- `REPORT.md`
+
+---
+
+## Patch: icons_items_autox4_sandhail_sheerforce_alpha_v1
+- **Base zip:** `alpha_v1_sim_patch_cleanup_shellbell_gems.zip` + `alpha_v1_sim_sprite_assets_patch_borderless.zip`
+- **Date:** 2026-03-01
+- **Scope:** Merge borderless icon patch + item-aware Auto x4 + Sand/Hail chip + Sheer Force from metadata (with fallback)
+
+### What changed / checked
+- **Merged borderless icon patch:**
+  - Added lightweight icon loader and item icon map.
+  - Included `styles.css` tweaks from the overlay.
+- **Auto x4 (bag-aware items):**
+  - Auto x4 signature now includes **bag inventory** so cached alts invalidate correctly when bag changes.
+  - During candidate scoring, if a fight would otherwise fail, Auto x4 now attempts a **bag-available item override** (per-wave) for the two attackers to salvage the win.
+  - Respects inventory counts via `availableCountWithItemOverrides()` (no ghost assignments).
+  - Chosen alt now stores `itemOverride`, and applying an alt also applies those overrides before simming fights.
+- **Battle sim: Sand/Hail chip**
+  - End-of-turn residual damage modeled as **1/16 max HP** in HP% space.
+  - Immunities:
+    - Sand: Rock / Ground / Steel
+    - Hail: Ice
+  - Chip can KO and will trigger immediate reinforcement fill.
+- **Sheer Force eligibility from metadata:**
+  - Added a small PokéAPI-backed move meta cache for Sheer Force detection (cached in `localStorage`).
+  - Calc uses metadata when available, falling back to the existing approximation set when offline / missing.
+
+### Sanity invariants
+- AoE spread ×0.75 applied exactly once.
+- Outgoing display remains min-roll, no-crit (tooltip default OFF).
+- Crit mult remains 1.5.
+- HH tag remains semantics-only (no auto Helping Hand buff).
+- Enemy IV baseline unchanged.
+
+### Touched files
+- `js/app/app.js`
+- `js/domain/battle.js`
+- `calc.js`
+- `js/main.js`
+- `js/services/moveMeta.js` (new)
+- `js/ui/icons.js` (from overlay)
+- `assets/pokeicons/itemIconMap.json` (from overlay)
+- `styles.css` (from overlay)
+- `REPORT.md`
+
+
+## Patch — Auto x4 full item optimization toggle
+- **Base zip:** `alpha_v1_sim_patch_items_autox4_sandhail_sheerforce_icons.zip`
+- **Date:** 2026-03-01
+- **Scope:** Make Auto x4 item overrides optimize already-winning fights (optional toggle)
+
+### What changed / checked
+- **Auto x4: full optimization mode**
+  - When enabled, Auto x4 now suggests **bag-held item overrides even for fights that already win**, aiming to improve prioØ / turns / PP.
+  - Uses a **strict improvement** rule so it won’t churn/allocate scarce items on ties.
+- **Settings UI**
+  - Added toggles:
+    - `autoSolveUseItems` (enable/disable item usage entirely)
+    - `autoSolveOptimizeItems` (enable/disable full optimization; can be slower)
+- **Defaults**
+  - Added both settings to the default state with safe defaults (`true`).
+
+### Touched files
+- `js/app/app.js`
+- `js/state/defaultState.js`
+- `REPORT.md`
+
+---
+
+## Patch: autox4_signature_iovr_deepsearch_toggle
+- **Base zip:** `alpha_v1_sim_FULLSANITY.zip`
+- **Date:** 2026-03-01
+- **Scope:** Auto x4 cache correctness + deep-search escape hatch (UI-only)
+- **Feature changes:** **Yes** (new setting toggle; defaults preserve existing behavior)
+
+### What changed
+- **Auto x4 cache signature now includes**
+  - `wave.itemOverride` (bag-held item overrides per attacker)
+  - solver toggles: `autoSolveUseItems`, `autoSolveOptimizeItems`, `autoSolveDeepSearch`
+  - This prevents reusing cached alternatives after changing overrides/settings.
+- **New setting:** `autoSolveDeepSearch` (default **ON**)
+  - When ON, Auto x4 keeps the existing behavior: for **≤8 defenders**, it forces the generation cap to **≥20k**.
+  - When OFF, Auto x4 respects **Max combos generated** exactly (helps avoid slow/stuck solves).
+
+### Touched files
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
+- `js/state/defaultState.js`
+- `js/ui/tabs/settingsTab.js`
+- `REPORT.md`
+
+---
+
+## Patch: fightplan_inline_item_slow_warnings
+- **Base zip:** `alpha_v1_sim_FULLSANITY.zip` + Patch 1 overlay
+- **Date:** 2026-03-01
+- **Scope:** Fight plan UI warnings (visual emphasis only)
+- **Feature changes:** **No** (UI-only)
+
+### What changed
+- **Fight plan: stronger warnings near item selectors**
+  - If an item tip exists, show a **red inline warning** next to the item override slots.
+  - If any matchup is **SLOW** (enemy acts first), show a **red inline warning** next to the item override slots.
+- **SLOW pill + speed warning line are now red** (more visible).
+- **Item tips line is no longer muted** (now uses a red warning style).
+
+### Touched files
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
+- `styles.css`
+- `REPORT.md`
+
+## Patch 1a hotfix — Fix JS syntax error in item warning tooltip
+- Fix invalid newline token in wavePlannerPanel.js itemWarnInline.title (use \\n + join("\\n")).
+
+
+---
+
+## Patch: autox4_weather_pruning_and_prio_gating
+- **Base zip:** `alpha_v1_sim_FULLSANITY.zip` + Patch 1 + Patch 1a + Patch 2 overlays
+- **Date:** 2026-03-01
+- **Scope:** Auto x4 schedule generation correctness (weather-aware pruning + prio gating consistency)
+- **Feature changes:** **Yes** (Auto x4 results can change on weather waves and in-speed-pruning cases)
+
+### Why
+Auto x4 had two correctness drifts:
+- Early tuple pruning used a speed tie-break **inside** the good prio band (prioØ ≤ 3.5), even though the final schedule comparator ignores speed when any in-band solution exists.
+- Early best-move selection (`bestMoveFor2`) did not apply inferred weather and cached only by `(attId, defKey)`, which can mis-rank/prune weather-dependent solutions (Weather Ball + rain/sun boosts).
+
+### What changed
+- **Prio gating parity:** `betterT()` now considers `slowerCount` **only when both tuples are out of band** (avgPrio > 3.5). In-band comparisons ignore outspeed penalties.
+- **Weather-aware best-move caching:** `bestMoveFor2(attId, defKey, weather)`
+  - cache key now includes weather
+  - applies `withWeatherSettings(...)` before calling `calc.chooseBestMove(...)`
+- **Pair-context weather inference:** `getPairChoicesByKeys(...)` now infers weather from the **attacker pair + defender pair** leads and passes it into `bestMoveFor2(...)`.
+
+### Touched files
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
+- `REPORT.md`
+
+
+---
+
+## Patch: planner_gems_1p5_and_defender_ability_fallback
+- **Base zip:** `alpha_v1_sim_FULLSANITY.zip` + Patch 1 + Patch 1a (+ hotfix) + Patch 2 + Patch 3 overlays
+- **Date:** 2026-03-01
+- **Scope:** Planner/calc consistency (Gems magnitude + defender immunity previews)
+- **Feature changes:** **Yes** (planner preview numbers can change; battle sim unchanged)
+
+### Why
+Two preview drifts were still causing "planner said X, sim did Y" moments:
+- Gems were modeled as ×1.3 in planner while the battle sim uses ×1.5.
+- Defender immunities (Levitate / Lightning Rod / Motor Drive / etc.) can be missed in planner previews when `defenderAbility` isn’t passed.
+
+### What changed
+- **Gems in planner are now ×1.5** to match the battle sim magnitude. (Still modeled as always-on in `calc.js` for speed; consumption remains battle-sim-only.)
+- **Defender ability fallback in calc:** when `settings.defenderAbility` is missing and the defender has no explicit ability, `calc.js` falls back to the pinned ability from `data.claimedSets[species].ability`.
+
+### Touched files
+- `calc.js`
+- `REPORT.md`
+
+
+---
+
+## Patch: applyINT_toggle_is_real
+- **Base zip:** `alpha_v1_sim_FULLSANITY.zip` + Patch 1 + Patch 1a (+ hotfix) + Patch 2 + Patch 3 + Patch 4 overlays
+- **Date:** 2026-03-01
+- **Scope:** Make **Apply Intimidate (INT tag)** setting functional across planner + battle sim
+- **Feature changes:** **No by default** (only changes behavior when the user turns the toggle OFF)
+
+### Why
+The Settings UI exposed `settings.applyINT`, but INT stage drops were applied unconditionally wherever INT logic runs.
+That made the toggle feel "dead" and caused confusion.
+
+### What changed
+- **Planner / solver settings:** INT application now respects `settings.applyINT`.
+  - `applyEnemyIntimidateToSettings(...)` returns the input settings unchanged when `applyINT === false`.
+- **Battle sim:** enemy Intimidate triggers are skipped when `settings.applyINT === false`.
+  - Lead-start INT and defender-join INT no longer apply stage drops or log "Enemy Intimidate activated" when disabled.
+
+### Touched files
+- `js/domain/waves.js`
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
+- `js/domain/battle.js`
+- `REPORT.md`
+
+
+---
+
+## Patch: air_balloon_pops_on_hit
+- **Base zip:** `alpha_v1_sim_FULLSANITY.zip` + Patch 1 + Patch 1a (+ hotfix) + Patch 2 + Patch 3 + Patch 4 + Patch 5 overlays
+- **Date:** 2026-03-01
+- **Scope:** Implement **Air Balloon pops on hit** (battle sim), and make immunity checks item-override/runtime-correct
+- **Feature changes:** **Yes** (battle-sim item realism; planner unchanged)
+
+### Why
+Air Balloon is defined as: **Ground immunity until hit, then consumed**.
+The sim previously treated Air Balloon as a persistent Ground immunity item within a battle, and some immunity checks didn’t consistently respect wave item overrides or runtime-consumed items.
+
+### What changed
+- **Battle sim:** When a roster mon holding **Air Balloon** takes a **successful damaging hit**, the balloon **pops** and is removed for the rest of that battle.
+- **Immunity checks:** Updated ally/enemy targeting paths to use the **effective held item** (including wave item overrides and runtime consumption) when determining ability/item immunities.
+
+### Touched files
+- `js/domain/battle.js`
+- `REPORT.md`
+
+
+---
+
+## Patch: consumables_across_fights_bag_ledger
+- **Base zip:** `alpha_v1_sim_FULLSANITY.zip` + Patch 1 + Patch 1a (+ hotfix) + Patch 2 + Patch 3 + Patch 4 + Patch 5 + Patch 6 overlays
+- **Date:** 2026-03-01
+- **Scope:** Make **consumables** (Gems + Air Balloon) debit the **Bag across fights/waves** when a fight is logged
+- **Feature changes:** **Yes** (run economy realism; planner unchanged)
+
+### Why
+The battle sim already models real in-battle semantics (Gems consumed on use, Air Balloon pops on hit), but this consumption was **battle-local** only.
+That allowed the same consumable to be reused across the wave's 4 fights (and later waves), which is misleading for shrine economy planning.
+
+### What changed
+- **Battle sim:** now records consumable usage in `battle.consumed[]` whenever:
+  - a matching **Type Gem** activates, or
+  - **Air Balloon** pops.
+- **Wave fight log (when a fight is logged):**
+  - debits `state.bag[item]` by 1 per consumed item,
+  - removes the consumed held item assignment (from wave itemOverride first, otherwise from the roster held item),
+  - stores `bagDelta` + `consumedItems` on the fight entry so **Undo** can restore them.
+
+### Touched files
+- `js/domain/battle.js`
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
+- `REPORT.md`
+
+---
+
+## Patch: items_critstage_focussash_loadedice_orb_leftovers_metronome
+- **Base zip:** current mainline (FULLSANITY + Patches 1/1a/hotfix/2/3/4/5/6/8)
+- **Date:** 2026-03-01
+- **Scope:** Implement missing held-item combat effects + crit-stage display
+- **Feature changes:** **Yes** (battle-sim item realism + calc support)
+
+### Why
+Several core items were present in the catalog/UI but had no combat effect (selection-only), and crit-stage items (Scope Lens) weren’t reflected anywhere.
+This patch implements the most important missing effects while keeping deterministic planning defaults.
+
+### What changed
+- **calc.js**
+  - Added **crit stage + crit chance** derivation (Scope Lens = +1 stage) and exposes `critStage`/`critChance` in results.
+  - Added **Light Ball** (Pikachu only: doubles Atk/SpA) and **Thick Club** (Cubone/Marowak: doubles Atk).
+  - Added **Loaded Dice** approximation for multi-hit moves (non–Skill Link: treat 2–5 hit moves as 4 hits).
+  - Added **Focus Sash** defensive cap when at full HP (STU-like leave-1-HP behavior; multi-hit can still break it).
+- **battle.js**
+  - **Focus Sash** triggers on a KO-from-full hit: leaves at 1% in HP% space, consumes the sash, and records it in `battle.consumed[]` so Bag-ledger (Patch 8) debits it when the fight is logged.
+  - **Life Orb** recoil: -10% HP after a successful damaging action (post Shell Bell).
+  - **Leftovers** heal: +6.25% HP at end-of-turn for active attackers.
+  - **Metronome** stacking: +20% per consecutive use of the same move (up to +100%), applied via `otherMult`.
+- **wavePlannerPanel.js**
+  - Outgoing crit tooltip now includes a **Crit chance** line (when outTipCrit is enabled).
+  - Incoming risk tooltip shows the computed crit% instead of a hard-coded 6.25% label.
+- **waves.js**
+  - Risk math uses `r.critChance` (defaults to 1/16 if absent) instead of hard-coded 1/16.
+
+### Touched files
+- `calc.js`
+- `js/domain/battle.js`
+- `js/domain/waves.js`
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
+- `REPORT.md`
+
+## Patch 10 — Choice items lock + Eviolite (evo-aware)
+
+- **Choice Band/Specs/Scarf** now enforce **move lock** in the battle engine:
+  - Once an attacker acts while holding a Choice item, they are locked into that move for the rest of the battle (unless the move becomes unusable; we release the lock rather than modeling Struggle).
+  - Manual picks cannot break the lock; AUTO respects it.
+  - STU coordinated plan respects lock too.
+- **Eviolite** implemented as a defensive 1.5× multiplier (Def/SpD) **only if the current species can still evolve**:
+  - Eligibility (`canEvolve`) is fetched lazily via PokéAPI evolution chain and cached in `state.dexMetaCache[species].canEvolve`.
+  - App render loop ensures evo meta is requested for any roster mon (or wave itemOverride) holding Eviolite.
+  - Incoming damage / risk preview passes `defenderCanEvolve` into calc so Eviolite affects threat math.
+
+
+
+## Patch 11 — UI polish: Roster loadout editors + Bag vertical split
+
+- **Roster details:** show **all 4 Pokémon of the selected player at once** (each slot gets its own move editor + quick toggles), reducing whitespace and removing the need to click-switch between mons.
+- **Bag tab:** changed the Bag/Shop layout to a **vertical split** (side-by-side columns on wide screens; stacks on small screens).
+- **Shop ordering:** **Evo Charm** and **Strength Charm** are now the first two shop cards.
+
+### Touched files
+- `js/ui/tabs/rosterTab.js`
+- `js/ui/tabs/bagTab.js`
+- `styles.css`
+- `REPORT.md`
+
+## Patch 11a — Hotfix: Roster tab JS syntax
+
+- Fixed a duplicate `const used` declaration in `js/ui/tabs/rosterTab.js` introduced by the multi-panel loadout editor.
+
+### Touched files
+- `js/ui/tabs/rosterTab.js`
+- `REPORT.md`
+
+
+---
+
+## Patch: ui_roster_cards_2x2_bag_shop_layout_undo
+- **Base:** alpha_v1_sim_mainbuild + recent patch stack
+- **Date:** 2026-03-01
+- **Scope:** UI-only layout + clarity improvements (no mechanics)
+- **Feature changes:** none (presentation only)
+
+### Changes
+- Roster details:
+  - Removed redundant top detail header controls (A/Evo/Str/Item/Mods/Dex/Remove).
+  - Added per-card **Mods** foldout (battle modifiers) and per-card **Remove (✕)**.
+  - Item selector now shows a small **Item** label for clarity.
+  - Move names show tooltips on hover (full name when truncated).
+  - Loadout details grid stays **2×2** on normal screens (4-col only on ultra-wide).
+- Bag:
+  - Left column (Bag) narrower; right column (Shop) wider.
+  - Shop grid targets **4 cards per row** on normal screens.
+  - Item/type icons slightly larger for readability.
+- Undo buttons:
+  - Changed label to **↩ Undo** and added a stronger visual style.
+
+
+---
+
+## Patch: ui_roster_strip_remove_autotoggle_typeicons_shop_icons
+- **Base:** alpha_v1_sim_mainbuild + recent patch stack
+- **Date:** 2026-03-01
+- **Scope:** UI-only polish (no mechanics)
+
+### Changes
+- Roster details:
+  - Removed the redundant **loadout strip** above the 4-card editor (the 4 cards *are* the loadout).
+  - Made the move-row **auto prio** badge clickable:
+    - `auto` → click disables auto (keeps current prio)
+    - `!auto` → click resets prio to the derived default and re-enables auto
+  - Move type badges now carry `type-*` classes so they can render **type icons**.
+- Type icons:
+  - Added CSS-based **type icons** for type chips / dex type plates / move type badges (uses the existing `assets/pokeicons/types/*` files).
+- Bag/Shop:
+  - Bag column slightly narrower; Shop column wider.
+  - Shop item/type icons bumped up in size for readability.
+
+### Touched files
+- `js/ui/tabs/rosterTab.js`
+- `styles.css`
+- `REPORT.md`
+
+
+## PATCH 14 — Waves log controls + defender mods foldout + roster AUTO/MANUAL + UI polish
+
+- Waves: moved **All combos** + **Expand/Collapse all** to the Fight log header; made them prominent.
+- Waves: added per-entry expand/collapse chevron button; entries remain clickable.
+- Waves: defender modifiers are now foldable (Mods ▼) to reduce clutter.
+- Roster: replaced confusing auto badge with explicit **AUTO / MANUAL** prio mode; prio is locked while AUTO.
+- Shop: slightly larger icons; shop card titles can wrap to avoid truncation.
+
+## PATCH 14a — Hotfix: rosterTab syntax
+
+- Fixed a syntax error in `js/ui/tabs/rosterTab.js` introduced in Patch 14 (removed stray duplicate closing block after prio mode toggle handler).
+## PATCH 15 — UI polish (waves controls + defender mods + roster clarity + shop layout + type icons)
+
+- Waves:
+  - Fight log header controls (All combos + Expand/Collapse all) now have clearer active/pressed styling.
+  - Per-entry chevron expander button is larger and more obvious.
+  - Defender Mods foldout shows a clearer non-neutral indicator dot and a chevron.
+  - Fight button styling strengthened as the primary CTA (disabled state remains subdued).
+- Shop:
+  - Dropdown shop cards (Gem/Plate/Rare Candy) are now stacked (title row + selector row) for a cleaner layout.
+- Settings:
+  - Renamed Auto solver section to **Auto x4 behavior** and clarified optimize-items label.
+- Type icons:
+  - Type icons now appear on **all** `.dex-plate.type-*` chips (including Type matchups), not only `dex-type` plates.
+
+### Touched files
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
+- `js/ui/tabs/bagTab.js`
+- `js/ui/tabs/settingsTab.js`
+- `styles.css`
+- `REPORT.md`
+
+
+## PATCH 16 — UI polish final + Dex API unification + README refresh
+
+- Waves:
+  - Fight button label uses a clear **⚔ Fight** CTA and stronger enabled styling.
+  - Fight log per-entry chevron button is more obvious (bigger hitbox + clearer styling).
+  - Defender Mods foldout: non-neutral state is highlighted more clearly.
+- Dex/Unlocked:
+  - Removed duplicated PokéAPI caching from `unlockedTab.js`; Unlocked now uses the shared helpers in `js/ui/dexApi.js`.
+  - Kept the grid batching job intact to avoid jitter; only detail/meta fetching routes through shared helpers.
+- Docs:
+  - README rewritten with correct paths and clearer run/persistence notes.
+
+### Touched files
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
+- `styles.css`
+- `js/ui/tabs/unlockedTab.js`
+- `README.md`
+- `REPORT.md`
+
+
+## PATCH 17 — Data cleanup: canonicalize Lightning Rod ability
+
+- Data:
+  - Fixed a legacy typo in `data/claimedSets.json`: `Lightningrod` → `Lightning Rod` (Cubone/Marowak/Rhyhorn/Rhydon/Rhyperior).
+- Runtime polish:
+  - Removed the now-unneeded claimedSets ability normalizer from `js/data/loadData.js` (data is canonical).
+  - Kept a tiny legacy mapping in `js/state/migrate.js` to auto-fix old localStorage saves that may still contain `Lightningrod`.
+
+### Touched files
+- `data/claimedSets.json`
+- `js/data/loadData.js`
+- `js/state/migrate.js`
+- `REPORT.md`
+
+
+## PATCH 18 — Roster UI: constrain long player names (ellipsis + tooltip)
+
+- Roster / Party:
+  - Player name pill no longer expands the Party header; long names stay one line and **ellipsize** (including unbroken strings).
+  - Full player name remains accessible via hover tooltip.
+- Roster details:
+  - The `<playerName> — loadout` title is constrained to one line and ellipsizes without pushing layout.
+
+### Touched files
+- `js/ui/tabs/rosterTab.js`
+- `styles.css`
+- `REPORT.md`
+
+
+## PATCH 19 — Roster / Party: slightly reduce name row height
+
+- Party panel:
+  - Reduced spacing on the Party card header (gap + bottom margin).
+  - Slightly reduced padding/font-size on the player label + name pill for a more compact header row.
+
+### Touched files
+- `styles.css`
+- `REPORT.md`
+
+
+## PATCH 20 — Fixes: AoE ally-damage crash, weather preview consistency, undo Bag correctness
+
+- Battle sim:
+  - Fixed a P0 crash when AOE moves can damage the ally (e.g. Discharge/Surf/Earthquake) and Focus Sash logic runs.
+    - Root cause: `nextHp` was declared `const` and then reassigned.
+- UI correctness:
+  - Weather preview inference now matches the battle engine behavior (slowest weather setter wins; defenders win speed ties).
+  - Undo (fight log) now reverses only the logged Bag delta, so later shop buys/sells are not overwritten.
+- PokeAPI helpers:
+  - Centralized move fetch in `pokeApi` (`fetchMove`) and routed the Unlocked tab move description fetch through it.
+- State hygiene:
+  - `ensureWavePlan()` now prunes stale `attackMoveOverride` keys that reference missing attackers.
+- Export:
+  - Hardened download helper: Blob URL is revoked on the next tick to avoid rare browser download cancellations.
+
+### Touched files
+- `js/domain/battle.js`
+- `js/ui/battleUiHelpers.js`
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
+- `js/services/pokeApi.js`
+- `js/ui/tabs/unlockedTab.js`
+- `js/domain/waves.js`
+- `js/services/storage.js`
+- `REPORT.md`
+
+
+## PATCH 21 — Move Run order control to Settings
+
+- UI: moved the "Run order" control (start wave animal) from the Waves tab into Settings (left column), under Credits & Impressum.
+- The setting continues to rotate wave display order within each phase (data unchanged).
+
+### Touched files
+- `js/ui/tabs/wavesTab.js`
+- `js/ui/tabs/settingsTab.js`
+- `REPORT.md`
+
+
+## PATCH 22 — Credits + branding title
+
+- Credits: added PokéSprite (msikma) attribution for inventory/item icon assets.
+- Branding: updated the main site title to “Shrine Run Copilot” (document title + top-left header).
+
+### Touched files
+- `js/ui/tabs/settingsTab.js`
+- `index.html`
+- `README.md`
+- `REPORT.md`
+
+
+## PATCH 23 — Fix Easter egg mini-game (movement + robustness)
+
+- Easter egg: the “Wild Encounter” mini-game is now playable again.
+  - The Poké Ball relocates around the arena (periodically + on click), instead of staying stuck.
+  - Hardened optional storage usage: localStorage failures won’t break binding.
+  - Added guards so missing modal nodes fail silently (egg is optional and should never crash the app).
+
+### Touched files
+- `js/ui/eggGame.js`
+- `REPORT.md`
+
+
+## PATCH 24 — Easter egg: Settings code trigger + 30s upgrade
+
+- Easter egg trigger: removed the title-click binder and added a small password field in Settings (code: `0220`).
+- Mini-game: upgraded to 30 seconds with streak → multiplier scoring, difficulty ramp (faster moves + slightly smaller ball), decoys, and occasional “golden” bonus hits.
+
+### Touched files
+- `js/main.js`
+- `js/ui/eggGame.js`
+- `js/ui/tabs/settingsTab.js`
+- `index.html`
+- `styles.css`
+- `REPORT.md`
+
+
+## PATCH 25 — Easter egg: Share/download highscore plate
+
+- Mini-game: added a **Share** button that downloads a PNG “score plate” (current score + best + accuracy + max streak/mult, plus timestamp).
+
+### Touched files
+- `index.html`
+- `styles.css`
+- `js/ui/eggGame.js`
+- `REPORT.md`
+
+
+## PATCH 26 — Pokédex: search input no longer loses focus after 1 character
+
+- Fixed a UX regression where typing into the Pokédex Search field would drop focus after the first character due to full-tab re-rendering.
+- The search box now preserves focus and caret position across the re-render triggered by `store.update()`.
+
+### Touched files
+- `js/ui/tabs/unlockedTab.js`
+- `REPORT.md`
+
+
+## PATCH 27 — Pokédex: search matches Pokémon, abilities, and moves + compact search field
+
+- Pokédex Search now matches **Pokémon names**, **claimed abilities**, and **claimed moves** (token-based, includes Hidden Power/HP aliasing).
+- UX: search field is now visually compact (no more full-width “3 miles long” input).
+- Added a small “No matches” hint instead of an empty grid.
+
+### Touched files
+- `js/ui/tabs/unlockedTab.js`
+- `styles.css`
+- `REPORT.md`
+
+## PATCH 28 — Battle sim parity fixes + weather preview hardening
+
+- **Battle engine correctness (multi-action turns):** attacker single-target damage is now recomputed at execution time (prevents stale min% when reinforcements/join triggers change INT/weather mid-turn).
+- **AoE attacker moves:** now apply Metronome tracking and Life Orb recoil (with recoil KO handling), matching single-target semantics.
+- **AoE partner immunity boosts:** when your AoE would hit an immune partner (e.g., Lightning Rod / Motor Drive / Storm Drain / Sap Sipper), the +1 stage boost is applied immediately so later actions in the same turn reflect it.
+- **Gems + Weather Ball parity:** AoE execution captures the computed moveType and uses it for gem logic (handles weather-dependent typing).
+- **Friendly-fire safety:** ally immunity checks are now case-insensitive (battle + waves), preventing false warnings from casing drift.
+- **Waves Fight-plan preview:** deterministic preview sim now applies the inferred wave weather explicitly (prevents planner vs sim drift in dual-setter matchups).
+- **Pokédex move text:** removed direct PokéAPI fetch fallback; move descriptions always route through the canonical `pokeApi.fetchMove()` helper.
+- **Startup hardening:** move meta cache now guards localStorage access with try/catch (privacy modes won’t crash boot).
+- **DOM helper hardening:** `el({ html: ... })` renamed to `el({ unsafeHtml: ... })` (no callsites used `html`).
+- **Boot-order hardening:** removed `defer` from `calc.js` (script already at end of body).
+- **Comment clarity:** migration comment marker renamed from `v20` → `PATCH`.
+
+### Touched files
+- `js/domain/battle.js`
+- `js/domain/waves.js`
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
+- `js/ui/tabs/unlockedTab.js`
+- `js/services/moveMeta.js`
+- `js/ui/dom.js`
+- `js/state/migrate.js`
+- `index.html`
+- `REPORT.md`
+
+## PATCH 29 — Waves preview weather parity (complete)
+
+- Waves preview calculations now **always apply the inferred wave weather explicitly** (AOE side-hit preview, friendly-fire preview, crit tooltip, Auto x4 local sim helpers, STU AoE solve helper, and suggested lead pairs scoring).
+- Fixes remaining planner/preview drift where `calc` could fall back to ability OR-order weather inference instead of the already-correct speed-resolved `waveWeather`.
+
+### Touched files
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
+- `REPORT.md`
+
+
+## PATCH 30 — Save-size hardening + PokéAPI fetch unification
+
+- **Persistence bloat fix:** battle `_audit` payload is now **non-enumerable** (won’t serialize into localStorage) to prevent save growth / quota failures during long sessions.
+- **State cleanup on load:** any persisted `battles[*]._audit` blobs are removed during `hydrateState()` (keeps existing saves small).
+- **Single canonical PokéAPI helper:** move-meta priming now prefers `pokeApi.fetchMove()` (shared path) with a small timeout guard to avoid hanging forever on bad networks.
+
+### Touched files
+- `js/domain/battle.js`
+- `js/state/migrate.js`
+- `js/services/moveMeta.js`
+- `js/main.js`
+- `REPORT.md`
+
+
+## PATCH 31 — Pokédex move text: resolve effect chance placeholders
+
+- PokéAPI move effect text often includes a **$effect_chance** placeholder (e.g., Flamethrower burn chance).
+- The Pokédex detail view now replaces **$effect_chance** with the numeric chance from the PokéAPI move payload when available, so the UI shows proper percentages.
+
+### Touched files
+- `js/ui/tabs/unlockedTab.js`
+- `REPORT.md`
+

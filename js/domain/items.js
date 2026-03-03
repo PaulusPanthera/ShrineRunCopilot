@@ -1,6 +1,6 @@
 // js/domain/items.js
 // alpha v1
-// Bag items: pricing, effects, and helpers.
+// Bag items: pricing, effects, and helpers + tip candidates.
 
 import { isStarterSpecies } from './roster.js';
 
@@ -12,6 +12,7 @@ export const TYPES_NO_FAIRY = [
 // Simple “obvious” competitive items. (Extend later as needed.)
 export const CORE_ITEMS = [
   'Leftovers',
+  'Shell Bell',
   'Life Orb',
   'Muscle Band',
   'Wise Glasses',
@@ -37,12 +38,43 @@ export const CORE_ITEMS = [
   'Revive',
 ];
 
+// Item suggestion candidates used by Fight plan / Auto solve UI (bag availability is checked elsewhere).
+export const TIP_BASE_ITEMS = [
+  'Choice Scarf',
+  'Life Orb','Expert Belt','Muscle Band','Wise Glasses','Choice Band','Choice Specs',
+  'Thick Club','Light Ball',
+];
+
 export function plateName(type){
   return `${type} Plate`;
 }
 
 export function gemName(type){
   return `${type} Gem`;
+}
+
+// Derive move types from a roster mon movePool (expects mv = {name, use?}).
+export function moveTypesFromMovePool(data, movePool){
+  const moves = data?.moves || {};
+  const types = new Set();
+  for (const mv of (movePool || [])){
+    if (!mv || mv.use === false || !mv.name) continue;
+    const t = moves[mv.name]?.type;
+    if (t) types.add(t);
+  }
+  return Array.from(types);
+}
+
+// Build a deduped list of item candidates (plates/gems) for a given set of move types.
+export function tipCandidatesForTypes(types){
+  const out = [];
+  for (const it of TIP_BASE_ITEMS) out.push(it);
+  for (const t of (types || [])){
+    if (!t) continue;
+    out.push(plateName(t));
+    out.push(gemName(t));
+  }
+  return Array.from(new Set(out));
 }
 
 export function buildItemCatalog(){

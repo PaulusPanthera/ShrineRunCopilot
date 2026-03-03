@@ -1,115 +1,75 @@
-# alpha_v1_sim
-A tool to run the Abundand Shrine Run for LNY Event in PokeMMO
-alpha_v1_sim (alpha v1)
+# Shrine Run Copilot — Roster Planner (alpha v1)
 
-A local-first, browser-based planner for the Abundant Shrine challenge: build your roster, plan waves, track unlocked species, and quickly check one-shot / damage info from your active roster.
+Local-first, browser-based planner for the **Abundant Shrine** challenge (PokeMMO / LNY event ruleset):
+- Build and edit your **active roster**
+- Plan **waves** (defenders + starters + overrides)
+- Track **bag/shop** items and consumables
+- Browse **Pokédex/Unlocked** species and view one-shot tables
 
-Built by [MÜSH] PaulusTFT
-Runs fully in the browser — no backend, no accounts.
+Built by **[MÜSH] PaulusTFT**. Runs fully in the browser (no backend, no accounts).
 
-✨ Features
+---
 
-Waves tab: plan defenders per wave / phase
+## Run locally
 
-Roster tab: manage your active attackers / sets
+Because this uses ES modules, open it via a local server (not `file://`).
 
-Bag tab: track items/resources (if enabled in rules)
-
-Unlocked tab: track discovered/available species
-
-Attack Overview: click a defender/species to see one-shot info from your roster
-
-Export / Import: move your planner state between devices
-
-Reset: wipe state and start fresh
-
-Local-first storage: saves automatically to localStorage
-
-📦 Project structure
-
-index.html — app shell / layout
-
-styles.css — styling
-
-calc.js — calc helpers / damage logic wrapper
-
-src/main.js — entry point
-
-src/app/app.js — main app logic (state, UI rendering, rules)
-
-data/*.json — dex, moves, typing, rules, stages, slots, claimed sets
-
-assets/bg.png — background
-
-💾 Data & persistence
-
-Your data is stored in your browser under:
-
-localStorage key: abundantShrinePlanner_state_v13
-
-Export downloads a JSON snapshot of your state
-
-Import restores from that JSON snapshot
-
-⚠️ If you clear browser storage/cache, your local state is gone unless you exported.
-
-🚀 Run locally
-
-Because this uses ES modules, open it via a local server (not file://).
-
-Option 1: Python
+### Python
+```bash
 python -m http.server 8000
+```
+Open: `http://localhost:8000`
 
-Open: http://localhost:8000
-
-Option 2: Node
+### Node (optional)
+```bash
 npx serve
-🌍 Deploy (GitHub Pages)
+```
 
-Push this repo to GitHub
+---
 
-Go to Settings → Pages
+## Project structure
 
-Under Build and deployment:
+- `index.html` — app shell
+- `styles.css` — global UI styling
+- `calc.js` — damage/calc helper layer (planner previews + scoring)
+- `js/main.js` — entry point
+- `js/app/app.js` — app bootstrap + render coordinator
+- `js/domain/*` — battle + wave logic (simulation + rules)
+- `js/ui/tabs/*` — tab UIs (waves / roster / bag / settings / unlocked)
+- `js/ui/dexApi.js` — shared PokéAPI cache helpers (used across tabs)
+- `data/*.json` — dex, moves, typing, rules, stages, wave slots, claimed sets
+- `assets/*` — background + icon sprites
 
-Source: Deploy from a branch
+---
 
-Branch: main
+## Persistence / Export / Import
 
-Folder: / (root)
+State is saved automatically in your browser:
 
-Your site will be available at:
+- **localStorage key:** `abundantShrinePlanner_state_v13`
 
-https://<username>.github.io/<repo-name>/
+You can:
+- **Export** a JSON snapshot (top-right button)
+- **Import** that snapshot on another device/browser
+- **Reset** wipes local state
 
-✅ Tip: If assets don’t load, make sure your paths are relative (this project is already set up that way).
+> Clearing browser storage/cache will remove your local state unless you exported.
 
-🛠️ Editing rules / data
+---
 
-Most shrine rules live in:
+## PokéAPI caching (Dex / Unlocked tab)
 
-data/rules.json
+Some UI panels pull metadata (dex #, genus, height/weight, Gen 5 typing) from PokéAPI.
+Caching is centralized via `js/ui/dexApi.js` so all tabs share the same behavior and avoid duplicated fetch logic.
 
-data/stages.json
+If PokéAPI looks stale or you want to reset:
+- Clear site data for `localhost`
+- Or remove relevant localStorage keys for cached dex/meta (if present)
 
-data/calcSlots.json
+---
 
-data/claimedSets.json
+## Notes
 
-Dex/moves/type data:
+- This tool is an unofficial fan utility and is not affiliated with Nintendo / Creatures / GAME FREAK / PokeMMO.
+- See **REPORT.md** for the patch history and implemented rules/mechanics.
 
-data/dex.json
-
-data/moves.json
-
-data/typing.json
-
-📄 License
-
-This project is licensed under the MIT License — see LICENSE.
-
-🙌 Credits
-
-Pokémon is © Nintendo / Game Freak / Creatures (this is a fan tool).
-
-Sprites/data sources (if applicable): document here if you later want to attribute specific datasets/providers.

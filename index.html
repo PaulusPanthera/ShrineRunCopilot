@@ -7,13 +7,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>alpha_v1_sim</title>
+  <title>Shrine Run Copilot</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand" id="brand">
-      <div class="brand-title" id="brandTitle">alpha_v1_sim <span class="muted">— Roster Planner</span></div>
+      <div class="brand-title" id="brandTitle">Shrine Run Copilot</div>
       <div class="brand-sub muted">by [MÜSH] PaulusTFT</div>
     </div>
 
@@ -59,20 +59,26 @@
     </section>
   </main>
 
-  <!-- Hidden Easter egg mini-game: click title 7x -->
+  <!-- Optional mini-game (opened via Settings code) -->
   <div id="eggModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="eggTitle">
     <div class="modal-card">
       <div class="modal-head">
         <div>
           <div id="eggTitle" class="modal-title">Wild Encounter!</div>
-          <div class="muted small">Click the Poké Ball as many times as you can in 15 seconds.</div>
+          <div class="muted small">Click the Poké Ball as many times as you can in 30 seconds.</div>
         </div>
-        <button id="eggClose" class="btn btn-mini">Close</button>
+        <div class="modal-actions">
+          <button id="eggShare" class="btn btn-mini">Share</button>
+          <button id="eggClose" class="btn btn-mini">Close</button>
+        </div>
       </div>
       <div class="modal-body">
         <div class="egg-stats">
-          <div>Time: <span id="eggTime">15</span>s</div>
+          <div>Time: <span id="eggTime">30</span>s</div>
           <div>Score: <span id="eggScore">0</span></div>
+          <div>Mult: <span id="eggMult">x1</span></div>
+          <div class="muted">Streak: <span id="eggStreak">0</span></div>
+          <div class="muted">Acc: <span id="eggAcc">0%</span></div>
           <div class="muted">Best: <span id="eggBest">0</span></div>
         </div>
         <div id="eggArena" class="egg-arena">
@@ -83,7 +89,7 @@
     </div>
   </div>
 
-  <script src="calc.js" defer></script>
+  <script src="calc.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

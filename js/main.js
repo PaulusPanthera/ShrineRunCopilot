@@ -7,10 +7,14 @@ import { createPokeApi } from './services/pokeApi.js';
 import { loadStoredState, saveStoredState, downloadJson, readJsonFile } from './services/storage.js';
 import { createDefaultState, STORAGE_KEY, OLD_KEYS } from './state/defaultState.js';
 import { hydrateState } from './state/migrate.js';
+import { validateState } from './state/validate.js';
 import { createStore } from './state/store.js';
 import { startApp } from './app/app.js';
-import { bindEasterEgg } from './ui/eggGame.js';
+// Easter egg mini-game is triggered via Settings code (no global binder).
 import { ensureWavePlan } from './domain/waves.js';
+import { awardCompletedPhasesOnLoad } from './domain/phaseRewards.js';
+import { loadIcons } from './ui/icons.js';
+import { loadMoveMetaCacheIntoWindow, primeMoveMetaCache } from './services/moveMeta.js';
 
 function groupBy(arr, fn){
   const out = {};
@@ -28,12 +32,27 @@ function groupBy(arr, fn){
     return;
   }
 
+  // UI icon manifest (safe to fail; UI will degrade gracefully).
+  await loadIcons();
+
+  // Move meta cache (Sheer Force eligibility, etc.)
+  loadMoveMetaCacheIntoWindow();
+
   const data = await loadData();
   const pokeApi = createPokeApi(data);
+
+  // Fetch missing move meta (only for Sheer Force move list) and cache it.
+  try{ await primeMoveMetaCache(data, {pokeApi, timeoutMs: 6000}); }catch(e){ /* ignore */ }
 
   const defaultState = createDefaultState(data);
   const raw = loadStoredState(STORAGE_KEY, OLD_KEYS);
   const hydrated = hydrateState(raw, defaultState, data);
+
+  // Non-fatal sanity check: helpful when refactoring large UI files.
+  try {
+    const warnings = validateState(hydrated);
+    if (warnings.length) console.warn("[alpha_v1_sim] state warnings", warnings);
+  } catch (e) { /* ignore */ }
 
   const store = createStore(hydrated);
 
@@ -43,6 +62,9 @@ function groupBy(arr, fn){
     for (const [wk, slots] of Object.entries(waves)){
       ensureWavePlan(data, s, wk, slots);
     }
+
+    // If the user already completed phases in an older version, award immediately on load.
+    awardCompletedPhasesOnLoad(data, s);
   });
 
   const app = startApp({
@@ -87,6 +109,10 @@ function groupBy(arr, fn){
     try{
       const imported = await readJsonFile(file);
       const next = hydrateState(imported, defaultState, data);
+      try {
+        const warnings = validateState(next);
+        if (warnings.length) console.warn("[alpha_v1_sim] imported state warnings", warnings);
+      } catch (e) { /* ignore */ }
       store.setState(next);
     }catch(e){
       alert('Import failed: ' + (e?.message || e));
@@ -98,10 +124,14 @@ function groupBy(arr, fn){
   btnReset?.addEventListener('click', ()=>{
     if (!confirm('Reset ALL local data (roster, cleared slots, unlocked)?')) return;
     const next = hydrateState(null, defaultState, data);
+    try {
+      const warnings = validateState(next);
+      if (warnings.length) console.warn("[alpha_v1_sim] reset state warnings", warnings);
+    } catch (e) { /* ignore */ }
     store.setState(next);
   });
 
-  bindEasterEgg();
+  // (Egg game is opened from Settings via a code field.)
 
   // initial paint
   schedule();

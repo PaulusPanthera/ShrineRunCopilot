@@ -86,7 +86,7 @@ export async function loadData(){
   for (const [sp, obj] of Object.entries(claimedSets||{})){
     if (!obj || typeof obj !== 'object') continue;
     if (Array.isArray(obj.moves)) obj.moves = obj.moves.map(fixMoveName);
-    if (typeof obj.ability === 'string') obj.ability = obj.ability.trim();
+    if (typeof obj.ability === 'string') obj.ability = String(obj.ability).trim();
   }
 
   // Apply name fixes to calc slots + dynamically derive calc-relevant tags

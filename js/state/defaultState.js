@@ -34,8 +34,14 @@ export function createDefaultState(data){
       threatModelEnabled: true,
       enemyAssumedPower: 80,
       enemySpeedTieActsFirst: true,
-      // Incoming tooltip detail (UI-only)
-      inTooltipCritWorstCase: false,
+      // Crit / risk settings (incoming tooltips + threat model)
+      // PokeMMO standard crit multiplier is 1.5; Gen5 mainline is 2.0.
+      critMult: 1.5,
+      // Incoming (IN) tooltip extras (tooltip-only; does not clutter UI)
+      inTipRisk: true,
+      inTipCritWorst: true,
+      // Outgoing (your attacks) tooltip extras (late game)
+      outTipCrit: false,
 
       // Default per-mon wave modifiers when no custom value exists yet
       defaultAtkMods: {hpPct:100, atkStage:0, spaStage:0, defStage:0, spdStage:0, speStage:0},
@@ -64,6 +70,16 @@ export function createDefaultState(data){
       // 0 = best-only. Example: 0.5 will include solutions up to bestAvg+0.5.
       autoAltAvgSlack: 0,
 
+      // Auto x4 items:
+      // - autoSolveUseItems: allow the solver to suggest temporary held-item overrides.
+      // - autoSolveOptimizeItems: also do this for already-winning fights (can be slower).
+      autoSolveUseItems: true,
+      autoSolveOptimizeItems: true,
+
+
+      // Auto x4: deeper search on small waves can be slower but finds better schedules.
+      // If ON (default), waves with <=8 selected defenders force gen cap >= 20000.
+      autoSolveDeepSearch: true,
       // Variation controls (used by auto-solver + large alternative lists)
       // - variationLimit: how many alternatives we keep for cycling and default displays
       // - variationGenCap: safety cap on how many candidate schedules we generate/sim-rank per solve
@@ -86,6 +102,13 @@ export function createDefaultState(data){
     unlocked: {},
     cleared: {},
     roster: [],
+
+    // UI-only roster arrangement (4 characters x 4 slots). Does not affect wave logic.
+    party: {
+      names: ['Player 1','Player 2','Player 3','Player 4'],
+      slots: Array.from({length:16}).map(()=>null),
+    },
+
     // Shared team bag (team run). Defaults: 2 Evo + 2 Strength TOTAL.
     bag: {
       'Evo Charm': 2,
@@ -112,6 +135,7 @@ export function createDefaultState(data){
       waveExpanded: {},
       selectedRosterId: null,
       searchRoster: '',
+      rosterModsOpen: false,
       searchUnlocked: '',
       dexDetailBase: null,
       dexSelectedForm: null,

@@ -15,12 +15,23 @@
   font-weight:900;
   font-size:16px;
   letter-spacing:.4px;
-  border-color: rgba(122,167,255,.55);
+  border-color: rgba(122,167,255,.70);
   background:
-    radial-gradient(520px 160px at 18% 20%, rgba(122,167,255,.20), transparent 60%),
-    rgba(16,22,35,.75);
-  box-shadow: 0 14px 34px rgba(0,0,0,.32);
+    radial-gradient(520px 160px at 18% 20%, rgba(122,167,255,.24), transparent 60%),
+    rgba(16,22,35,.78);
+  box-shadow:
+    0 0 0 3px rgba(122,167,255,.10),
+    0 16px 38px rgba(0,0,0,.36);
 }
+
+.btn-fight-primary:not(:disabled){
+  border-color: rgba(122,167,255,.82);
+  background:
+    radial-gradient(520px 160px at 18% 20%, rgba(122,167,255,.28), transparent 60%),
+    radial-gradient(420px 140px at 80% 30%, rgba(79,227,161,.10), transparent 60%),
+    rgba(16,22,35,.84);
+}
+
 .btn-fight-primary:hover{border-color: rgba(122,167,255,.78)}
 .btn-fight-primary:active{transform: scale(.98)}
 .btn-fight-primary:disabled{opacity:.45; cursor:not-allowed; box-shadow:none; transform:none}
@@ -76,6 +87,10 @@ body{
   color:var(--text);
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
   background: var(--bg0);
+  /* App shell: flex column so main content consumes remaining viewport height
+     after the topbar (no hard-coded calc → avoids micro-scroll). */
+  display:flex;
+  flex-direction:column;
   overflow:hidden;
 }
 body::before{
@@ -111,6 +126,7 @@ body::after{
 .brand-sub{font-size:12px}
 .muted{color:var(--muted)}
 .small{font-size:12px}
+.danger-text{color:var(--bad)}
 
 .top-actions{display:flex; gap:10px; align-items:center}
 .btn{
@@ -129,7 +145,9 @@ body::after{
 .layout{
   display:grid;
   grid-template-columns: 320px 1fr;
-  height: calc(100vh - 64px);
+  /* Fill remaining height (body is flex-column). */
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .layout.layout-single{
@@ -142,6 +160,7 @@ body::after{
 .content{
   padding:14px;
   overflow:auto;
+  min-height:0;
 }
 
 .panel{
@@ -204,7 +223,7 @@ body::after{
   background: rgba(122,167,255,.14);
   color: var(--text);
 }
-.tabpage{margin-bottom:20px}
+.tabpage{margin-bottom:0}
 .hidden{display:none !important}
 
 /* Modal / Easter egg */
@@ -287,11 +306,12 @@ body::after{
   padding:14px 14px 10px 14px;
   border-bottom:1px solid rgba(122,167,255,.18);
 }
+.modal-actions{display:flex; gap:8px; align-items:flex-start}
 .modal-title{font-weight:900; letter-spacing:.2px}
 .modal-body{padding:14px}
 .btn-mini{padding:6px 10px; border-radius:10px}
 
-.egg-stats{display:flex; gap:16px; align-items:center; margin-bottom:10px; font-weight:700}
+.egg-stats{display:flex; gap:14px; row-gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; font-weight:700}
 .egg-arena{
   position:relative;
   height: 320px;
@@ -316,6 +336,38 @@ body::after{
     linear-gradient(180deg, #e23b3b 0 50%, #e7eefc 50% 100%);
 }
 .egg-ball:active{transform: scale(.96)}
+
+.egg-ball.decoy{
+  opacity:.72;
+  filter:saturate(.4);
+}
+.egg-ball.golden{
+  border-color: rgba(255,209,102,.55);
+  box-shadow: 0 14px 28px rgba(0,0,0,.38);
+  background:
+    radial-gradient(circle at 50% 52%, rgba(255,255,255,.95) 0 6px, rgba(0,0,0,.9) 7px 9px, rgba(255,255,255,.95) 10px 12px, transparent 13px),
+    linear-gradient(180deg, #f6d365 0 50%, #fda085 50% 100%);
+}
+
+.egg-float{
+  position:absolute;
+  transform: translate(-50%, -50%);
+  font-weight:900;
+  font-size:14px;
+  letter-spacing:.2px;
+  text-shadow: 0 10px 18px rgba(0,0,0,.45);
+  pointer-events:none;
+  opacity:0;
+  animation: eggFloatUp .75s ease-out forwards;
+}
+.egg-float.bad{color: rgba(255,93,115,.95)}
+.egg-float.good{color: rgba(255,209,102,.98)}
+
+@keyframes eggFloatUp{
+  0%{opacity:0; transform: translate(-50%, -40%) scale(.95)}
+  15%{opacity:1}
+  100%{opacity:0; transform: translate(-50%, -110%) scale(1.05)}
+}
 
 .overview{
   margin-bottom:12px;
@@ -395,7 +447,7 @@ body::after{
   color: rgba(232,238,252,.9);
   display:flex; align-items:center; justify-content:space-between;
 }
-.section-sub{font-size:12px; color:var(--muted)}
+.section-sub{font-size:12px; color: rgba(232,238,252,.78)}
 .boss{
   margin:10px 0 16px;
   padding:12px 14px;
@@ -433,10 +485,12 @@ body::after{
 .wave-left{display:flex; gap:10px; align-items:center; min-width:0}
 .wave-title{font-weight:900}
 .wave-meta{font-size:12px; color:var(--muted)}
-.wave-actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end}
-.wave-loot{display:flex; align-items:center; gap:6px}
-.wave-loot .lbl{font-size:12px; color:var(--muted); font-weight:800}
+.wave-actions{display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end}
+.wave-loot{display:flex; align-items:center; gap:8px; padding:4px 8px; border-radius:12px; border:1px solid rgba(122,167,255,.12); background: rgba(0,0,0,.10)}
+.wave-loot .lbl{font-size:12px; color:rgba(232,238,252,.78); font-weight:900}
 .wave-loot .wave-loot-sel{min-width:200px}
+.wave-loot .wave-loot-cat{min-width:140px}
+.wave-loot .wave-loot-item{min-width:200px}
 @media (max-width: 700px){
   .wave-loot .wave-loot-sel{min-width:140px}
 }
@@ -518,9 +572,258 @@ body::after{
 
 .roster-layout{
   display:grid;
-  grid-template-columns: 360px 1fr;
-  gap:12px;
+  /* minmax(0,1fr) prevents long strings from forcing the grid wider */
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap:10px;
+  align-items:start;
 }
+
+.roster-layout > .panel{min-width:0}
+.roster-layout > .panel + .panel{margin-top:0}
+
+/* Roster: align right panel header closer to top (matches Party) */
+.roster-layout > .panel:not(.roster-left){ padding-top:10px; }
+/* Title row: avoid extra bottom margin from .panel-title inside flex rows */
+.roster-layout .panel-title-row .panel-title{ margin-bottom:0; }
+.roster-layout .panel-title-row{ margin-bottom:6px; }
+
+/* Roster: player loadout title should never wrap (long names), and should stay compact. */
+.roster-loadout-title{
+  margin-top:4px;
+  margin-bottom:6px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  /* Long names must ellipsize within the pane, even as a flex item. */
+  max-width:100%;
+  min-width:0;
+  flex:0 1 auto;
+  line-height:1.15;
+}
+
+.roster-left{align-self:start}
+
+/* Party (4x4) roster layout */
+.party-grid{display:grid; gap:8px; margin-top:6px}
+.party-card{
+  border:1px solid rgba(122,167,255,.16);
+  border-radius: 12px;
+  background: rgba(16,22,35,.45);
+  padding:6px;
+}
+.party-card-head{display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:3px; min-width:0}
+.party-head-left{min-width:0; flex:1 1 auto; overflow:hidden}
+.party-sub{
+  font-size:10px;
+  font-weight:900;
+  color: var(--muted);
+  padding:1px 5px;
+  border-radius:999px;
+  border:1px solid rgba(122,167,255,.16);
+  background: rgba(6,10,18,.35);
+}
+.party-name{
+  appearance:none;
+  border:1px solid rgba(122,167,255,.20);
+  background: rgba(6,10,18,.40);
+  color: var(--text);
+  border-radius: 9px;
+  padding:2px 7px;
+  font: inherit;
+  font-weight:900;
+  /* Keep player name constrained; long names ellipsize instead of stretching the header. */
+  cursor:pointer;
+  display:block;
+  flex:1 1 auto;
+  width:0;
+  max-width:100%;
+  text-align:left;
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+
+}
+.party-name:hover{border-color: rgba(122,167,255,.45)}
+.party-slots{display:flex; flex-direction:column; gap:6px}
+.party-slots.grid4{display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:8px; grid-auto-rows:58px; align-items:stretch}
+.party-slot{
+  appearance:none;
+  border:1px solid rgba(122,167,255,.16);
+  background: rgba(16,22,35,.55);
+  border-radius: 10px;
+  padding:5px 8px;
+  cursor:pointer;
+  color: var(--text);
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  gap:8px;
+  min-height:42px;
+}
+.party-slot.tile{
+  flex-direction:column;
+  justify-content:center;
+  text-align:center;
+  height:58px;
+  min-height:58px;
+  padding:5px 6px;
+  gap:4px;
+  overflow:hidden;
+}
+.party-slot:hover{border-color: rgba(122,167,255,.40); background: rgba(16,22,35,.70)}
+.party-slot.selected{border-color: rgba(79,227,161,.55); background: rgba(12,30,24,.55)}
+.party-slot.armed{outline:2px solid rgba(247,208,44,.55)}
+.party-slot.drop{outline:2px dashed rgba(122,167,255,.55)}
+.party-slot.inactive{opacity:.55}
+.party-slot.empty{opacity:1; border-style:dashed; background: rgba(6,10,18,.20)}
+.party-slot.empty.collapsed{border-style:solid; background: rgba(6,10,18,.28)}
+.party-slot.empty .party-slot-label{font-weight:700}
+.party-slot .sprite{width:32px; height:32px}
+.party-slot.tile .sprite{width:32px; height:32px}
+.party-slot-plus{font-weight:900; font-size:20px; color: var(--muted); line-height:1}
+.party-slot.tile .party-slot-plus{font-size:18px}
+.party-slot-label{font-size:12px; font-weight:900; line-height:1.1; text-align:left; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0}
+.party-slot.tile .party-slot-label{flex:0; width:100%; text-align:center; font-size: 10px; line-height:1.05}
+
+.party-name.selected{border-color: rgba(79,227,161,.55) !important; background: rgba(12,30,24,.55) !important}
+
+.btn-on{border-color: rgba(79,227,161,.55) !important; background: rgba(12,30,24,.55) !important}
+
+.warn{color: rgba(255,209,102,.95); border:1px solid rgba(255,209,102,.25); background: rgba(255,209,102,.08); border-radius: 10px; padding:6px 8px}
+
+/* Waves planner: keep <summary> non-interactive; actions live under it */
+.altcombo-actions{
+  display:flex;
+  justify-content:flex-end;
+  padding:8px 10px 0;
+}
+
+/* Roster details compact header */
+.roster-detail-header{display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap}
+.rdh-left{display:flex; align-items:center; gap:12px; min-width:0}
+.rdh-meta{min-width:0}
+.rdh-tools{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.check.mini{font-size:12px}
+.check.mini span{font-weight:900; letter-spacing:.02em}
+.itempick{display:inline-flex; align-items:center; gap:6px}
+.rdh-mods{margin-top:6px}
+.modrow.compact{gap:6px}
+
+/* Move editor (Roster details) — styled like the polished tabs */
+.move-grid{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.move-row{
+  border:1px solid rgba(122,167,255,.14);
+  border-radius: 12px;
+  background: rgba(16,22,35,.42);
+  padding:6px 8px;
+  min-width:0;
+}
+.move-row:hover{border-color: rgba(122,167,255,.26); background: rgba(16,22,35,.58)}
+.move-row-main{display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0}
+.move-row-left{display:flex; align-items:center; gap:10px; min-width:0; flex:1 1 auto; flex-wrap:nowrap}
+.move-row-title{font-weight:900; white-space:nowrap; min-width:0; overflow:hidden; text-overflow:ellipsis}
+.move-row-right{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.pp-badge{
+  display:inline-flex;
+  align-items:center;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:900;
+  border:1px solid rgba(122,167,255,.16);
+  background: rgba(6,10,18,.35);
+  color: rgba(220,235,255,.90);
+}
+.move-row-pp{margin-top:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.move-row-pp.hidden{display:none}
+
+@media (max-width: 720px){
+  .move-row-left{flex-wrap:wrap}
+  .move-row-title{overflow:visible; text-overflow:clip}
+}
+
+.badge{
+  display:inline-flex;
+  align-items:center;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:900;
+  border:1px solid rgba(122,167,255,.18);
+  background: rgba(6,10,18,.35);
+  color: var(--muted);
+}
+.badge.auto{border-color: rgba(247,208,44,.22); background: rgba(247,208,44,.10); color: rgba(255,209,102,.95)}
+
+/* Clickable prio mode toggle in move rows */
+button.badge.prio-mode{
+  appearance:none;
+  -webkit-appearance:none;
+  cursor:pointer;
+}
+button.badge.prio-mode:hover{border-color: rgba(247,208,44,.40)}
+button.badge.prio-mode.manual{
+  border-color: rgba(255,118,118,.26);
+  background: rgba(255,118,118,.10);
+  color: rgba(255,170,170,.96);
+}
+button.badge.prio-mode.manual:hover{border-color: rgba(255,118,118,.45)}
+
+/* Preview card (Roster details) — legacy, safe to delete if unused */
+.roster-preview-card{
+  border:1px solid rgba(122,167,255,.16);
+  border-radius: 14px;
+  background: rgba(16,22,35,.45);
+  padding:12px;
+}
+.roster-preview-head{display:flex; align-items:center; gap:10px; margin-bottom:8px}
+.roster-preview-head .sprite{width:40px; height:40px}
+.roster-preview-meta{min-width:0}
+.roster-movechips{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+
+/* Player loadout (Roster details right column) */
+.player-loadout-card{
+  border:1px solid rgba(122,167,255,.16);
+  border-radius: 14px;
+  background: rgba(16,22,35,.45);
+  padding:12px;
+}
+.player-loadout-grid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap:10px;
+}
+.player-loadout-grid.row4{grid-template-columns: repeat(4, minmax(0, 1fr));}
+.player-loadout-slot{
+  appearance:none;
+  border:1px solid rgba(122,167,255,.16);
+  background: rgba(16,22,35,.55);
+  border-radius: 12px;
+  padding:12px 10px;
+  cursor:pointer;
+  color: var(--text);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-height:92px;
+  text-align:center;
+}
+.player-loadout-slot:hover{border-color: rgba(122,167,255,.40); background: rgba(16,22,35,.70)}
+.player-loadout-slot.selected{border-color: rgba(79,227,161,.55); background: rgba(12,30,24,.55)}
+.player-loadout-slot.drop{outline:2px dashed rgba(122,167,255,.55)}
+.player-loadout-slot.inactive{opacity:.55}
+.player-loadout-slot.empty{border-style:dashed; background: rgba(6,10,18,.20)}
+.player-loadout-slot .sprite{width:44px; height:44px}
+.player-loadout-slot .slot-plus{font-weight:900; font-size:22px; color: var(--muted); line-height:1}
+.player-loadout-slot .slot-name{font-size:12px; font-weight:900; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+
 .list{
   border:1px solid var(--border);
   border-radius: var(--radius);
@@ -558,15 +861,81 @@ body::after{
 /* Roster details: two-column content to reduce wasted space */
 .roster-details-grid{
   display:grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, .85fr);
   gap:14px;
   align-items:start;
 }
 .roster-details-stack{min-width:0}
 .roster-details-stack .hr{margin:12px 0}
+
+/* Roster details: full-width flow (loadout + move editor) */
+.roster-details-body{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  align-items:stretch;
+}
+
+/* Loadout details grid (Roster details) */
+.loadout-details-grid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap:12px;
+  align-items:start;
+}
+@media (min-width: 2400px){
+  .loadout-details-grid{grid-template-columns: repeat(4, minmax(0, 1fr));}
+}
+@media (max-width: 980px){
+  .loadout-details-grid{grid-template-columns: 1fr;}
+}
+
+.loadout-mon-panel{
+  border:1px solid rgba(122,167,255,.14);
+  border-radius: 14px;
+  background: rgba(16,22,35,.35);
+  padding:10px;
+  min-width:0;
+}
+.loadout-mon-panel.selected{
+  border-color: rgba(79,227,161,.55);
+  background: rgba(12,30,24,.45);
+}
+.loadout-mon-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px;
+}
+.loadout-mon-sel{
+  appearance:none;
+  border:0;
+  background:transparent;
+  color: inherit;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  cursor:pointer;
+  padding:0;
+  text-align:left;
+  min-width:0;
+}
+.loadout-mon-sel:hover .loadout-mon-name{text-decoration: underline}
+.loadout-mon-meta{min-width:0}
+.loadout-mon-name{font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.loadout-mon-tools{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.loadout-mon-moves .field label{font-size:12px; color: var(--muted)}
 @media (max-width: 980px){
   .roster-layout{grid-template-columns: 1fr}
   .roster-details-grid{grid-template-columns: 1fr}
+  .player-loadout-grid.row4{grid-template-columns: repeat(2, minmax(0, 1fr));}
 }
 
 
@@ -585,6 +954,41 @@ body::after{
   background: rgba(255,255,255,.06);
   color: var(--text);
 }
+
+/* Type icons (uses the existing type-* classes; avoids JS wiring) */
+.typechip::before,
+.badge.typebadge::before,
+.dex-plate.dex-type::before{
+  content:none;
+  display:inline-block;
+  width:14px;
+  height:14px;
+  margin-right:6px;
+  background-repeat:no-repeat;
+  background-size:contain;
+  image-rendering: pixelated;
+  opacity:.95;
+}
+.dex-plate.dex-type::before{ width:16px; height:16px; margin-right:7px; }
+.badge.typebadge::before{ width:13px; height:13px; margin-right:6px; }
+
+.typechip.type-Normal::before, .badge.typebadge.type-Normal::before, .dex-plate.dex-type.type-Normal::before, .dex-plate.type-Normal::before{content:''; background-image:url('assets/pokeicons/types/normal.png')}
+.typechip.type-Fire::before, .badge.typebadge.type-Fire::before, .dex-plate.dex-type.type-Fire::before, .dex-plate.type-Fire::before{content:''; background-image:url('assets/pokeicons/types/fire.png')}
+.typechip.type-Water::before, .badge.typebadge.type-Water::before, .dex-plate.dex-type.type-Water::before, .dex-plate.type-Water::before{content:''; background-image:url('assets/pokeicons/types/water.png')}
+.typechip.type-Electric::before, .badge.typebadge.type-Electric::before, .dex-plate.dex-type.type-Electric::before, .dex-plate.type-Electric::before{content:''; background-image:url('assets/pokeicons/types/electric.png')}
+.typechip.type-Grass::before, .badge.typebadge.type-Grass::before, .dex-plate.dex-type.type-Grass::before, .dex-plate.type-Grass::before{content:''; background-image:url('assets/pokeicons/types/grass.png')}
+.typechip.type-Ice::before, .badge.typebadge.type-Ice::before, .dex-plate.dex-type.type-Ice::before, .dex-plate.type-Ice::before{content:''; background-image:url('assets/pokeicons/types/ice.png')}
+.typechip.type-Fighting::before, .badge.typebadge.type-Fighting::before, .dex-plate.dex-type.type-Fighting::before, .dex-plate.type-Fighting::before{content:''; background-image:url('assets/pokeicons/types/fighting.png')}
+.typechip.type-Poison::before, .badge.typebadge.type-Poison::before, .dex-plate.dex-type.type-Poison::before, .dex-plate.type-Poison::before{content:''; background-image:url('assets/pokeicons/types/poison.png')}
+.typechip.type-Ground::before, .badge.typebadge.type-Ground::before, .dex-plate.dex-type.type-Ground::before, .dex-plate.type-Ground::before{content:''; background-image:url('assets/pokeicons/types/ground.png')}
+.typechip.type-Flying::before, .badge.typebadge.type-Flying::before, .dex-plate.dex-type.type-Flying::before, .dex-plate.type-Flying::before{content:''; background-image:url('assets/pokeicons/types/flying.png')}
+.typechip.type-Psychic::before, .badge.typebadge.type-Psychic::before, .dex-plate.dex-type.type-Psychic::before, .dex-plate.type-Psychic::before{content:''; background-image:url('assets/pokeicons/types/psychic.png')}
+.typechip.type-Bug::before, .badge.typebadge.type-Bug::before, .dex-plate.dex-type.type-Bug::before, .dex-plate.type-Bug::before{content:''; background-image:url('assets/pokeicons/types/bug.png')}
+.typechip.type-Rock::before, .badge.typebadge.type-Rock::before, .dex-plate.dex-type.type-Rock::before, .dex-plate.type-Rock::before{content:''; background-image:url('assets/pokeicons/types/rock.png')}
+.typechip.type-Ghost::before, .badge.typebadge.type-Ghost::before, .dex-plate.dex-type.type-Ghost::before, .dex-plate.type-Ghost::before{content:''; background-image:url('assets/pokeicons/types/ghost.png')}
+.typechip.type-Dragon::before, .badge.typebadge.type-Dragon::before, .dex-plate.dex-type.type-Dragon::before, .dex-plate.type-Dragon::before{content:''; background-image:url('assets/pokeicons/types/dragon.png')}
+.typechip.type-Dark::before, .badge.typebadge.type-Dark::before, .dex-plate.dex-type.type-Dark::before, .dex-plate.type-Dark::before{content:''; background-image:url('assets/pokeicons/types/dark.png')}
+.typechip.type-Steel::before, .badge.typebadge.type-Steel::before, .dex-plate.dex-type.type-Steel::before, .dex-plate.type-Steel::before{content:''; background-image:url('assets/pokeicons/types/steel.png')}
 
 /* per-type accents (soft, readable on dark) */
 .type-Normal{border-color: rgba(168,167,122,.35); background: rgba(168,167,122,.14)}
@@ -639,13 +1043,13 @@ body::after{
 .dex-tag.good{border-color: rgba(79,227,161,.35); color: rgba(79,227,161,.95)}
 .dex-tag.bad{border-color: rgba(255,93,115,.35); color: rgba(255,93,115,.95)}
 .dex-card.unlocked{border-color: rgba(79,227,161,.25)}
-.dex-card.locked{opacity:.62; filter:saturate(.7)}
+.dex-card.locked{opacity:1; filter:none}
 .dex-sprite{width:56px; height:56px}
 .dex-card:hover{
   border-color: rgba(122,167,255,.35);
   background: rgba(16,22,35,.62);
 }
-.dex-card.locked{opacity:.68}
+.dex-card.locked{opacity:1}
 .dex-meta{min-width:0}
 .dex-name{font-weight:900; white-space:normal; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:1.15; min-height:2.3em}
 .dex-status{font-size:12px; color:var(--muted)}
@@ -776,7 +1180,7 @@ body::after{
 .pp-move{font-size:12px; font-weight:800; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .pp-box{display:flex; gap:6px; align-items:center}
 .battle-log{margin-top:8px; max-height:none; overflow:visible; border-radius:12px; border:1px solid rgba(120,170,255,.12); background: rgba(6,10,18,.45); padding:8px}
-.battle-log-line{font-size:12px; color:var(--muted); padding:3px 0; border-bottom:1px dashed rgba(120,170,255,.10)}
+.battle-log-line{font-size:12px; color:var(--muted); padding:5px 0; line-height:1.35; border-bottom:1px dashed rgba(120,170,255,.10)}
 .battle-log-line:last-child{border-bottom:none}
 
 /* btn-mini danger */
@@ -873,6 +1277,7 @@ body::after{
   padding-right:0;
 }
 .pick-item{
+  cursor:pointer;
   display:grid;
   grid-template-columns: 54px 1fr;
   gap:10px;
@@ -894,6 +1299,31 @@ body::after{
   box-shadow: 0 0 0 2px rgba(122,167,255,.22) inset, 0 10px 24px rgba(0,0,0,.22);
   background: rgba(22,30,48,.62);
 }
+
+.pick-item .pick-sprite{
+  width:54px; height:54px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius: 12px;
+  border:1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  position:relative;
+}
+.pick-item .pick-sprite img{ pointer-events:none; }
+.pick-item:hover .pick-sprite{
+  border-color: rgba(122,167,255,.28);
+  background: rgba(122,167,255,.04);
+}
+.pick-item .pick-sprite::after{
+  content:'↗';
+  position:absolute;
+  top:3px; right:6px;
+  font-size:11px;
+  color: rgba(255,255,255,0.55);
+  opacity:0;
+  transition: opacity .12s ease;
+}
+.pick-item:hover .pick-sprite::after{ opacity:0.8; }
+
 .pick-meta{min-width:0}
 .pick-title{
   font-weight:900;
@@ -991,8 +1421,13 @@ body::after{
   background: rgba(22,32,56,.55);
   box-shadow: 0 0 0 3px rgba(122,167,255,.10);
 }
-.bag-layout{ display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; }
-.bag-col{ flex: 1 1 320px; }
+.bag-layout{ display:flex; gap:14px; align-items:stretch; flex-wrap:nowrap; }
+.bag-col{ flex: 1 1 0; min-width: 0; }
+.bag-col.bag-left{ flex: 0 0 34%; }
+.bag-col.bag-right{ flex: 1 1 66%; }
+@media (max-width: 1100px){
+  .bag-layout{flex-direction:column;}
+}
 .bag-form{ display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
 .bag-form .field{ flex: 1 1 200px; }
 .bag-table{ width:100%; border-collapse:collapse; }
@@ -1005,12 +1440,50 @@ body::after{
 .bag-item{ display:flex; align-items:center; gap:10px; }
 .bag-num{ text-align:right; }
 
+/* Item/Type icons (PokeSprite) */
+.item-ico, .type-ico{
+  width: 22px;
+  height: 22px;
+  image-rendering: pixelated;
+  vertical-align: -3px;
+  flex: 0 0 auto;
+}
+.item-ico{
+  border-radius: 4px;
+}
+.type-ico{
+  width: 18px;
+  height: 18px;
+  opacity: 0.95;
+}
+.itemcell{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+.itemcell .name{
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+
 
 
 /* --- Politoed shop (compact) --- */
 .shop-balance{display:flex; align-items:center; gap:8px}
-.shop-grid{display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:8px; margin-top:10px}
-.shop-card{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border-radius:12px; border:1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.18)}
+.shop-grid{display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:8px; margin-top:10px}
+@media (min-width: 1200px){
+  .bag-col.bag-right .shop-grid{ grid-template-columns: repeat(4, minmax(190px, 1fr)); }
+}
+@media (max-width: 1200px){
+  .bag-col.bag-right .shop-grid{ grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+}
+.shop-card{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; min-height:48px; border-radius:12px; border:1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.18)}
+.shop-card .item-ico{ width:32px; height:32px; }
+.shop-card .type-ico{ width:24px; height:24px; }
 .shop-meta{display:flex; flex-direction:column; gap:2px; min-width:0}
 .shop-name{font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .shop-price{font-size:12px; color:var(--muted)}
@@ -1034,57 +1507,85 @@ body::after{
 */
 .settings-layout{
   display:flex;
-  gap:14px;
+  gap:12px;
   align-items:flex-start;
-  justify-content:center;
+  justify-content:space-between;
   flex-wrap:wrap;
-  max-width: 1720px;
-  margin: 0 auto;
+  max-width: none;
+  width: 100%;
+  margin: 0;
 }
 
 /* Settings micro-polish: consistent card headers + tighter Credits typography. */
 .settings-layout .panel-title{
-  margin: 0 0 10px 0;
+  margin: 0 0 8px 0;
   line-height: 1.15;
   min-height: 24px;
   display:flex;
   align-items:center;
   padding-top: 1px;
 }
-.settings-layout .panel-subtitle{ margin: 12px 0 6px 0; }
+.settings-layout .panel-subtitle{ margin: 8px 0 4px 0; }
 .settings-about .muted.small{ line-height: 1.25; }
 
 .settings-col{
   display:flex;
   flex-direction:column;
-  gap:14px;
+  gap:12px;
   flex: 1 1 360px;
   min-width: 320px;
 }
 
 /* Give the center column more breathing room without turning inputs into a 2km runway */
 .settings-col-mid{
-  flex: 2 1 560px;
+  flex: 1 1 640px;
   min-width: 520px;
+  max-width: 760px;
 }
 
 @media (min-width: 1200px){
-  .settings-layout{ flex-wrap:nowrap; }
-  .settings-col-left, .settings-col-right{ flex: 0 0 360px; }
-  /* Cap center width on ultra-wide so inputs don't feel like a runway. */
-  .settings-col-mid{ flex: 1 1 auto; min-width: 0; max-width: 920px; }
+  .settings-layout{ flex-wrap:nowrap; justify-content:stretch; }
+  /* Shift width from side columns into the center to reduce wrapping (no-scroll @ 1920x1080). */
+  .settings-col-left, .settings-col-right{ flex: 1 1 380px; min-width: 340px; }
+  /* Allow the center to grow wider; keep it bounded so it doesn't become a runway. */
+  .settings-col-mid{ flex: 1 1 860px; min-width: 620px; max-width: 900px; }
 }
 
 @media (min-width: 1600px){
   /* Keep side columns stable; avoid pushing the center wider than needed. */
-  .settings-col-left, .settings-col-right{ flex-basis: 360px; }
+  .settings-col-left, .settings-col-right{ flex-basis: 340px; }
 }
 
+
+
+/* Settings: checkbox groups in 2 columns (reduces vertical scroll). */
+.settings-checkgrid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap:6px 14px;
+  margin: 4px 0;
+}
+@media (min-width: 900px){
+  .settings-checkgrid{ grid-template-columns: 1fr 1fr; }
+}
+.settings-checkgrid .check{ margin: 4px 0; }
+
+/* Settings: slightly tighter form controls (scoped). */
+.settings-layout .field{ margin-bottom: 6px; gap:5px; }
+.settings-layout .check{ margin: 4px 0; }
+.settings-layout .field input[type="number"],
+.settings-layout .field input[type="text"],
+.settings-layout .field select{
+  padding: 6px 8px;
+}
+.settings-layout .panel{ padding:9px; }
+.settings-layout .panel hr{ margin:8px 0; }
+.settings-layout .muted.small{ line-height:1.2; }
 /* Core settings: compress the long list into a tighter 2-col form on wide screens */
 .settings-core .core-fields{
   display:grid;
   grid-template-columns: 1fr;
-  gap:10px;
+  gap:8px;
 }
 @media (min-width: 900px){
   .settings-core .core-fields{
@@ -1093,7 +1594,7 @@ body::after{
 }
 
 .settings-core .core-fields .field{ margin-bottom: 0; }
-.settings-core .core-section{ margin-top: 10px; }
+.settings-core .core-section{ margin-top: 8px; }
 .panel hr{ border:0; border-top:1px solid rgba(255,255,255,0.08); margin:10px 0; }
 
 
@@ -1191,6 +1692,10 @@ select::-ms-expand{ display:none; }
 
 /* Screen-reader only (used for hidden form labels to silence Chrome Issues panel) */
 .sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+
+/* Pokédex search should not span the entire panel width */
+.dex-search-field{max-width:560px; width:100%; margin-bottom:12px;}
+.dex-search-field{margin-left:0; margin-right:auto;}
 
 
 /* ---------------- Pokédex UI (ported from alpha_v35_dex_entry_layout_final_align_v3) ---------------- */
@@ -1425,8 +1930,10 @@ select::-ms-expand{ display:none; }
 .dex-card.unlocked .sprite{filter: drop-shadow(0 0 10px rgba(79,227,161,.18));}
 
 .dex-card.locked{
-  border-color: rgba(255,93,115,.22);
+  border-color: rgba(255,93,115,.18);
   background: rgba(10,14,24,.50);
+  opacity: 1;
+  filter: none;
 }
 .dex-card.locked{ border-style: dashed; }
 .dex-card.locked::before{
@@ -1765,7 +2272,8 @@ select::-ms-expand{ display:none; }
 /* Compact one-shot table in Dex entry */
 .dex-oneshot-panel .table th,
 .dex-oneshot-panel .table td{
-  padding:6px 8px;
+  padding:7px 8px;
+  line-height:1.25;
 }
 .dex-oneshot-panel .table th{font-size:11px;}
 .dex-oneshot-panel .pill{font-size:11px; padding:2px 8px;}
@@ -1857,3 +2365,154 @@ select::-ms-expand{ display:none; }
 .dex-detail-wrap .panel-subtitle{margin-bottom:8px;}
 
 .shop-type{margin-top:6px; padding:6px 8px; border-radius:10px; border:1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.25); color: inherit;}
+
+
+/* Fight log meta line padding (avoid cramped text) */
+.fightlog-meta-line{
+  padding: 0 12px;
+  margin-top: 6px;
+}
+
+
+/* Item picker label (Roster cards) */
+.itempick{ display:inline-flex; align-items:center; gap:6px; }
+.itempick-label{ font-size:11px; color:var(--muted); margin-right:2px; }
+
+/* Icon buttons */
+.btn-icon{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:28px; border-radius:10px; border:1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.18); color: rgba(255,255,255,0.88); cursor:pointer; }
+.btn-icon:hover{ border-color: rgba(122,167,255,.35); }
+.btn-icon.btn-danger{ border-color: rgba(255,80,80,0.35); color: rgba(255,160,160,0.95); }
+.btn-icon.btn-danger:hover{ border-color: rgba(255,80,80,0.60); }
+
+/* Undo buttons: make more visible */
+.btn-undo{ border-color: rgba(122,167,255,.35) !important; box-shadow: 0 0 0 3px rgba(122,167,255,.10); font-weight:900; }
+.btn-strong{ border-color: rgba(122,167,255,.30) !important; box-shadow: 0 0 0 3px rgba(122,167,255,.08); font-weight:900; }
+.btn-strong:hover{ border-color: rgba(122,167,255,.55) !important; }
+.btn-expander{
+  min-width:44px;
+  height:34px;
+  text-align:center;
+  padding:0 10px;
+  font-weight:1000;
+  border-radius:12px;
+  border:1px solid rgba(122,167,255,.28);
+  background: rgba(0,0,0,0.18);
+  box-shadow: 0 0 0 3px rgba(122,167,255,.06);
+}
+.btn-expander:hover{ border-color: rgba(122,167,255,.55); box-shadow: 0 0 0 3px rgba(122,167,255,.10); }
+.btn-expander:active{ transform: scale(.98); }
+.fightlog-summary-row{display:flex; align-items:flex-start; justify-content:space-between; gap:10px}
+.defmods{margin-top:6px}
+.defmods-summary{cursor:pointer; list-style:none; display:flex; gap:8px; align-items:center; padding:4px 0}
+.defmods-summary::-webkit-details-marker{display:none}
+
+
+/* Roster per-mon mods */
+.mon-mods{ margin-top:8px; padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.14); }
+
+button.badge.prio-mode.auto{border-color: rgba(247,208,44,.22); background: rgba(247,208,44,.10); color: rgba(255,209,102,.95)}
+
+.shop-card .shop-name{white-space:normal}
+.shop-card .itemcell{flex-wrap:wrap}
+
+
+/* Fight log header controls */
+.fightlog-toggle{
+  padding:8px 12px;
+  border-radius:12px;
+  font-weight:900;
+}
+.fightlog-toggle.is-active{
+  border-color: rgba(122,167,255,.70) !important;
+  box-shadow: 0 0 0 3px rgba(122,167,255,.12);
+  background: rgba(16,22,35,.88);
+}
+
+/* Defender modifier foldout */
+.defmods-summary{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:2px 8px;
+  border-radius: 999px;
+  border:1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.02);
+}
+.defmods-summary::after{
+  content:'▾';
+  margin-left:auto;
+  opacity:.75;
+  font-size:12px;
+}
+.defmods[open] > .defmods-summary::after{content:'▴';}
+.defmods-summary:hover{ opacity:1; color: rgba(232,238,252,.90); }
+.defmods-dot{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:14px;
+  height:14px;
+  border-radius:999px;
+  background: rgba(255,200,80,.14);
+  border:1px solid rgba(255,200,80,.35);
+  color: rgba(255,230,160,.95);
+  font-size:11px;
+  line-height:1;
+}
+.defmods.nonneutral .defmods-summary{ color: rgba(255,230,160,.95); }
+.defmods.nonneutral .defmods-summary .muted{ color: rgba(255,230,160,.85) !important; }
+
+
+/* Disabled controls clarity */
+.sel-mini:disabled, .inp-mini:disabled{
+  opacity:.55;
+  filter:saturate(.7);
+  cursor:not-allowed;
+}
+
+/* Shop stacked cards (dropdown items) */
+.shop-card-stack{
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:flex-start;
+}
+.shop-card-stack .shop-card-main{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.shop-card-stack .shop-card-sub{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-top:6px;
+}
+.shop-card-stack .shop-sub-left{flex:1 1 auto; min-width:0}
+.shop-card-stack .shop-sub-left .sel-mini{width:100%; max-width:180px}
+.shop-card-stack .shop-sub-right{flex:0 0 auto}
+
+/* Type icon support for all dex-plate type chips (including matchups) */
+.dex-plate[class*="type-"]::before{
+  content:'';
+  width:16px;
+  height:16px;
+  display:inline-block;
+  margin-right:7px;
+  background-size:contain;
+  background-repeat:no-repeat;
+  background-position:center;
+  opacity:.95;
+}
+
+
+/* Disabled controls: clearer locked state */
+select:disabled, .sel-mini:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+  filter: grayscale(0.15);
+}
+
+.party-card-head{min-width:0}
+.party-card-head .party-name{min-width:0}

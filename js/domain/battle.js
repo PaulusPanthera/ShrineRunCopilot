@@ -20,6 +20,184 @@ function baseDefKey(k){
   return String(k || '').split('#')[0];
 }
 
+function hasOwn(obj, key){
+  return !!obj && Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function parseGemType(itemName){
+  const s = String(itemName||'').trim();
+  if (!s.endsWith(' Gem')) return null;
+  const t = s.replace(/ Gem$/, '').trim();
+  return t || null;
+}
+
+function effectiveAttackerItem({state, wp, battle, attackerId}){
+  const rm = attackerId ? byId(state?.roster||[], attackerId) : null;
+  const base = (wp && wp.itemOverride && attackerId) ? (wp.itemOverride[attackerId] ?? null) : null;
+  const fromRoster = rm?.item ?? null;
+  let item = base || fromRoster || null;
+  if (battle && hasOwn(battle.itemOverrideRuntime, attackerId)){
+    item = battle.itemOverrideRuntime[attackerId];
+  }
+  return item || null;
+}
+
+function maybeConsumeGem({battle, attackerId, item, moveName, moveType, didDamagePct, turnLog, attackerLabel}){
+  if (!battle || !attackerId) return;
+  const gemType = parseGemType(item);
+  if (!gemType) return;
+  if (String(gemType) !== String(moveType||'')) return;
+  if (!(Number(didDamagePct)||0) > 0) return; // no activation if nothing was damaged
+
+  battle.itemOverrideRuntime = battle.itemOverrideRuntime || {};
+  battle.itemOverrideRuntime[attackerId] = null;
+
+  // Persist consumable usage so wave fight logs can debit the Bag across fights/waves.
+  battle.consumed = Array.isArray(battle.consumed) ? battle.consumed : [];
+  battle.consumed.push({attackerId, item: String(item), kind: 'gem'});
+
+  if (turnLog){
+    const who = attackerLabel ? String(attackerLabel) : 'Attacker';
+    turnLog.push(`${who}'s ${item} was consumed.`);
+  }
+}
+
+function maybeHealShellBell({battle, attackerId, item, totalDamagePct, turnLog, attackerLabel}){
+  if (!battle || !attackerId) return;
+  if (String(item||'') !== 'Shell Bell') return;
+  const dmg = Number(totalDamagePct)||0;
+  if (!(dmg > 0)) return;
+
+  // Battle engine runs in HP% space (0..100). We therefore model Shell Bell as:
+  // healPct = floor(totalDamagePct / 8).
+  const heal = Math.floor(dmg / 8);
+  if (heal <= 0) return;
+
+  const cur = clampHpPct(battle.hpAtk?.[attackerId] ?? 0);
+  const next = clampHpPct(cur + heal);
+  battle.hpAtk[attackerId] = next;
+
+  if (turnLog){
+    const who = attackerLabel ? String(attackerLabel) : 'Attacker';
+    turnLog.push(`${who} healed ${heal.toFixed(0)}% (Shell Bell).`);
+  }
+}
+
+function maybeApplyLifeOrbRecoil({battle, attackerId, item, didDamagePct, turnLog, attackerLabel}){
+  if (!battle || !attackerId) return;
+  if (String(item||'') !== 'Life Orb') return;
+  const dmg = Number(didDamagePct)||0;
+  if (!(dmg > 0)) return;
+
+  // Life Orb: user loses 10% max HP on successful damaging attacks.
+  const recoil = 10;
+  const before = clampHpPct(battle.hpAtk?.[attackerId] ?? 0);
+  const after = clampHpPct(before - recoil);
+  battle.hpAtk[attackerId] = after;
+
+  if (turnLog){
+    const who = attackerLabel ? String(attackerLabel) : 'Attacker';
+    turnLog.push(`${who} took ${recoil.toFixed(0)}% recoil (Life Orb).`);
+  }
+}
+
+function metronomeNextMult(battle, attackerId, moveName, item){
+  if (!battle || !attackerId) return 1;
+  if (String(item||'') !== 'Metronome') return 1;
+  const mv = String(moveName||'');
+  if (!mv) return 1;
+  battle.metronome = battle.metronome || {};
+  const st = battle.metronome[attackerId] || {last:null, streak:0};
+  const same = (st.last === mv);
+  const nextStreak = same ? Math.min(5, (Number(st.streak)||0) + 1) : 0;
+  return 1 + 0.2 * nextStreak;
+}
+
+function metronomeRecordUse(battle, attackerId, moveName, item){
+  if (!battle || !attackerId) return;
+  if (String(item||'') !== 'Metronome') return;
+  const mv = String(moveName||'');
+  if (!mv) return;
+  battle.metronome = battle.metronome || {};
+  const st = battle.metronome[attackerId] || {last:null, streak:0};
+  if (st.last === mv){
+    st.streak = Math.min(5, (Number(st.streak)||0) + 1);
+  } else {
+    st.last = mv;
+    st.streak = 0;
+  }
+  battle.metronome[attackerId] = st;
+}
+
+
+function ensureAudit(battle){
+  // Dev-facing audit is kept on battle objects for debugging, but should NOT be persisted.
+  // Make it non-enumerable so JSON.stringify(state) won't bloat localStorage.
+  if (!battle) return {execKeys:{}, ppEvents:[]};
+  const cur = battle._audit;
+  if (cur && typeof cur === 'object') {
+    try{
+      const d = Object.getOwnPropertyDescriptor(battle, '_audit');
+      if (!d || d.enumerable !== false){
+        Object.defineProperty(battle, '_audit', {value: cur, writable: true, configurable: true, enumerable: false});
+      }
+    }catch(e){ /* ignore */ }
+    cur.execKeys = (cur.execKeys && typeof cur.execKeys==='object') ? cur.execKeys : {};
+    cur.ppEvents = Array.isArray(cur.ppEvents) ? cur.ppEvents : [];
+    return cur;
+  }
+  const val = {execKeys:{}, ppEvents:[]};
+  try{
+    Object.defineProperty(battle, '_audit', {value: val, writable: true, configurable: true, enumerable: false});
+  }catch(e){
+    battle._audit = val;
+  }
+  return val;
+}
+
+function maybeTriggerFocusSash({battle, state, wp, targetId, prevHp, nextHp, turnLog, targetLabel}){
+  if (!battle || !state || !targetId) return clampHpPct(nextHp ?? 0);
+  const before = clampHpPct(prevHp ?? (battle.hpAtk?.[targetId] ?? 0));
+  const after0 = clampHpPct(nextHp ?? before);
+  if (after0 > 0) return after0;
+  if (before < 99.9) return after0;
+
+  const item = effectiveAttackerItem({state, wp, battle, attackerId: targetId});
+  if (String(item||'') !== 'Focus Sash') return after0;
+
+  // Survive at 1% in HP% space, then consume the sash for the rest of the battle.
+  const after = 1;
+  battle.itemOverrideRuntime = battle.itemOverrideRuntime || {};
+  battle.itemOverrideRuntime[targetId] = null;
+
+  battle.consumed = Array.isArray(battle.consumed) ? battle.consumed : [];
+  battle.consumed.push({attackerId: targetId, item: 'Focus Sash', kind: 'sash'});
+
+  if (turnLog){
+    const who = targetLabel ? String(targetLabel) : (byId(state?.roster||[], targetId)?.baseSpecies || 'Target');
+    turnLog.push(`${who} hung on at 1% (Focus Sash).`);
+  }
+
+  return after;
+}
+
+function maybePopAirBalloon({battle, state, wp, targetId, turnLog, targetLabel}){
+  if (!battle || !state || !targetId) return;
+  const item = effectiveAttackerItem({state, wp, battle, attackerId: targetId});
+  if (String(item || '') !== 'Air Balloon') return;
+  battle.itemOverrideRuntime = battle.itemOverrideRuntime || {};
+  battle.itemOverrideRuntime[targetId] = null;
+
+  // Persist consumable usage so wave fight logs can debit the Bag across fights/waves.
+  battle.consumed = Array.isArray(battle.consumed) ? battle.consumed : [];
+  battle.consumed.push({attackerId: targetId, item: 'Air Balloon', kind: 'balloon'});
+
+  if (turnLog){
+    const who = targetLabel ? String(targetLabel) : (byId(state?.roster||[], targetId)?.baseSpecies || 'Target');
+    turnLog.push(`${who}'s Air Balloon popped.`);
+  }
+}
+
 // Percent helpers
 // - HP% is always clamped to [0, 100]
 // - Damage% must NOT be clamped to 100 (AoE spread is applied after computing % damage,
@@ -36,6 +214,143 @@ function clampDmgPct(x){
   return Math.max(0, Math.min(9999, n));
 }
 
+
+// Speed stat helper (neutral nature)
+function statOther(base, level, iv, ev){
+  const evq = Math.floor((Number(ev)||0)/4);
+  return Math.floor(((2*Number(base) + Number(iv||0) + evq) * Number(level||0))/100) + 5;
+}
+
+function weatherFromAbilityLcLocal(abLc){
+  const a = String(abLc||'').trim().toLowerCase();
+  if (a === 'drizzle') return 'rain';
+  if (a === 'drought') return 'sun';
+  if (a === 'sand stream') return 'sand';
+  if (a === 'snow warning') return 'hail';
+  return null;
+}
+
+function defenderAbilityLcFromData(data, species){
+  const a = data?.claimedSets?.[String(species||'')]?.ability;
+  return String(a||'').trim().toLowerCase();
+}
+
+function rosterSpeed(state, data, rosterMon){
+  const sp = data?.dex?.[rosterMon?.effectiveSpecies || rosterMon?.baseSpecies]?.base?.spe;
+  if (!Number.isFinite(Number(sp))) return 0;
+  const lvl = Number(state?.settings?.claimedLevel) || 1;
+  const iv = Number(state?.settings?.claimedIV) || 0;
+  const ev = rosterMon?.strength ? (Number(state?.settings?.strengthEV)||0) : (Number(state?.settings?.claimedEV)||0);
+  return statOther(sp, lvl, iv, ev);
+}
+
+function defenderSpeed(state, data, defSlot){
+  const sp = data?.dex?.[String(defSlot?.defender||'')]?.base?.spe;
+  if (!Number.isFinite(Number(sp))) return 0;
+  const lvl = Number(defSlot?.level) || 1;
+  const iv = Number(state?.settings?.wildIV) || 0;
+  const ev = Number(state?.settings?.wildEV) || 0;
+  return statOther(sp, lvl, iv, ev);
+}
+
+// Initial weather: ability activation at battle start resolves by Speed; slowest weather setter "wins" (acts last).
+// Tie-breaker: prefer DEFENDER-side setter (conservative for shrine planning).
+function inferInitialWeather({data, state, atkActiveIds, defActiveKeys, slotByKey}){
+  const setters = [];
+
+  for (const rk of (defActiveKeys||[])){
+    const sl = slotByKey.get(baseDefKey(rk));
+    if (!sl) continue;
+    const abLc = defenderAbilityLcFromData(data, sl.defender);
+    const w = weatherFromAbilityLcLocal(abLc);
+    if (!w) continue;
+    setters.push({side:'def', weather:w, ability:abLc, spe: defenderSpeed(state, data, sl)});
+  }
+
+  for (const id of (atkActiveIds||[])){
+    const rm = byId(state?.roster||[], id);
+    if (!rm) continue;
+    const abLc = String(rm.ability||'').trim().toLowerCase();
+    const w = weatherFromAbilityLcLocal(abLc);
+    if (!w) continue;
+    setters.push({side:'atk', weather:w, ability:abLc, spe: rosterSpeed(state, data, rm)});
+  }
+
+  if (!setters.length) return null;
+  setters.sort((a,b)=>{
+    if ((a.spe||0) !== (b.spe||0)) return (a.spe||0) - (b.spe||0); // slowest first
+    if (a.side !== b.side) return (a.side === 'def') ? -1 : 1;
+    return 0;
+  });
+  return setters[0];
+}
+
+function applyWeatherFromSetter({battle, setter, turnLog, when}){
+  if (!battle || !setter || !setter.weather) return;
+  const next = setter.weather;
+  const prev = battle.weather || null;
+  battle.weather = next;
+  if (turnLog){
+    const lbl = String(when||'weather').trim() || 'weather';
+    if (prev && prev === next){
+      turnLog.push(`Weather persists: ${next} (${setter.ability}).`);
+    } else {
+      turnLog.push(`Weather set: ${next} (${setter.ability}) · ${lbl}.`);
+    }
+  }
+}
+
+function weatherChipPct(weather){
+  if (weather === 'sand' || weather === 'hail') return (100 / 16);
+  return 0;
+}
+function typesForSpecies(data, species){
+  const sp = data?.dex?.[String(species||'')]?.types;
+  return Array.isArray(sp) ? sp : [];
+}
+function immuneToWeatherChip(data, weather, species){
+  const w = String(weather||'');
+  if (!w || !species) return false;
+  const types = typesForSpecies(data, species);
+  if (w === 'sand'){
+    return types.includes('Rock') || types.includes('Ground') || types.includes('Steel');
+  }
+  if (w === 'hail'){
+    return types.includes('Ice');
+  }
+  return true;
+}
+
+function applyOnHitImmunityBoost({battle, state, targetId, moveType, turnLog}){
+  if (!battle || !state || !targetId) return;
+  const rm = byId(state.roster||[], targetId);
+  if (!rm) return;
+  const abLc = String(rm.ability||'').trim().toLowerCase();
+  const t = String(moveType||'');
+  const d = ensureStageDelta(battle, targetId);
+
+  if (t === 'Electric'){
+    if (abLc === 'motor drive'){
+      d.spe = clampInt((d.spe||0) + 1, -6, 6);
+      if (turnLog) turnLog.push(`${rm.baseSpecies || targetId} gained +1 Spe (Motor Drive).`);
+    } else if (abLc === 'lightning rod'){
+      d.spa = clampInt((d.spa||0) + 1, -6, 6);
+      if (turnLog) turnLog.push(`${rm.baseSpecies || targetId} gained +1 SpA (Lightning Rod).`);
+    }
+  } else if (t === 'Water'){
+    if (abLc === 'storm drain'){
+      d.spa = clampInt((d.spa||0) + 1, -6, 6);
+      if (turnLog) turnLog.push(`${rm.baseSpecies || targetId} gained +1 SpA (Storm Drain).`);
+    }
+  } else if (t === 'Grass'){
+    if (abLc === 'sap sipper'){
+      d.atk = clampInt((d.atk||0) + 1, -6, 6);
+      if (turnLog) turnLog.push(`${rm.baseSpecies || targetId} gained +1 Atk (Sap Sipper).`);
+    }
+  }
+
+  battle.stageDelta[targetId] = d;
+}
 function normPrio(x){
   const n = Number(x);
   // Default midpoint for the expanded 1..5 tier system.
@@ -74,24 +389,24 @@ function rosterDefObj(state, rosterMon){
 export function immuneFromAllyAbilityItem(allyRosterMon, moveType){
   if (!allyRosterMon) return false;
   const type = String(moveType||'');
-  const ab = String(allyRosterMon.ability || '').trim();
+  const abLc = String(allyRosterMon.ability || '').trim().toLowerCase();
   const item = String(allyRosterMon.item || '').trim();
-  if (ab === 'Telepathy') return true;
+  if (abLc === 'telepathy') return true;
   if (type === 'Ground'){
-    if (ab === 'Levitate') return true;
+    if (abLc === 'levitate') return true;
     if (item === 'Air Balloon') return true;
   }
   if (type === 'Electric'){
-    if (ab === 'Lightning Rod' || ab === 'Motor Drive' || ab === 'Volt Absorb') return true;
+    if (abLc === 'lightning rod' || abLc === 'motor drive' || abLc === 'volt absorb') return true;
   }
   if (type === 'Fire'){
-    if (ab === 'Flash Fire') return true;
+    if (abLc === 'flash fire') return true;
   }
   if (type === 'Water'){
-    if (ab === 'Water Absorb' || ab === 'Storm Drain' || ab === 'Dry Skin') return true;
+    if (abLc === 'water absorb' || abLc === 'storm drain' || abLc === 'dry skin') return true;
   }
   if (type === 'Grass'){
-    if (ab === 'Sap Sipper') return true;
+    if (abLc === 'sap sipper') return true;
   }
   return false;
 }
@@ -219,7 +534,62 @@ function pickAutoActionForAttacker({data, calc, state, wp, waveKey, attackerId, 
     if (forcedPool.length) pool = forcedPool;
   }
 
+  // Choice items: if already locked, restrict to the locked move.
+  const effItem2 = effectiveAttackerItem({state, wp, battle, attackerId});
+  if (battle && isChoiceItem(effItem2)){
+    const locked = battle.choiceLock?.[attackerId] || null;
+    if (locked){
+      const lockedPool = pool.filter(m => m && m.name === locked);
+      if (lockedPool.length) pool = lockedPool;
+      else {
+        try{ delete battle.choiceLock[attackerId]; }catch(e){}
+      }
+    }
+  }
+
   if (!pool.length) return null;
+
+  function chooseBestMoveForTarget({defSlot, instKey, curFrac}){
+    const all = [];
+    for (const m of pool){
+      if (!m || !m.name) continue;
+      const prio = normPrio(m.prio);
+      const rr = computeRangeForAttack({
+        data, calc, state, wp,
+        battle,
+        attackerId,
+        defSlot,
+        moveName: m.name,
+        defenderCurHpFrac: curFrac,
+      });
+      if (!rr?.ok) continue;
+      const stabBonus = (rr.stab ? (state?.settings?.stabBonus ?? 0) : 0);
+      const score = (Number(rr.minPct)||0) + (Number(stabBonus)||0);
+      all.push({...rr, prio, score});
+    }
+    if (!all.length) return null;
+
+    const oneShots = all.filter(x => !!x.oneShot);
+    if (oneShots.length){
+      const bestPrio = Math.min(...oneShots.map(x => x.prio));
+      const p = oneShots.filter(x => x.prio === bestPrio);
+      p.sort((a,b)=>{
+        const da = Math.abs((a.minPct||0) - 100);
+        const db = Math.abs((b.minPct||0) - 100);
+        if ((state?.settings?.conservePower ?? false) && da !== db) return da - db;
+        if (!!a.stab !== !!b.stab) return a.stab ? -1 : 1;
+        if ((a.eff||1) !== (b.eff||1)) return (b.eff||1) - (a.eff||1);
+        if ((a.minPct||0) !== (b.minPct||0)) return (b.minPct||0) - (a.minPct||0);
+        return String(a.move||'').localeCompare(String(b.move||''));
+      });
+      return p[0];
+    }
+
+    const bestPrio = Math.min(...all.map(x => x.prio));
+    const p = all.filter(x => x.prio === bestPrio);
+    p.sort((a,b)=> (b.score - a.score) || ((b.minPct||0) - (a.minPct||0)) || String(a.move||'').localeCompare(String(b.move||'')));
+    return p[0];
+  }
 
   // Try every target, take best move per target, then pick best overall.
   const candidates = [];
@@ -228,23 +598,10 @@ function pickAutoActionForAttacker({data, calc, state, wp, waveKey, attackerId, 
   const targets = (filtered.length ? filtered : defList);
 
   for (const ds of targets){
-    const defObj = defenderObj(state, ds);
     const instKey = ds._instKey || ds.rowKey;
     const curFrac = clampHpPct(battle?.hpDef?.[instKey] ?? 100) / 100;
-    const sW0 = settingsForWave(state, wp, attackerId, ds.rowKey, ds.defender);
-    const sW = {...sW0, defenderCurHpFrac: curFrac};
-    const atk = attackerObj(state, r);
-
-    const res = calc.chooseBestMove({
-      data,
-      attacker: atk,
-      defender: defObj,
-      movePool: pool,
-      settings: sW,
-      tags: ds.tags||[],
-    });
-    if (!res?.best) continue;
-    const b = res.best;
+    const b = chooseBestMoveForTarget({defSlot: ds, instKey, curFrac});
+    if (!b) continue;
 
     // Friendly-fire safety: for spread moves that also hit your partner (e.g. Earthquake/Surf/Discharge),
     // avoid picking the move in AUTO if it could KO the ally, unless the user explicitly allows it.
@@ -259,17 +616,17 @@ function pickAutoActionForAttacker({data, calc, state, wp, waveKey, attackerId, 
         // Compute move type vs the current defender matchup first (approx); if missing, compute directly.
         let moveType = null;
         try{
-          const rr2 = calc.computeDamageRange({
-            data,
-            attacker: atk,
-            defender: rosterDefObj(state, allyMon),
+          const rr2 = computeRangeForAttackVsRoster({
+            data, calc, state, wp, battle,
+            attackerId,
+            defenderRosterId: allyId,
             moveName: b.move,
-            settings: settingsForWave(state, wp, attackerId, null),
-            tags: [],
           });
           if (rr2?.ok){
             moveType = rr2.moveType;
-            immune = immuneFromAllyAbilityItem(allyMon, moveType);
+            const allyItemEff = effectiveAttackerItem({state, wp, battle, attackerId: allyId});
+            const allyMonEff = {...allyMon, item: allyItemEff};
+            immune = immuneFromAllyAbilityItem(allyMonEff, moveType);
             const maxPct = Number(rr2.maxPct ?? rr2.minPct ?? 0) || 0;
             const effMax = immune ? 0 : clampDmgPct(maxPct);
             if (effMax >= allyHp){
@@ -319,13 +676,25 @@ function hasTag(defSlot, tag){
   return (defSlot?.tags || []).includes(t);
 }
 
+function isChoiceItem(item){
+  const it = String(item||'').trim();
+  return (it === 'Choice Band' || it === 'Choice Specs' || it === 'Choice Scarf');
+}
+
+function canEvolveForSpecies(state, species){
+  const sp = String(species||'').trim();
+  if (!sp) return false;
+  const rec = state?.dexMetaCache?.[sp];
+  return !!(rec && rec.canEvolve === true);
+}
+
 function canUseMove(state, attackerId, moveObj){
   if (!moveObj || !moveObj.name) return false;
   if (moveObj.use === false) return false;
   return hasPP(state, attackerId, moveObj.name);
 }
 
-function getAutoMovePool(state, attackerId, rosterMon, wp){
+function getAutoMovePool(state, attackerId, rosterMon, wp, battle){
   let pool = (rosterMon?.movePool || []).filter(m => canUseMove(state, attackerId, m));
   const forcedName = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[attackerId] || null) : null;
   if (forcedName){
@@ -333,6 +702,21 @@ function getAutoMovePool(state, attackerId, rosterMon, wp){
     // If the forced move has no PP, ignore the override and fall back to the remaining pool.
     if (forced.length) pool = forced;
   }
+
+  // Choice items: if already locked, you may only use the locked move (if it still has PP).
+  const effItem = battle ? effectiveAttackerItem({state, wp, battle, attackerId}) : (rosterMon?.item || null);
+  if (battle && isChoiceItem(effItem)){
+    const locked = battle.choiceLock?.[attackerId] || null;
+    if (locked){
+      const lockedPool = pool.filter(m => m && m.name === locked);
+      if (lockedPool.length) pool = lockedPool;
+      else {
+        // No PP or move missing -> release lock (we don't model Struggle).
+        try{ delete battle.choiceLock[attackerId]; }catch(e){}
+      }
+    }
+  }
+
   return pool;
 }
 
@@ -351,17 +735,12 @@ function wouldFriendlyFireKOPartner({data, calc, state, wp, attackerId, moveName
 
   let rr2 = null;
   try{
-    rr2 = calc.computeDamageRange({
-      data,
-      attacker: attackerObj(state, atkMon),
-      defender: rosterDefObj(state, allyMon),
-      moveName,
-      settings: settingsForWave(state, wp, attackerId, null),
-      tags: [],
-    });
+    rr2 = computeRangeForAttackVsRoster({data, calc, state, wp, battle, attackerId, defenderRosterId: allyId, moveName});
   }catch(e){ rr2 = null; }
   if (!rr2?.ok) return false;
-  const immune = immuneFromAllyAbilityItem(allyMon, rr2.moveType);
+  const allyItemEff = effectiveAttackerItem({state, wp, battle, attackerId: allyId});
+  const allyMonEff = {...allyMon, item: allyItemEff};
+  const immune = immuneFromAllyAbilityItem(allyMonEff, rr2.moveType);
   const maxPct = immune ? 0 : clampDmgPct(Number(rr2.maxPct ?? rr2.minPct ?? 0) || 0);
   // Conservative: ignore spread reduction and assume full damage.
   return maxPct >= allyHp;
@@ -382,6 +761,7 @@ function simulateTwoAtkActions({data, calc, state, wp, slotByKey, battle, action
     if (!defSlot) return {...a, actorSpe:0};
     const rr = computeRangeForAttack({
       data, calc, state, wp,
+      battle,
       attackerId: a.attackerId,
       defSlot,
       moveName: a.move,
@@ -403,6 +783,7 @@ function simulateTwoAtkActions({data, calc, state, wp, slotByKey, battle, action
         if (!defSlot) continue;
         const rr = computeRangeForAttack({
           data, calc, state, wp,
+      battle,
           attackerId: act.attackerId,
           defSlot,
           moveName: act.move,
@@ -430,6 +811,7 @@ function simulateTwoAtkActions({data, calc, state, wp, slotByKey, battle, action
       if (!defSlot) continue;
       const rr = computeRangeForAttack({
         data, calc, state, wp,
+      battle,
         attackerId: act.attackerId,
         defSlot,
         moveName: act.move,
@@ -480,8 +862,8 @@ function pickSturdyAoePlan({data, calc, state, wp, waveKey, slots, slotByKey, ba
   const rosterB = byId(state.roster, allyB);
   if (!rosterA || !rosterB) return null;
 
-  const poolA = getAutoMovePool(state, allyA, rosterA, wp);
-  const poolB = getAutoMovePool(state, allyB, rosterB, wp);
+  const poolA = getAutoMovePool(state, allyA, rosterA, wp, battle);
+  const poolB = getAutoMovePool(state, allyB, rosterB, wp, battle);
   if (!poolA.length || !poolB.length) return null;
 
   const aoeA = poolA.filter(m => isAoeMove(m.name));
@@ -500,6 +882,7 @@ function pickSturdyAoePlan({data, calc, state, wp, waveKey, slots, slotByKey, ba
     if (!defSlot) return false;
     const rr = computeRangeForAttack({
       data, calc, state, wp,
+      battle,
       attackerId,
       defSlot,
       moveName,
@@ -645,8 +1028,8 @@ function pickSturdyBasePlan({data, calc, state, wp, slotByKey, battle, activeAtk
   const r1 = byId(state.roster, a1);
   if (!r0 || !r1) return null;
 
-  const pool0 = getAutoMovePool(state, a0, r0, wp);
-  const pool1 = getAutoMovePool(state, a1, r1, wp);
+  const pool0 = getAutoMovePool(state, a0, r0, wp, battle);
+  const pool1 = getAutoMovePool(state, a1, r1, wp, battle);
   if (!pool0.length || !pool1.length) return null;
 
   const otherHpNow = clampHpPct(battle.hpDef?.[otherKey] ?? 100);
@@ -659,6 +1042,7 @@ function pickSturdyBasePlan({data, calc, state, wp, slotByKey, battle, activeAtk
     for (const m of pool){
       const rr = computeRangeForAttack({
         data, calc, state, wp,
+      battle,
         attackerId,
         defSlot: baseOther,
         moveName: m.name,
@@ -694,6 +1078,7 @@ function pickSturdyBasePlan({data, calc, state, wp, slotByKey, battle, activeAtk
     if (wouldFriendlyFireKOPartner({data, calc, state, wp, attackerId: chipId, moveName: m.name, allyId: killPick.attackerId, battle})) continue;
     const rr = computeRangeForAttack({
       data, calc, state, wp,
+      battle,
       attackerId: chipId,
       defSlot: baseStu,
       moveName: m.name,
@@ -725,24 +1110,124 @@ function pickSturdyBasePlan({data, calc, state, wp, slotByKey, battle, activeAtk
   };
 }
 
-function computeRangeForAttack({data, calc, state, wp, attackerId, defSlot, moveName, defenderCurHpFrac}){
+function computeRangeForAttack({data, calc, state, wp, battle, attackerId, defSlot, moveName, defenderCurHpFrac}){
   const r = byId(state.roster, attackerId);
   if (!r) return null;
   const atk = attackerObj(state, r);
   const def = defenderObj(state, defSlot);
   const sW0 = settingsForWave(state, wp, attackerId, defSlot.rowKey, defSlot.defender);
-  const sW = {...sW0, defenderCurHpFrac: (defenderCurHpFrac ?? 1)};
+  const sW1 = applyBattleStageDeltaToSettings(sW0, battle, attackerId);
+
+  // Apply battle runtime item overrides (consumables, etc.)
+  const effItem = effectiveAttackerItem({state, wp, battle, attackerId});
+  const metMult = metronomeNextMult(battle, attackerId, moveName, effItem);
+  const sWBase = {
+    ...sW1,
+    attackerItem: effItem,
+    defenderCurHpFrac: (defenderCurHpFrac ?? 1),
+    weather: (battle?.weather || null),
+    otherMult: (Number(sW1?.otherMult ?? 1) || 1) * metMult,
+  };
+
+  // Gems: battle engine models true semantics (x1.5 for matching type, consumed on use).
+  // To avoid the planner's simplified always-on x1.5 gem modeling, we strip the gem item from calc
+  // and pass an explicit powerMult only when the gem matches the *actual* computed move type.
+  const gemType = parseGemType(effItem);
+  if (gemType){
+    // First compute without gem to get the final move type (e.g., Weather Ball).
+    const base = calc.computeDamageRange({
+      data,
+      attacker: atk,
+      defender: def,
+      moveName,
+      settings: {...sWBase, attackerItem: null, powerMult: 1},
+      tags: defSlot.tags || [],
+    });
+    if (!base?.ok) return null;
+    if (String(base.moveType||'') !== String(gemType)) return base;
+
+    const boosted = calc.computeDamageRange({
+      data,
+      attacker: atk,
+      defender: def,
+      moveName,
+      settings: {...sWBase, attackerItem: null, powerMult: 1.5},
+      tags: defSlot.tags || [],
+    });
+    if (!boosted?.ok) return base;
+    boosted._gemApplied = true;
+    boosted._gemItem = effItem;
+    return boosted;
+  }
 
   const rr = calc.computeDamageRange({
     data,
     attacker: atk,
     defender: def,
     moveName,
-    settings: sW,
+    settings: sWBase,
     tags: defSlot.tags || [],
   });
   if (!rr?.ok) return null;
   return rr;
+}
+
+function computeRangeForAttackVsRoster({data, calc, state, wp, battle, attackerId, defenderRosterId, moveName}){
+  const r = byId(state?.roster||[], attackerId);
+  const t = byId(state?.roster||[], defenderRosterId);
+  if (!r || !t) return null;
+
+  const effItem = effectiveAttackerItem({state, wp, battle, attackerId});
+  const defenderItem = effectiveAttackerItem({state, wp, battle, attackerId: defenderRosterId});
+  const curFrac = clampHpPct(battle?.hpAtk?.[defenderRosterId] ?? 100) / 100;
+
+  const sW0 = settingsForWave(state, wp, attackerId, null);
+  const sW1 = applyBattleStageDeltaToSettings(sW0, battle, attackerId);
+  const sWBase = {
+    ...sW1,
+    attackerItem: effItem,
+    defenderItem,
+    defenderCanEvolve: canEvolveForSpecies(state, (t.effectiveSpecies || t.baseSpecies || t.species)),
+    defenderAbility: (t.ability || null),
+    defenderCurHpFrac: curFrac,
+    weather: (battle?.weather || null),
+  };
+
+  const atk = attackerObj(state, r);
+  const def = rosterDefObj(state, t);
+
+  const gemType = parseGemType(effItem);
+  if (gemType){
+    const base = calc.computeDamageRange({
+      data,
+      attacker: atk,
+      defender: def,
+      moveName,
+      settings: {...sWBase, attackerItem: null, powerMult: 1},
+      tags: [],
+    });
+    if (!base?.ok) return null;
+    if (String(base.moveType||'') !== String(gemType)) return base;
+    const boosted = calc.computeDamageRange({
+      data,
+      attacker: atk,
+      defender: def,
+      moveName,
+      settings: {...sWBase, attackerItem: null, powerMult: 1.5},
+      tags: [],
+    });
+    return boosted?.ok ? boosted : base;
+  }
+
+  const rr = calc.computeDamageRange({
+    data,
+    attacker: atk,
+    defender: def,
+    moveName,
+    settings: sWBase,
+    tags: [],
+  });
+  return rr?.ok ? rr : null;
 }
 
 function computeRangeForThreat({data, calc, state, wp, attackerId, defSlot, threatMoveName}){
@@ -757,12 +1242,22 @@ function computeRangeForThreat({data, calc, state, wp, attackerId, defSlot, thre
   return {threat};
 }
 
-function pickEnemyAction({data, state, wp, attackerIds, defSlot}){
+function pickEnemyAction({data, state, wp, attackerIds, defSlot, battle=null}){
   const choices = [];
   for (const atkId of attackerIds){
     const attackerMon = byId(state.roster, atkId);
     if (!attackerMon) continue;
-    const t = enemyThreatForMatchup(data, state, wp, attackerMon, defSlot) || assumedEnemyThreatForMatchup(data, state, wp, attackerMon, defSlot);
+
+    const speDelta = Number(battle?.stageDelta?.[atkId]?.spe ?? 0) || 0;
+    const baseMods = (attackerMon.mods || {});
+    const mods = {...(baseMods||{})};
+    if (speDelta){
+      mods.speStage = clampInt((mods.speStage ?? 0) + speDelta, -6, 6);
+    }
+    const attackerMonAdj = (speDelta ? {...attackerMon, mods} : attackerMon);
+    const opts = {weather: (battle?.weather || null)};
+    const t = enemyThreatForMatchup(data, state, wp, attackerMonAdj, defSlot, opts)
+      || assumedEnemyThreatForMatchup(data, state, wp, attackerMonAdj, defSlot, opts);
     if (!t) continue;
     choices.push({
       targetId: atkId,
@@ -797,6 +1292,69 @@ function pickEnemyAction({data, state, wp, attackerIds, defSlot}){
   return best;
 }
 
+function ensureStageDelta(battle, attackerId){
+  battle.stageDelta = battle.stageDelta || {};
+  const cur = battle.stageDelta[attackerId] || {atk:0, spa:0, spe:0};
+  cur.atk = Number.isFinite(Number(cur.atk)) ? Number(cur.atk) : 0;
+  cur.spa = Number.isFinite(Number(cur.spa)) ? Number(cur.spa) : 0;
+  cur.spe = Number.isFinite(Number(cur.spe)) ? Number(cur.spe) : 0;
+  battle.stageDelta[attackerId] = cur;
+  return cur;
+}
+
+function applyBattleStageDeltaToSettings(sW0, battle, attackerId){
+  if (!battle || !attackerId) return sW0;
+  const d = battle.stageDelta?.[attackerId];
+  if (!d) return sW0;
+  return {
+    ...sW0,
+    atkStage: clampInt((sW0.atkStage ?? 0) + (d.atk ?? 0), -6, 6),
+    spaStage: clampInt((sW0.spaStage ?? 0) + (d.spa ?? 0), -6, 6),
+    speStage: clampInt((sW0.speStage ?? 0) + (d.spe ?? 0), -6, 6),
+  };
+}
+
+function applyEnemyIntimidate({battle, state, count=1, reason=''}){
+  const n = clampInt(count, 0, 6);
+  if (!battle || !state || n <= 0) return;
+  // Settings toggle: allow disabling INT effects entirely.
+  if (state?.settings?.applyINT === false) return;
+  const active = (battle.atk?.active||[]).filter(Boolean).filter(id => (battle.hpAtk?.[id] ?? 0) > 0);
+  const INTIMIDATE_IMMUNE_ABS = new Set(['clear body','white smoke','hyper cutter','full metal body']);
+
+  for (const id of active){
+    const rm = byId(state.roster||[], id);
+    const ab = String(rm?.ability || '').trim().toLowerCase();
+    if (INTIMIDATE_IMMUNE_ABS.has(ab)) continue;
+    const d = ensureStageDelta(battle, id);
+
+    // Intimidate lowers Atk by 1 stage per activation.
+    const beforeAtk = Number(d.atk || 0);
+    d.atk = clampInt(beforeAtk - n, -6, 6);
+    const lowered = (d.atk !== beforeAtk);
+
+    // Competitive: +2 SpA per stat-lowering event.
+    if (lowered && ab === 'competitive'){
+      d.spa = clampInt((d.spa || 0) + 2*n, -6, 6);
+    }
+
+    // Defiant: +2 Atk per stat-lowering event.
+    if (lowered && ab === 'defiant'){
+      d.atk = clampInt((d.atk || 0) + 2*n, -6, 6);
+    }
+
+    battle.stageDelta[id] = d;
+  }
+
+  // Dev-facing audit only.
+  try{
+    const audit = ensureAudit(battle);
+    audit.intimidateEvents = (audit.intimidateEvents || 0) + n;
+    audit.intimidateLog = audit.intimidateLog || [];
+    audit.intimidateLog.push({waveKey: battle.waveKey, count:n, reason: String(reason||'')});
+  }catch(e){}
+}
+
 export function initBattleForWave({data, calc, state, waveKey, slots}){
   state.battles = state.battles || {};
   const wp = state.wavePlans?.[waveKey];
@@ -821,6 +1379,12 @@ export function initBattleForWave({data, calc, state, waveKey, slots}){
   const defActive = defKeys.slice(0,2);
   const defBench = defKeys.slice(2);
 
+  // Enemy INT (Intimidate): stacks per INT user on the field and triggers again when an INT reinforcement joins.
+  const leadIntCount = defActive
+    .map(k=>slotByKey.get(baseDefKey(k)))
+    .filter(Boolean)
+    .filter(sl => (sl.tags||[]).includes('INT')).length;
+
   const attackerIds = (wp.attackerOrder||wp.attackerStart||wp.attackers||[]).slice(0,16).filter(Boolean);
   const atkActive = uniq(attackerIds.slice(0,2));
   const atkBench = attackerIds.filter(id=>!atkActive.includes(id));
@@ -843,13 +1407,43 @@ export function initBattleForWave({data, calc, state, waveKey, slots}){
     def: {active: defActive, bench: defBench},
     hpAtk,
     hpDef,
+    stageDelta: {},
+    weather: null,
     manual: {}, // attackerId -> {move,targetRowKey}
     lastActions: {atk:{}, def:{}},
     history: [], // list of {side:'atk'|'def', actorId?, actorKey?, move, prio?, aoe?, target?}
     log: [`Fight started (${waveKey}).`],
     pending: null, // {side:'atk'|'def', slotIndex:number}
     claimed: false,
+
+    // Dev-facing audit (non-persisted): used to catch PP double-spend / ghost actions.
+    // Not shown in UI.
+    _audit: {execKeys:{}, ppEvents:[]},
+    joinCount: {atk: atkActive.length, def: defActive.length},
+
+    // Runtime held-item overrides (battle-only). Used for consumables (e.g., Gems) without mutating roster.
+    itemOverrideRuntime: {},
+
+    // Choice items: once you act, you are locked into that move for the rest of the battle.
+    choiceLock: {},
+
+    // Consumables used in this battle (attacker-side only). Used to debit the Bag across fights/waves.
+    consumed: [],
   };
+
+  // Ensure audit exists but is NOT persisted into localStorage saves.
+  ensureAudit(battle);
+
+  // Initial weather (from ability setters on the field). Slowest setter wins.
+  const wSetter = inferInitialWeather({data, state, atkActiveIds: atkActive, defActiveKeys: defActive, slotByKey});
+  if (wSetter && wSetter.weather){
+    applyWeatherFromSetter({battle, setter: wSetter, turnLog: battle.log, when: 'battle-start'});
+  }
+
+  // Apply initial enemy Intimidate activations to the starting active attackers.
+  if (leadIntCount > 0 && state?.settings?.applyINT !== false){
+    applyEnemyIntimidate({battle, state, count: leadIntCount, reason: 'lead-start'});
+  }
 
   state.battles[waveKey] = battle;
   return battle;
@@ -884,14 +1478,89 @@ export function chooseReinforcement(state, waveKey, side, slotIndex, chosen){
     b.atk.bench.splice(idx,1);
     b.atk.active[slotIndex] = chosen;
     b.hpAtk[chosen] = 100;
+    b.joinCount = b.joinCount || {atk:0, def:0};
+    b.joinCount.atk = (b.joinCount.atk || 0) + 1;
   } else {
     const idx = b.def.bench.indexOf(chosen);
     if (idx === -1) return;
     b.def.bench.splice(idx,1);
     b.def.active[slotIndex] = chosen;
     b.hpDef[chosen] = 100;
+    b.joinCount = b.joinCount || {atk:0, def:0};
+    b.joinCount.def = (b.joinCount.def || 0) + 1;
   }
   b.pending = null;
+}
+
+function countAliveActive(arr, hp){
+  return (arr||[]).filter(Boolean).filter(k => (hp?.[k] ?? 0) > 0).length;
+}
+
+function countAliveBench(arr, hp, defaultHp){
+  const d = Number.isFinite(Number(defaultHp)) ? Number(defaultHp) : 100;
+  return (arr||[]).filter(Boolean).filter(k => (hp?.[k] ?? d) > 0).length;
+}
+
+function countAliveDefenders(battle){
+  return countAliveActive(battle?.def?.active, battle?.hpDef) + countAliveBench(battle?.def?.bench, battle?.hpDef, 100);
+}
+
+function countAliveAttackers(battle){
+  return countAliveActive(battle?.atk?.active, battle?.hpAtk) + countAliveBench(battle?.atk?.bench, battle?.hpAtk, 100);
+}
+
+function autoFillEmptySlots({battle, state, data, slotByKey, waveKey, turnLog}){
+  if (!battle) return;
+  // Defenders: deterministic join order (#3/#4) from bench[0..].
+  for (let i=0;i<2;i++){
+    if (!battle.def?.active) break;
+    if (battle.def.active[i]) continue;
+    const next = (battle.def.bench||[]).shift();
+    if (!next) continue;
+    battle.def.active[i] = next;
+    battle.hpDef[next] = 100;
+    battle.joinCount = battle.joinCount || {atk:0, def:0};
+    battle.joinCount.def = (battle.joinCount.def || 0) + 1;
+    const sl = slotByKey.get(baseDefKey(next));
+    const lbl = sl ? battleLabelForRowKey({rowKey: next, waveKey, defender: sl.defender, level: sl.level}) : String(next);
+    if (turnLog) turnLog.push(`Reinforcement entered: ${lbl}.`);
+        // Weather setters trigger when a weather-ability mon enters the field.
+    const joinAbLc = defenderAbilityLcFromData(data, sl?.defender);
+    const joinW = weatherFromAbilityLcLocal(joinAbLc);
+    if (joinW){
+      applyWeatherFromSetter({battle, setter: {weather: joinW, ability: joinAbLc}, turnLog, when: 'def-join'});
+    }
+
+// Intimidate triggers when an INT defender enters the field.
+    if ((sl?.tags||[]).includes('INT') && state?.settings?.applyINT !== false){
+      applyEnemyIntimidate({battle, state, count: 1, reason: 'def-join'});
+      if (turnLog) turnLog.push('Enemy Intimidate activated.');
+    }
+  }
+
+  // Attackers: deterministic join order from bench[0..].
+  for (let i=0;i<2;i++){
+    if (!battle.atk?.active) break;
+    if (battle.atk.active[i]) continue;
+    const next = (battle.atk.bench||[]).shift();
+    if (!next) continue;
+    battle.atk.active[i] = next;
+    battle.hpAtk[next] = 100;
+    battle.joinCount = battle.joinCount || {atk:0, def:0};
+    battle.joinCount.atk = (battle.joinCount.atk || 0) + 1;
+    const rm = (state?.roster||[]).find(r=>r && r.id === next);
+    const nm = rm?.baseSpecies || String(next);
+    // Show join #3/#4 semantics for clarity.
+    const joinN = (battle.joinCount.atk || 0);
+    if (turnLog) turnLog.push(`Reinforcement entered: ${nm} · #${joinN}.`);
+    // Weather setters on your side trigger when the mon joins.
+    const atkAbLc = String(rm?.ability || '').trim().toLowerCase();
+    const atkW = weatherFromAbilityLcLocal(atkAbLc);
+    if (atkW){
+      applyWeatherFromSetter({battle, setter: {weather: atkW, ability: atkAbLc}, turnLog, when: 'atk-join'});
+    }
+
+  }
 }
 
 function ensurePending(battle){
@@ -918,15 +1587,55 @@ function ensurePending(battle){
   return false;
 }
 
+function enforceChoiceLockOnPick({data, calc, state, wp, battle, attackerId, pick}){
+  if (!battle || !pick || !attackerId) return pick;
+  const effItem = effectiveAttackerItem({state, wp, battle, attackerId});
+  if (!isChoiceItem(effItem)) return pick;
+
+  const locked = battle.choiceLock?.[attackerId] || null;
+  if (!locked) return pick;
+  if (pick.move === locked) return pick;
+
+  if (hasPP(state, attackerId, locked)){
+    return { ...pick, move: locked, _choiceEnforced: true };
+  }
+
+  // If the locked move is unusable, release the lock (no Struggle modeling).
+  try{ delete battle.choiceLock[attackerId]; }catch(e){}
+  return pick;
+}
+
+function maybeSetChoiceLock({battle, state, wp, attackerId, item, moveName, turnLog, attackerLabel}){
+  if (!battle) return;
+  if (!isChoiceItem(item)) return;
+  battle.choiceLock = battle.choiceLock || {};
+  if (battle.choiceLock[attackerId]) return;
+  battle.choiceLock[attackerId] = moveName;
+  if (turnLog && attackerLabel){
+    turnLog.push(`${attackerLabel} is locked into ${moveName} (Choice).`);
+  }
+}
+
 export function stepBattleTurn({data, calc, state, waveKey, slots}){
   const battle = state.battles?.[waveKey];
   if (!battle) return;
   if (battle.status !== 'active') return;
-  if (battle.pending) return; // waiting for reinforcement
+  // Legacy compatibility: if a pending reinforcement exists (older saves), auto-resolve deterministically.
+  if (battle.pending){
+    const p = battle.pending;
+    const list = (p.side === 'def') ? (battle.def?.bench||[]) : (battle.atk?.bench||[]);
+    const choice = list[0] || null;
+    if (choice) chooseReinforcement(state, waveKey, p.side, p.slotIndex, choice);
+    else battle.pending = null;
+  }
 
   const wp = state.wavePlans?.[waveKey];
   if (!wp) return;
   const slotByKey = new Map((slots||[]).map(s=>[s.rowKey,s]));
+
+  // Ensure any empty slots are immediately filled from bench (2v3 / 2v4 correctness).
+  // Replacements DO NOT get an action this turn (action list is constructed below from current actives).
+  autoFillEmptySlots({battle, state, data, slotByKey, waveKey, turnLog: null});
 
   const activeAtkIds = (battle.atk.active||[]).filter(Boolean).filter(id => (battle.hpAtk[id] ?? 0) > 0);
   const activeDefKeys = (battle.def.active||[]).filter(Boolean).filter(rk => (battle.hpDef[rk] ?? 0) > 0);
@@ -938,13 +1647,13 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
     return {...sl, _instKey: rk, _baseRowKey: baseKey};
   }).filter(Boolean);
 
-  // Victory checks
-  if (!activeDefKeys.length){
+  // Victory checks (must consider bench too for 2v3 / 2v4)
+  if (countAliveDefenders(battle) <= 0){
     battle.status = 'won';
     battle.log.push('All defenders fainted.');
     return;
   }
-  if (!activeAtkIds.length){
+  if (countAliveAttackers(battle) <= 0){
     battle.status = 'lost';
     battle.log.push('All attackers fainted.');
     return;
@@ -986,14 +1695,16 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
       const targetKey = (pick.targetKey && activeDefKeys.includes(pick.targetKey)) ? pick.targetKey : (activeDefKeys[0] || null);
       if (!targetKey) continue;
       const targetBaseRowKey = baseDefKey(targetKey);
+      const pick0 = enforceChoiceLockOnPick({data, calc, state, wp, battle, attackerId: id, pick: {attackerId:id, targetRowKey: targetKey, targetBaseRowKey, move: pick.move}});
       const defSlot = slotByKey.get(targetBaseRowKey);
       if (!defSlot) continue;
 
       const rr = computeRangeForAttack({
         data, calc, state, wp,
+      battle,
         attackerId: id,
         defSlot,
-        moveName: pick.move,
+        moveName: pick0.move,
         defenderCurHpFrac: clampHpPct(battle.hpDef?.[targetKey] ?? 100) / 100,
       });
       if (!rr) continue;
@@ -1003,12 +1714,12 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
         actorId:id,
         targetKey,
         targetBaseRowKey,
-        move: pick.move,
+        move: pick0.move,
         prio: pick.prio ?? 9,
         minPct: Number(rr.minPct)||0,
         maxPct: Number(rr.maxPct ?? rr.minPct)||0,
-        aoe: isAoeMove(pick.move),
-        hitsAlly: aoeHitsAlly(pick.move),
+        aoe: isAoeMove(pick0.move),
+        hitsAlly: aoeHitsAlly(pick0.move),
         moveType: rr.moveType,
         category: rr.category,
         actorSpe: Number(rr.attackerSpe)||0,
@@ -1017,13 +1728,13 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
       };
       actions.push(actObj);
       battle.lastActions.atk[id] = {
-        move: pick.move,
+        move: pick0.move,
         target: targetKey,
         prio: pick.prio ?? 9,
         minPct: Number(rr.minPct)||0,
         maxPct: Number(rr.maxPct ?? rr.minPct)||0,
-        aoe: isAoeMove(pick.move),
-        hitsAlly: aoeHitsAlly(pick.move),
+        aoe: isAoeMove(pick0.move),
+        hitsAlly: aoeHitsAlly(pick0.move),
         source: 'auto',
       };
     }
@@ -1056,6 +1767,9 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
     }
     if (!pick) continue;
 
+    // Enforce Choice lock (manual picks can't break it).
+    pick = enforceChoiceLockOnPick({data, calc, state, wp, battle, attackerId: id, pick});
+
     // If this is an auto pick and we have multiple defenders alive, try to pick an untargeted defender.
     // This prevents the common case where both attackers choose defender #1 when the matchup is identical.
     if (pick.source === 'auto' && !onlyOneEnemy && activeDefSlots.length > 1){
@@ -1082,6 +1796,7 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
 
     const rr = computeRangeForAttack({
       data, calc, state, wp,
+      battle,
       attackerId: id,
       defSlot,
       moveName: pick.move,
@@ -1147,7 +1862,7 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
     const defSlot = slotByKey.get(baseDefKey(rk));
     if (!defSlot) continue;
 
-    const enemyPick = pickEnemyAction({data, state, wp, attackerIds: activeAtkIds, defSlot});
+    const enemyPick = pickEnemyAction({data, state, wp, attackerIds: activeAtkIds, defSlot, battle});
     if (!enemyPick) continue;
 
     // We don't compute full damage range here again; threat model already computed minPct.
@@ -1157,6 +1872,7 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
       targetId: enemyPick.targetId,
       move: enemyPick.move,
       minPct: enemyPick.minPct,
+      maxPct: enemyPick.maxPct,
       moveType: enemyPick.moveType,
       category: enemyPick.category,
       actorSpe: enemyPick.enemySpe,
@@ -1165,8 +1881,6 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
       chosenReason: enemyPick.chosenReason,
       ohkoChance: enemyPick.ohkoChance,
     });
-
-    battle.lastActions.def[rk] = {move: enemyPick.move, target: enemyPick.targetId, minPct: enemyPick.minPct, chosenReason: enemyPick.chosenReason};
   }
 
   // Sort actions by speed desc. On tie between atk/def, enemy may act first.
@@ -1184,6 +1898,18 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
   // Execute actions
   const turnLog = [];
   for (const act of actions){
+    // End turn immediately if the battle is already decided.
+    if (countAliveDefenders(battle) <= 0){
+      battle.status = 'won';
+      turnLog.push('Wave won.');
+      break;
+    }
+    if (countAliveAttackers(battle) <= 0){
+      battle.status = 'lost';
+      turnLog.push('Wave lost.');
+      break;
+    }
+
     if (act.side === 'atk'){
 
 const id = act.actorId;
@@ -1193,11 +1919,27 @@ if ((battle.hpAtk[id] ?? 0) <= 0) continue; // fainted before acting
 
 const atkMon = byId(state.roster, id);
 const atkName = atkMon?.baseSpecies || 'Attacker';
+const itemBefore = effectiveAttackerItem({state, wp, battle, attackerId: id});
+
+// Truant: alternate between acting and loafing (no PP spend on loaf turns).
+const atkAbLc0 = String(atkMon?.ability || '').trim().toLowerCase();
+if (atkAbLc0 === 'truant'){
+  battle.truantState = battle.truantState || {};
+  const kTr = `atk:${id}`;
+  const loaf = !!battle.truantState[kTr];
+  if (loaf){
+    battle.truantState[kTr] = false;
+    turnLog.push(`${atkName} loafs around.`);
+    continue;
+  }
+  battle.truantState[kTr] = true;
+}
 
 // AoE (spread) attacker moves: hit both defenders, and sometimes the ally.
 if (act.aoe){
   const defKeys = (battle.def.active||[]).filter(Boolean).filter(k => (battle.hpDef[k] ?? 0) > 0);
   const hit = [];
+  let execMoveType = act.moveType || null;
 
   // Potential ally hit (Earthquake/Surf/Discharge/etc)
   const allyId = (battle.atk.active||[]).filter(Boolean).find(x => x !== id) || null;
@@ -1210,12 +1952,14 @@ if (act.aoe){
     if (!defSlot) continue;
     const rr = computeRangeForAttack({
       data, calc, state, wp,
+      battle,
       attackerId: id,
       defSlot,
       moveName: act.move,
       defenderCurHpFrac: clampHpPct(battle.hpDef?.[dk] ?? 100) / 100,
     });
     if (!rr) continue;
+    if (!execMoveType && rr.moveType) execMoveType = rr.moveType;
     hit.push({
       kind:'def',
       key: dk,
@@ -1229,6 +1973,7 @@ if (act.aoe){
     const allyMon = byId(state.roster, allyId);
     const allyHp = Number(battle.hpAtk?.[allyId] ?? 0);
     if (allyMon && allyHp > 0){
+      const defenderItem = effectiveAttackerItem({state, wp, battle, attackerId: allyId});
       let rrA = null;
       try{
         rrA = calc.computeDamageRange({
@@ -1236,13 +1981,14 @@ if (act.aoe){
           attacker: attackerObj(state, atkMon),
           defender: rosterDefObj(state, allyMon),
           moveName: act.move,
-          settings: settingsForWave(state, wp, id, null),
+          settings: {...applyBattleStageDeltaToSettings(settingsForWave(state, wp, id, null), battle, id), defenderItem, defenderCanEvolve: canEvolveForSpecies(state, (allyMon.effectiveSpecies || allyMon.baseSpecies)), weather: (battle?.weather || null)},
           tags: [],
         });
       }catch(e){ rrA = null; }
       if (rrA && rrA.ok){
         const moveType = rrA.moveType;
-        const immune = immuneFromAllyAbilityItem(allyMon, moveType);
+        const allyMonEff = {...allyMon, item: defenderItem};
+        const immune = immuneFromAllyAbilityItem(allyMonEff, moveType);
         const minA = immune ? 0 : clampDmgPct(Number(rrA.minPct)||0);
         const maxA = immune ? 0 : clampDmgPct(Number(rrA.maxPct ?? rrA.minPct)||0);
         allyInfo = {
@@ -1252,24 +1998,43 @@ if (act.aoe){
           min: minA,
           max: maxA,
           immune,
+          moveType,
         };
       }
     }
   }
 
+  // If there are no targets at execution time, this action does not execute.
+  if (!hit.length && !(allyInfo && (allyInfo.min||0) > 0)) continue;
+
   const targetsDamaged = hit.filter(h => (h.min||0) > 0).length + (allyInfo && (allyInfo.min||0) > 0 ? 1 : 0);
   const mult = spreadMult(targetsDamaged);
 
-  // Spend PP once
+  // Spend PP once (execution-time only)
   const ppBefore = getPP(state, id, act.move);
   decPP(state, id, act.move);
   const ppAfter = getPP(state, id, act.move);
 
+  // Audit: PP double-spend / ghost action detection (dev-facing only).
+  try{
+    const audit = ensureAudit(battle);
+    const k = `${battle.turnCount}|atk|${id}|${act.move}|AOE`;
+    if (audit.execKeys[k]){
+      battle.warnings = battle.warnings || [];
+      battle.warnings.push('Audit: duplicate attacker action key (possible double-spend).');
+      console.error('Audit dup action', k);
+    }
+    audit.execKeys[k] = true;
+    audit.ppEvents.push({turn: battle.turnCount, side:'atk', actorId:id, move:act.move, before:ppBefore.cur, after:ppAfter.cur});
+  }catch(e){ /* ignore */ }
+
   // Apply damage to defenders
   const parts = [];
   const faintedDefs = [];
+  let totalDmgToOpp = 0;
   for (const h of hit){
     const dmg = clampDmgPct((h.min||0) * mult);
+    totalDmgToOpp += dmg;
     battle.hpDef[h.key] = clampHpPct((battle.hpDef[h.key] ?? 0) - dmg);
     parts.push(`${h.name} (${dmg.toFixed(1)}%)`);
     battle.history.push({side:'atk', actorId:id, move: act.move, prio: act.prio ?? 9, targetKey: h.key, aoe:true});
@@ -1280,15 +2045,36 @@ if (act.aoe){
     }
   }
 
-  turnLog.push(`${atkName} used ${act.move} (P${act.prio ?? '?'}) (AOE×${mult === 1 ? '1.00' : '0.75'}) → ${parts.join(', ')} · PP ${ppAfter.cur}/${ppAfter.max}.`);
+  turnLog.push(`${atkName} used ${act.move} (P${act.prio ?? '?'}) (AOE×${mult === 1 ? '1.00' : '0.75'}) → ${parts.join(', ')} · PP ${ppBefore.cur}→${ppAfter.cur}/${ppAfter.max}.`);
   for (const name of faintedDefs) turnLog.push(`${name} fainted.`);
+
+  // Auto-fill any reinforcement slots immediately (2v3 / 2v4 correctness).
+  if (faintedDefs.length) autoFillEmptySlots({battle, state, data, slotByKey, waveKey, turnLog});
+
+  // Choice items: lock the attacker into the first used move.
+  maybeSetChoiceLock({battle, state, wp, attackerId:id, item:itemBefore, moveName: act.move, turnLog, attackerLabel: atkName});
+
+  // Consumables / healing (post-damage)
+  const moveTypeExec = execMoveType || act.moveType || null;
+  act.moveType = moveTypeExec;
+  maybeConsumeGem({battle, attackerId:id, item:itemBefore, moveName: act.move, moveType: moveTypeExec, didDamagePct: totalDmgToOpp, turnLog, attackerLabel: atkName});
+  maybeHealShellBell({battle, attackerId:id, item:itemBefore, totalDamagePct: totalDmgToOpp, turnLog, attackerLabel: atkName});
+
+  // Ally immunity→boost (Lightning Rod, Motor Drive, Storm Drain, Sap Sipper) should trigger even when partner takes 0 damage.
+  if (allyInfo && allyInfo.immune){
+    applyOnHitImmunityBoost({battle, state, targetId: allyInfo.id, moveType: allyInfo.moveType, turnLog});
+  }
 
   // Apply damage to ally if applicable
   if (allyInfo && (allyInfo.min||0) > 0){
     const allyDmg = clampDmgPct((allyInfo.min||0) * mult);
     const allyHp = Number(battle.hpAtk?.[allyInfo.id] ?? 0);
-    const nextHp = clampHpPct(allyHp - allyDmg);
+    let nextHp = clampHpPct(allyHp - allyDmg);
+    nextHp = maybeTriggerFocusSash({battle, state, wp, targetId: allyInfo.id, prevHp: allyHp, nextHp, turnLog, targetLabel: allyInfo.name});
     battle.hpAtk[allyInfo.id] = nextHp;
+
+    // Air Balloon: pop on successful damaging hit.
+    maybePopAirBalloon({battle, state, wp, targetId: allyInfo.id, turnLog, targetLabel: allyInfo.name});
 
     const riskKO = (clampDmgPct((allyInfo.max||0) * mult) >= allyHp);
     turnLog.push(`⚠ ${atkName}'s ${act.move} hit partner ${allyInfo.name} (${allyDmg.toFixed(1)}%)${riskKO ? ' — RISK: could KO partner' : ''}.`);
@@ -1297,6 +2083,9 @@ if (act.aoe){
       const idx = battle.atk.active.indexOf(allyInfo.id);
       if (idx !== -1) battle.atk.active[idx] = null;
       turnLog.push(`${allyInfo.name} fainted.`);
+
+      // Auto-fill attacker reinforcement immediately.
+      autoFillEmptySlots({battle, state, data, slotByKey, waveKey, turnLog});
     }
   }
 
@@ -1310,6 +2099,20 @@ if (act.aoe){
     }
   }
 
+  // Metronome: track consecutive move usage for damage scaling (AoE should behave like single-target).
+  metronomeRecordUse(battle, id, act.move, itemBefore);
+
+  // Life Orb recoil (AoE should recoil once per move if it dealt damage to opponents).
+  maybeApplyLifeOrbRecoil({battle, attackerId:id, item:itemBefore, didDamagePct: totalDmgToOpp, turnLog, attackerLabel: atkName});
+
+  // If recoil KO'd the attacker, handle faint + reinforcement.
+  if ((battle.hpAtk[id] ?? 0) <= 0){
+    const idx2 = battle.atk.active.indexOf(id);
+    if (idx2 !== -1) battle.atk.active[idx2] = null;
+    turnLog.push(`${atkName} fainted (recoil).`);
+    autoFillEmptySlots({battle, state, data, slotByKey, waveKey, turnLog});
+  }
+
   continue;
 }
 
@@ -1319,21 +2122,28 @@ if ((battle.hpDef[rk] ?? 0) <= 0){
   const altKey = (battle.def.active||[]).filter(Boolean).find(k => (battle.hpDef[k] ?? 0) > 0);
   if (!altKey) continue;
   rk = altKey;
+  act.targetKey = rk;
+  act.targetBaseRowKey = baseDefKey(rk);
+}
+
+// Recompute damage at execution time (mid-turn state can change due to joins/INT/weather).
+{
   const baseKey = baseDefKey(rk);
   const defSlot = slotByKey.get(baseKey);
   if (!defSlot) continue;
-  const rr = computeRangeForAttack({
+  const rrExec = computeRangeForAttack({
     data, calc, state, wp,
+    battle,
     attackerId: id,
     defSlot,
     moveName: act.move,
     defenderCurHpFrac: clampHpPct(battle.hpDef?.[rk] ?? 100) / 100,
   });
-  if (!rr) continue;
-  act.minPct = Number(rr.minPct)||0;
-  act.maxPct = Number(rr.maxPct ?? rr.minPct)||0;
-  act.targetKey = rk;
-  act.targetBaseRowKey = baseKey;
+  if (!rrExec) continue;
+  act.minPct = Number(rrExec.minPct)||0;
+  act.maxPct = Number(rrExec.maxPct ?? rrExec.minPct)||0;
+  act.moveType = rrExec.moveType;
+  act.category = rrExec.category;
 }
 
 const dmg = clampDmgPct(act.minPct);
@@ -1341,31 +2151,94 @@ battle.hpDef[rk] = clampHpPct((battle.hpDef[rk] ?? 0) - dmg);
 const ppBefore = getPP(state, id, act.move);
 decPP(state, id, act.move);
 const ppAfter = getPP(state, id, act.move);
+
+// Audit (dev-facing)
+try{
+  const audit = ensureAudit(battle);
+  const k = `${battle.turnCount}|atk|${id}|${act.move}|${rk}`;
+  if (audit.execKeys[k]){
+    battle.warnings = battle.warnings || [];
+    battle.warnings.push('Audit: duplicate attacker action key (possible double-spend).');
+    console.error('Audit dup action', k);
+  }
+  audit.execKeys[k] = true;
+  audit.ppEvents.push({turn: battle.turnCount, side:'atk', actorId:id, move:act.move, before:ppBefore.cur, after:ppAfter.cur});
+}catch(e){ /* ignore */ }
 const defName = slotByKey.get(baseDefKey(rk))?.defender || rk;
-turnLog.push(`${atkName} used ${act.move} (P${act.prio ?? '?'}) → ${defName} (${dmg.toFixed(1)}% · PP ${ppAfter.cur}/${ppAfter.max}).`);
+turnLog.push(`${atkName} used ${act.move} (P${act.prio ?? '?'}) → ${defName} (${dmg.toFixed(1)}% · PP ${ppBefore.cur}→${ppAfter.cur}/${ppAfter.max}).`);
 battle.history.push({side:'atk', actorId:id, move: act.move, prio: act.prio ?? 9, targetKey: rk});
+
+// Choice items: lock the attacker into the first used move.
+maybeSetChoiceLock({battle, state, wp, attackerId:id, item:itemBefore, moveName: act.move, turnLog, attackerLabel: atkName});
+
+// Consumables / healing (post-damage)
+maybeConsumeGem({battle, attackerId:id, item:itemBefore, moveName: act.move, moveType: act.moveType, didDamagePct: dmg, turnLog, attackerLabel: atkName});
+maybeHealShellBell({battle, attackerId:id, item:itemBefore, totalDamagePct: dmg, turnLog, attackerLabel: atkName});
+
+// Metronome: track consecutive move usage for damage scaling.
+metronomeRecordUse(battle, id, act.move, itemBefore);
+
+// Life Orb recoil (post-damage, after Shell Bell).
+maybeApplyLifeOrbRecoil({battle, attackerId:id, item:itemBefore, didDamagePct: dmg, turnLog, attackerLabel: atkName});
+
+// If recoil KO'd the attacker, handle faint + reinforcement.
+if ((battle.hpAtk[id] ?? 0) <= 0){
+  const idx2 = battle.atk.active.indexOf(id);
+  if (idx2 !== -1) battle.atk.active[idx2] = null;
+  turnLog.push(`${atkName} fainted (recoil).`);
+  autoFillEmptySlots({battle, state, data, slotByKey, waveKey, turnLog});
+}
+
+
 if ((battle.hpDef[rk] ?? 0) <= 0){
   const idx = battle.def.active.indexOf(rk);
   if (idx !== -1) battle.def.active[idx] = null;
   turnLog.push(`${defName} fainted.`);
+
+  // Auto-fill defender reinforcement immediately.
+  autoFillEmptySlots({battle, state, data, slotByKey, waveKey, turnLog});
 }
     } else {
 
 const rk = act.actorKey;
-const id = act.targetId;
+let id = act.targetId;
 if (!rk || !id) continue;
 if ((battle.hpDef[rk] ?? 0) <= 0) continue;
 
 const defSlot = slotByKey.get(baseDefKey(rk));
 const defName = defSlot?.defender || rk;
 
+// Truant (enemy): alternate between acting and loafing.
+const enemyAbLc0 = defenderAbilityLcFromData(data, defSlot?.defender);
+if (enemyAbLc0 === 'truant'){
+  battle.truantState = battle.truantState || {};
+  const kTr = `def:${rk}`;
+  const loaf = !!battle.truantState[kTr];
+  if (loaf){
+    battle.truantState[kTr] = false;
+    turnLog.push(`${defName} loafs around.`);
+    continue;
+  }
+  battle.truantState[kTr] = true;
+}
+
 // Enemy AoE: recompute damage per target (typing differs) + apply 0.75× spread when >1 target is damaged.
-const targetIds = act.aoe ? (battle.atk.active||[]).filter(Boolean) : [id];
+// For single-target, if the chosen target fainted earlier in the same turn, redirect to a remaining alive attacker.
+if (!act.aoe && (battle.hpAtk[id] ?? 0) <= 0){
+  const alt = (battle.atk.active||[]).filter(Boolean).find(t => (battle.hpAtk[t] ?? 0) > 0) || null;
+  if (!alt) continue;
+  id = alt;
+}
+const targetIds = act.aoe ? (battle.atk.active||[]).filter(Boolean).filter(t => (battle.hpAtk[t] ?? 0) > 0) : [id];
 const hits = [];
 for (const tid of targetIds){
   const tmon = byId(state.roster, tid);
   if (!tmon) continue;
   if ((battle.hpAtk[tid] ?? 0) <= 0) continue;
+
+  // Include the target's held item in incoming damage (defensive items + speed items matter).
+  const defenderItem = effectiveAttackerItem({state, wp, battle, attackerId: tid});
+  const tmonEff = {...tmon, item: defenderItem};
 
   let rr = null;
   try{
@@ -1374,15 +2247,23 @@ for (const tid of targetIds){
       attacker: defenderObj(state, defSlot),
       defender: rosterDefObj(state, tmon),
       moveName: act.move,
-      settings: settingsForWave(state, wp, null, defSlot.rowKey, defSlot.defender),
+      settings: {...settingsForWave(state, wp, null, defSlot.rowKey, defSlot.defender), defenderItem, defenderCanEvolve: canEvolveForSpecies(state, (tmonEff.effectiveSpecies || tmonEff.baseSpecies || tmonEff.species)), defenderAbility: (tmonEff.ability || null), attackerAbility: (data?.claimedSets?.[defSlot.defender]?.ability || null), weather: (battle?.weather || null)},
       tags: defSlot.tags || [],
     });
   }catch(e){ rr = null; }
   if (!rr || !rr.ok){
     // fallback to stored minPct if range missing
-    hits.push({tid, name: tmon.baseSpecies || String(tid), min: clampDmgPct(act.minPct||0), max: clampDmgPct(act.maxPct||act.minPct||0)});
+    const moveType = String(act.moveType || '');
+    const immune = immuneFromAllyAbilityItem(tmonEff, moveType);
+    const min0 = clampDmgPct(act.minPct||0);
+    const max0 = clampDmgPct(act.maxPct||act.minPct||0);
+    hits.push({tid, name: tmon.baseSpecies || String(tid), moveType, immune, min: immune ? 0 : min0, max: immune ? 0 : max0});
   } else {
-    hits.push({tid, name: tmon.baseSpecies || String(tid), min: clampDmgPct(Number(rr.minPct)||0), max: clampDmgPct(Number(rr.maxPct ?? rr.minPct)||0)});
+    const moveType = String(rr.moveType || '');
+    const immune = immuneFromAllyAbilityItem(tmonEff, moveType);
+    const min0 = clampDmgPct(Number(rr.minPct)||0);
+    const max0 = clampDmgPct(Number(rr.maxPct ?? rr.minPct)||0);
+    hits.push({tid, name: tmon.baseSpecies || String(tid), moveType, immune, min: immune ? 0 : min0, max: immune ? 0 : max0});
   }
 }
 
@@ -1391,22 +2272,127 @@ const mult = spreadMult(targetsDamaged);
 
 for (const h of hits){
   const dmg = clampDmgPct((h.min||0) * mult);
-  if (dmg <= 0) continue;
-  battle.hpAtk[h.tid] = clampHpPct((battle.hpAtk[h.tid] ?? 0) - dmg);
+  if (dmg <= 0){
+    if (h.immune){
+      turnLog.push(`${defName} used ${act.move}${act.aoe ? ` (AOE×${mult === 1 ? '1.00' : '0.75'})` : ''} → ${h.name} (immune).`);
+      battle.history.push({side:'def', actorKey: rk, move: act.move, aoe: !!act.aoe, targetId: h.tid});
+      applyOnHitImmunityBoost({battle, state, targetId: h.tid, moveType: h.moveType, turnLog});
+      const lastTarget = act.aoe ? 'BOTH' : h.tid;
+      battle.lastActions.def[rk] = {move: act.move, target: lastTarget, minPct: h.min, maxPct: h.max, chosenReason: act.chosenReason};
+    }
+    continue;
+  }
+  const hpBefore = clampHpPct(battle.hpAtk[h.tid] ?? 0);
+  let hpAfter = clampHpPct(hpBefore - dmg);
+  hpAfter = maybeTriggerFocusSash({battle, state, wp, targetId: h.tid, prevHp: hpBefore, nextHp: hpAfter, turnLog, targetLabel: h.name});
+  battle.hpAtk[h.tid] = hpAfter;
   turnLog.push(`${defName} used ${act.move}${act.aoe ? ` (AOE×${mult === 1 ? '1.00' : '0.75'})` : ''} → ${h.name} (${dmg.toFixed(1)}%).`);
   battle.history.push({side:'def', actorKey: rk, move: act.move, aoe: !!act.aoe, targetId: h.tid});
+
+  // Air Balloon: pop on successful damaging hit.
+  maybePopAirBalloon({battle, state, wp, targetId: h.tid, turnLog, targetLabel: h.name});
+
+  // Record last EXECUTED enemy action (prevents showing phantom actions when the defender fainted before acting).
+  const lastTarget = act.aoe ? 'BOTH' : h.tid;
+  battle.lastActions.def[rk] = {move: act.move, target: lastTarget, minPct: h.min, maxPct: h.max, chosenReason: act.chosenReason};
+
   if ((battle.hpAtk[h.tid] ?? 0) <= 0){
     const idx = battle.atk.active.indexOf(h.tid);
     if (idx !== -1) battle.atk.active[idx] = null;
     turnLog.push(`${h.name} fainted.`);
+
+    // Auto-fill attacker reinforcement immediately.
+    autoFillEmptySlots({battle, state, data, slotByKey, waveKey, turnLog});
   }
 }
+    }
+  }
+
+
+  // End-of-turn weather chip (Sand / Hail). Modeled as 1/16 max HP in HP% space.
+  // Immunities (Gen 5):
+  // - Sand: Rock / Ground / Steel
+  // - Hail: Ice
+  if (battle.status === 'active'){
+    const wChip = battle.weather || null;
+    const chip = weatherChipPct(wChip);
+    if (chip > 0){
+      const chipLines = [];
+
+      // Defenders
+      const defKeysNow = (battle.def.active||[]).filter(Boolean).filter(k => (battle.hpDef[k] ?? 0) > 0);
+      for (const dk of defKeysNow){
+        const defSlot = slotByKey.get(baseDefKey(dk));
+        const sp = defSlot?.defender || null;
+        if (sp && immuneToWeatherChip(data, wChip, sp)) continue;
+        const before = clampHpPct(battle.hpDef?.[dk] ?? 0);
+        const dmg = Math.min(before, chip);
+        if (dmg <= 0) continue;
+        const after = clampHpPct(before - dmg);
+        battle.hpDef[dk] = after;
+        chipLines.push(`${sp || dk} -${dmg.toFixed(1)}%`);
+        if (after <= 0){
+          const idx = battle.def.active.indexOf(dk);
+          if (idx !== -1) battle.def.active[idx] = null;
+          turnLog.push(`${sp || dk} fainted.`);
+        }
+      }
+
+      // Attackers
+      const atkIdsNow = (battle.atk.active||[]).filter(Boolean).filter(id => (battle.hpAtk[id] ?? 0) > 0);
+      for (const id of atkIdsNow){
+        const rm = byId(state.roster||[], id);
+        const sp = rm?.effectiveSpecies || rm?.baseSpecies || null;
+        if (sp && immuneToWeatherChip(data, wChip, sp)) continue;
+        const before = clampHpPct(battle.hpAtk?.[id] ?? 0);
+        const dmg = Math.min(before, chip);
+        if (dmg <= 0) continue;
+        const after = clampHpPct(before - dmg);
+        battle.hpAtk[id] = after;
+        chipLines.push(`${sp || id} -${dmg.toFixed(1)}%`);
+        if (after <= 0){
+          const idx = battle.atk.active.indexOf(id);
+          if (idx !== -1) battle.atk.active[idx] = null;
+          turnLog.push(`${sp || id} fainted.`);
+        }
+      }
+
+      if (chipLines.length){
+        const label = (wChip === 'sand') ? 'Sandstorm' : 'Hail';
+        turnLog.push(`${label} chip: ${chipLines.join(' · ')}.`);
+        // Auto-fill any reinforcements that fainted to chip.
+        autoFillEmptySlots({battle, state, data, slotByKey, waveKey, turnLog});
+      }
+    }
+  }
+
+
+  // End-of-turn Leftovers heal (6.25% in HP% space).
+  if (battle.status === 'active'){
+    const heal = 100/16;
+    const heals = [];
+    const atkIdsNow = (battle.atk.active||[]).filter(Boolean).filter(id => (battle.hpAtk[id] ?? 0) > 0);
+    for (const id of atkIdsNow){
+      const item = effectiveAttackerItem({state, wp, battle, attackerId: id});
+      if (String(item||'') !== 'Leftovers') continue;
+      const before = clampHpPct(battle.hpAtk?.[id] ?? 0);
+      const after = clampHpPct(before + heal);
+      if (after <= before) continue;
+      battle.hpAtk[id] = after;
+      const rm = byId(state.roster||[], id);
+      heals.push(`${rm?.baseSpecies || id} +${(after-before).toFixed(1)}%`);
+    }
+    if (heals.length){
+      turnLog.push(`Leftovers: ${heals.join(' · ')}.`);
     }
   }
 
   // Append logs (keep last ~80 lines)
   battle.log.push(...turnLog);
   if (battle.log.length > 80) battle.log = battle.log.slice(-80);
+
+  // If the battle ended during execution, stop here (prevents phantom follow-up logs/actions).
+  if (battle.status !== 'active') return;
 
   // Win/loss checks
   const aliveDef = (battle.def.active||[]).filter(Boolean).filter(k => (battle.hpDef[k] ?? 0) > 0).length + (battle.def.bench||[]).filter(k => (battle.hpDef[k] ?? 100) > 0).length;
@@ -1423,15 +2409,18 @@ for (const h of hits){
     return;
   }
 
-  // Reinforcement selection if needed
-  ensurePending(battle);
+  // No pending reinforcement selection in the alpha v1 battle engine:
+  // reinforcements enter deterministically in join order (2v3 / 2v4 correctness).
 }
 
 export function battleLabelForRowKey({rowKey, waveKey, defender, level}){
   // UI label for defender instance keys.
-  // Display as a simple instance number (#1/#2/...) instead of raw rowKey suffixes.
+  // Only append an instance number when the rowKey actually includes one (base#N).
   const parts = String(rowKey || '').split('#');
-  const n = (parts.length > 1) ? Number(parts[1] || 1) : 1;
+  if (parts.length <= 1){
+    return `${defender} · Lv ${level}`;
+  }
+  const n = Number(parts[1] || 1);
   const inst = Number.isFinite(n) ? n : 1;
   return `${defender} · Lv ${level} · #${inst}`;
 }

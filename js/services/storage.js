@@ -32,9 +32,11 @@ export function downloadJson(obj, filename){
   const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
+  const href = a.href;
   a.download = filename;
   a.click();
-  URL.revokeObjectURL(a.href);
+  // Some browsers require the Blob URL to live at least one tick after click().
+  setTimeout(()=> URL.revokeObjectURL(href), 0);
 }
 
 export async function readJsonFile(file){

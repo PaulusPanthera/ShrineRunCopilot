@@ -11,6 +11,31 @@ function clampInt(v, lo, hi){
   return Math.max(lo, Math.min(hi, x));
 }
 
+function applyEnemyIntimidateToSettings(s0, attackerMon, intCount){
+  const n = clampInt(intCount ?? 0, 0, 6);
+  if (!s0 || n <= 0) return s0;
+  if (s0.applyINT === false) return s0;
+  const abRaw = attackerMon?.ability ?? s0.attackerAbility ?? '';
+  const ab = String(abRaw||'').trim().toLowerCase();
+
+  // INT immunity: if the attacker ignores Intimidate, do not apply the stage drop,
+  // and do not trigger Competitive/Defiant.
+  const immune = new Set(['clear body','white smoke','hyper cutter','full metal body']);
+  if (immune.has(ab)) return s0;
+
+  let atkStage = (s0.atkStage ?? 0) - n;
+  let spaStage = (s0.spaStage ?? 0);
+
+  if (ab === 'competitive') spaStage += 2*n;
+  if (ab === 'defiant') atkStage += 2*n;
+
+  return {
+    ...s0,
+    atkStage: clampInt(atkStage, -6, 6),
+    spaStage: clampInt(spaStage, -6, 6),
+  };
+}
+
 function uniq(arr){
   return Array.from(new Set(arr));
 }
@@ -128,6 +153,13 @@ export function settingsForWave(state, wp, attackerId, defenderRowKey, defenderS
   };
 }
 
+function itemForRosterMonInWave(wp, rosterMon){
+  if (!rosterMon) return null;
+  const id = rosterMon.id;
+  const ovr = (wp && wp.itemOverride && id) ? (wp.itemOverride[id] || null) : null;
+  return ovr || (rosterMon.item || null);
+}
+
 // Incoming damage model (defender -> your attacker)
 // Default: use the defender's real, hardcoded species moves (same source as attackers).
 // Fallback: assumed generic STAB hit (only if moveset is missing).
@@ -166,21 +198,24 @@ function spreadMult(targetsDamaged){
 function immuneFromAllyAbilityItem(allyRosterMon, moveType){
   if (!allyRosterMon) return false;
   const type = String(moveType||'');
-  const ab = String(allyRosterMon.ability || '').trim();
+  const abLc = String(allyRosterMon.ability || '').trim().toLowerCase();
   const item = String(allyRosterMon.item || '').trim();
-  if (ab === 'Telepathy') return true;
+  if (abLc === 'telepathy') return true;
   if (type === 'Ground'){
-    if (ab === 'Levitate') return true;
+    if (abLc === 'levitate') return true;
     if (item === 'Air Balloon') return true;
   }
   if (type === 'Electric'){
-    if (ab === 'Lightning Rod' || ab === 'Motor Drive' || ab === 'Volt Absorb') return true;
+    if (abLc === 'lightning rod' || abLc === 'motor drive' || abLc === 'volt absorb') return true;
   }
   if (type === 'Fire'){
-    if (ab === 'Flash Fire') return true;
+    if (abLc === 'flash fire') return true;
   }
   if (type === 'Water'){
-    if (ab === 'Water Absorb' || ab === 'Storm Drain' || ab === 'Dry Skin') return true;
+    if (abLc === 'water absorb' || abLc === 'storm drain' || abLc === 'dry skin') return true;
+  }
+  if (type === 'Grass'){
+    if (abLc === 'sap sipper') return true;
   }
   return false;
 }
@@ -193,13 +228,17 @@ function enemyMovePoolForSpecies(data, species){
 }
 
 // Compute best incoming hit from the defender to the chosen attacker using real species moves.
-export function enemyThreatForMatchup(data, state, wp, attackerRosterMon, defSlot){
+export function enemyThreatForMatchup(data, state, wp, attackerRosterMon, defSlot, opts=null){
   try{
     if (!(state.settings?.threatModelEnabled ?? true)) return null;
     if (!attackerRosterMon || !defSlot) return null;
 
     const enemySpecies = defSlot.defender;
     const mySpecies = attackerRosterMon.effectiveSpecies || attackerRosterMon.baseSpecies;
+
+
+    const enemyAbility = data.claimedSets?.[enemySpecies]?.ability || null;
+    const weather = (opts && opts.weather) ? String(opts.weather).trim().toLowerCase() : null;
     if (!data.dex?.[enemySpecies] || !data.dex?.[mySpecies]) return null;
 
     const pool = enemyMovePoolForSpecies(data, enemySpecies);
@@ -233,7 +272,11 @@ export function enemyThreatForMatchup(data, state, wp, attackerRosterMon, defSlo
 
       // Items: enemy has none (for now). Your held item can affect defense (e.g., Assault Vest) and speed.
       attackerItem: null,
-      defenderItem: attackerRosterMon.item || null,
+      defenderItem: itemForRosterMonInWave(wp, attackerRosterMon),
+      defenderCanEvolve: !!(state.dexMetaCache?.[mySpecies]?.canEvolve),
+      attackerAbility: enemyAbility,
+      weather,
+      defenderAbility: attackerRosterMon?.ability || null,
 
       // enemy offense stages
       atkStage: clampInt(dm.atkStage ?? 0, -6, 6),
@@ -261,7 +304,7 @@ export function enemyThreatForMatchup(data, state, wp, attackerRosterMon, defSlo
         attacker: enemy,
         defender: me,
         moveName: m.name,
-        settings: s,
+        settings: {...s, calcCrit: true},
         tags: defSlot.tags || [],
       });
       if (!r || !r.ok) continue;
@@ -269,21 +312,19 @@ export function enemyThreatForMatchup(data, state, wp, attackerRosterMon, defSlo
       const minPct = Number(r.minPct)||0;
       const maxPct = Number(r.maxPct)||minPct;
       const oneShot = !!r.oneShot;
-      let ohkoChance = 0;
-      if (maxPct >= 100){
-        if (minPct >= 100) ohkoChance = 1;
-        else {
-          const denom = (maxPct - minPct);
-          ohkoChance = denom > 0 ? (maxPct - 100) / denom : 0;
-          ohkoChance = Math.max(0, Math.min(1, ohkoChance));
-        }
-      }
-    all.push({...r, prio: Number(m.prio)||2, ohkoChance, oneShot, aoe: isAoeMove(r.move)});
+      // Use true 16-roll distribution + crit (if enabled) for risk view.
+      const pc = Number(r.critChance ?? (1/16));
+      const pRoll = Number(r.ohkoChanceRoll||0);
+      const pCrit = Number(r.ohkoChanceCrit||0);
+      const pTotal = (1-pc)*pRoll + pc*pCrit;
+      const ohkoChance = (state.settings?.inTipRisk ?? true) ? pTotal : pRoll;
+      const chosenReason = (ohkoChance > 0) ? 'ohkoChance' : 'maxDamage';
+      all.push({...r, prio: Number(m.prio)||2, ohkoChance, ohkoChanceRoll:pRoll, ohkoChanceCrit:pCrit, ohkoChanceTotal:pTotal, oneShot, chosenReason, aoe: isAoeMove(r.move)});
     }
 
     if (!all.length) return null;
 
-    const anyChance = all.some(x => x.ohkoChance > 0);
+    const anyChance = all.some(x => (x.ohkoChance||0) > 0);
     all.sort((a,b)=>{
       if (anyChance){
         if (a.ohkoChance !== b.ohkoChance) return b.ohkoChance - a.ohkoChance;
@@ -318,7 +359,7 @@ export function enemyThreatForMatchup(data, state, wp, attackerRosterMon, defSlo
 }
 
 // Fallback if defender move pool is unknown.
-export function assumedEnemyThreatForMatchup(data, state, wp, attackerRosterMon, defSlot){
+export function assumedEnemyThreatForMatchup(data, state, wp, attackerRosterMon, defSlot, opts=null){
   try{
     if (!(state.settings?.threatModelEnabled ?? true)) return null;
     if (!attackerRosterMon || !defSlot) return null;
@@ -330,6 +371,10 @@ export function assumedEnemyThreatForMatchup(data, state, wp, attackerRosterMon,
     const globalAm = (attackerRosterMon && attackerRosterMon.mods) ? attackerRosterMon.mods : {};
     const waveAm = (wp && wp.monMods && wp.monMods.atk) ? (wp.monMods.atk[attackerRosterMon.id] || {}) : {};
     const am = {...defaultWaveAtkMods(state.settings), ...(globalAm||{}), ...(waveAm||{})};
+
+    const enemySpecies = defSlot.defender;
+    const enemyAbility = data.claimedSets?.[enemySpecies]?.ability || null;
+    const weather = (opts && opts.weather) ? String(opts.weather).trim().toLowerCase() : null;
 
     const enemy = {
       species: defSlot.defender,
@@ -350,7 +395,12 @@ export function assumedEnemyThreatForMatchup(data, state, wp, attackerRosterMon,
       ...state.settings,
       defenderHpFrac: hpFrac,
       attackerItem: null,
-      defenderItem: attackerRosterMon.item || null,
+      defenderItem: itemForRosterMonInWave(wp, attackerRosterMon),
+      defenderCanEvolve: !!(state.dexMetaCache?.[mySpecies]?.canEvolve),
+      attackerAbility: enemyAbility,
+      defenderAbility: attackerRosterMon?.ability || null,
+      weather,
+
       // enemy offense stages (as attacker)
       atkStage: clampInt(dm.atkStage ?? 0, -6, 6),
       spaStage: clampInt(dm.spaStage ?? 0, -6, 6),
@@ -378,10 +428,19 @@ export function assumedEnemyThreatForMatchup(data, state, wp, attackerRosterMon,
           attacker: enemy,
           defender: me,
           profile: {type, category, power},
-          settings: s,
+          settings: {...s, calcCrit: true},
           tags: [],
         });
         if (!r || !r.ok) continue;
+        const pc = Number(r.critChance ?? (1/16));
+        const pRoll = Number(r.ohkoChanceRoll||0);
+        const pCrit = Number(r.ohkoChanceCrit||0);
+        const pTotal = (1-pc)*pRoll + pc*pCrit;
+        r.ohkoChanceRoll = pRoll;
+        r.ohkoChanceCrit = pCrit;
+        r.ohkoChanceTotal = pTotal;
+        r.ohkoChance = (state.settings?.inTipRisk ?? true) ? pTotal : pRoll;
+        r.chosenReason = (r.ohkoChance > 0) ? 'ohkoChance' : 'maxDamage';
         if (!best) { best = r; continue; }
         const aOHKO = !!r.oneShot;
         const bOHKO = !!best.oneShot;
@@ -467,6 +526,14 @@ export function ensureWavePlan(data, state, waveKey, slots){
     if (!wp.attackers.includes(k)) delete wp.itemOverride[k];
   }
 
+  // Prune forced move overrides that reference missing attackers.
+  if (wp.attackMoveOverride && typeof wp.attackMoveOverride === 'object'){
+    for (const k of Object.keys(wp.attackMoveOverride)){
+      if (!wp.attackers.includes(k)) delete wp.attackMoveOverride[k];
+    }
+    if (!Object.keys(wp.attackMoveOverride).length) delete wp.attackMoveOverride;
+  }
+
 
   wp.attackerStart = (wp.attackerStart||[]).filter(id=>wp.attackers.includes(id)).slice(0,2);
   if (wp.attackerStart.length < 2) wp.attackerStart = wp.attackers.slice(0,2);
@@ -529,6 +596,8 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
     const dB = slotByKey.get(baseKey(defOrder[1]));
     if (!dA || !dB) return {score:-Infinity};
 
+    const leadIntCount = [dA, dB].filter(x => (x?.tags||[]).includes('INT')).length;
+
     const defA = {species:dA.defender, level:dA.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
     const defB = {species:dB.defender, level:dB.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
 
@@ -540,7 +609,8 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
     });
 
     const bestVs = (att, def, defSlot)=>{
-      const sW = settingsForWave(state, wp, att.id, defSlot.rowKey, defSlot.defender);
+      const sW0 = settingsForWave(state, wp, att.id, defSlot.rowKey, defSlot.defender);
+      const sW = applyEnemyIntimidateToSettings(sW0, att, leadIntCount);
       return window.SHRINE_CALC.chooseBestMove({
         data,
         attacker: atkObj(att, sW),
@@ -576,13 +646,13 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
 
         const rrVsDef = (attMon, moveName, defSlot, curFrac)=>{
           const s0 = settingsForWave(state, wp, attMon.id, defSlot.rowKey, defSlot.defender);
-          const s = {...s0, defenderCurHpFrac: (curFrac ?? 1)};
+          const s = {...applyEnemyIntimidateToSettings(s0, attMon, leadIntCount), defenderCurHpFrac: (curFrac ?? 1)};
           const rr = window.SHRINE_CALC.computeDamageRange({data, attacker: atkObj2(attMon, s), defender: defObj2(defSlot), moveName, settings: s, tags: defSlot.tags||[]});
           return (rr && rr.ok) ? rr : null;
         };
         const rrVsAlly = (attMon, moveName, allyMon, curFrac)=>{
           const s0 = settingsForWave(state, wp, attMon.id, null);
-          const s = {...s0, defenderItem: allyMon.item || null, defenderHpFrac: 1, defenderCurHpFrac: (curFrac ?? 1), applyINT: false, applySTU: false};
+          const s = {...s0, defenderItem: itemForRosterMonInWave(wp, allyMon), defenderHpFrac: 1, defenderCurHpFrac: (curFrac ?? 1), applyINT: false, applySTU: false};
           const rr = window.SHRINE_CALC.computeDamageRange({data, attacker: atkObj2(attMon, s), defender: atkObj2(allyMon, s), moveName, settings: s, tags: []});
           return (rr && rr.ok) ? rr : null;
         };
@@ -726,10 +796,13 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
 
     // Survival penalty
     let deathPenalty = 0;
+    const prioAvg = (lead.prioSum ?? 18) / 2;
+    if (prioAvg > 3.5){
     const t0 = enemyThreatForMatchup(data, state, wp, aL, dA) || assumedEnemyThreatForMatchup(data, state, wp, aL, dA);
     const t1t = enemyThreatForMatchup(data, state, wp, aR, dB) || assumedEnemyThreatForMatchup(data, state, wp, aR, dB);
     if (t0?.diesBeforeMove) deathPenalty += 1;
     if (t1t?.diesBeforeMove) deathPenalty += 1;
+    }
 
     const score = (startersClear * 1_000_000)
       + ((lead.clear1 ? 1 : 0) * 5_000_000_000)
@@ -844,10 +917,13 @@ export function autoPickOrdersForWave(data, state, wp, slotByKey){
 
     // Survival penalty (enemy acts first + OHKOs you)
     let deathPenalty = 0;
+    const prioAvg = prioSum / 2;
+    if (prioAvg > 3.5){
     const t0 = enemyThreatForMatchup(data, state, wp, aL, dL) || assumedEnemyThreatForMatchup(data, state, wp, aL, dL);
     const t1 = enemyThreatForMatchup(data, state, wp, aR, dR) || assumedEnemyThreatForMatchup(data, state, wp, aR, dR);
     if (t0?.diesBeforeMove) deathPenalty += 1;
     if (t1?.diesBeforeMove) deathPenalty += 1;
+    }
 
     const score = (startersClear * 1_000_000)
       + (bothOhko * 10_000)

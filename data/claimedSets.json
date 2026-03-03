@@ -363,7 +363,7 @@
     "species": "Croconaw"
   },
   "Cubone": {
-    "ability": "Lightningrod",
+    "ability": "Lightning Rod",
     "canClaim": 1,
     "moves": [
       "Bonemerang",
@@ -1232,7 +1232,7 @@
     "species": "Marill"
   },
   "Marowak": {
-    "ability": "Lightningrod",
+    "ability": "Lightning Rod",
     "canClaim": 0,
     "moves": [
       "Bonemerang",
@@ -1793,7 +1793,7 @@
     "species": "Rattata"
   },
   "Rhydon": {
-    "ability": "Lightningrod",
+    "ability": "Lightning Rod",
     "canClaim": 0,
     "moves": [
       "Drill Run",
@@ -1804,7 +1804,7 @@
     "species": "Rhydon"
   },
   "Rhyhorn": {
-    "ability": "Lightningrod",
+    "ability": "Lightning Rod",
     "canClaim": 1,
     "moves": [
       "Drill Run",
@@ -1815,7 +1815,7 @@
     "species": "Rhyhorn"
   },
   "Rhyperior": {
-    "ability": "Lightningrod",
+    "ability": "Lightning Rod",
     "canClaim": 0,
     "moves": [
       "Drill Run",

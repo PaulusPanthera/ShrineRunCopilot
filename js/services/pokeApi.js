@@ -24,6 +24,13 @@ export const BASE_OVERRIDES = {
   Ampharos: 'Mareep',
 };
 
+// Baby-form exception: normally the tool skips baby Pokémon for base-species mapping.
+// Lucario line is the one exception: base should be Riolu.
+const BABY_BASE_EXCEPTIONS = {
+  Lucario: 'Riolu',
+  Riolu: 'Riolu',
+};
+
 // Tool overrides: restrict certain multi-branch evo lines for the Pokédex UI.
 const EVO_LINE_OVERRIDES = {
   Eevee: ['Eevee','Espeon'],
@@ -87,6 +94,12 @@ export function createPokeApi(data){
     return await fetchJson(`https://pokeapi.co/api/v2/pokemon/${slug}`);
   }
 
+  async function fetchMove(slugOrId){
+    const slug = String(slugOrId||'').trim();
+    if (!slug) throw new Error('fetchMove: missing slug');
+    return await fetchJson(`https://pokeapi.co/api/v2/move/${slug}`);
+  }
+
   function titleCaseName(apiName){
     const raw = String(apiName||'').trim();
     if (!raw) return raw;
@@ -128,6 +141,8 @@ export function createPokeApi(data){
   // Pure sync base mapping if cached/overridden.
   function baseOfSync(species, baseCache){
     const s = fixName(species);
+    const babyBase = BABY_BASE_EXCEPTIONS[s];
+    if (babyBase && data.dex[babyBase]) return babyBase;
     const o = BASE_OVERRIDES[s];
     if (o && data.dex[o]) return o;
     const cached = baseCache?.[s];
@@ -186,6 +201,7 @@ export function createPokeApi(data){
   // Returns { base, line:[dexOrDisplayNames...], updates:{[speciesOrLineName]:base} }
   async function resolveBaseNonBaby(species, baseCache={}){
     const s = fixName(species);
+    const includeBaby = !!BABY_BASE_EXCEPTIONS[s];
     const o = BASE_OVERRIDES[s];
     if (o && data.dex[o]){
       return { base: o, line: [o], updates: { [s]: o } };
@@ -208,12 +224,12 @@ export function createPokeApi(data){
       if (!spJson?.evolution_chain?.url) return cacheSelf(s);
       const chJson = await fetchJson(spJson.evolution_chain.url);
 
-      const baseApi = findFirstNonBabyApiName(chJson.chain);
+      const baseApi = includeBaby ? (chJson.chain?.species?.name || findFirstNonBabyApiName(chJson.chain)) : findFirstNonBabyApiName(chJson.chain);
       const baseName = bestDexKeyForApiName(baseApi) || s;
 
       // Build non-baby line from chain
       const flat = flattenEvoChainNonBaby(chJson.chain)
-        .filter(x => !x.is_baby)
+        .filter(x => includeBaby ? true : !x.is_baby)
         .map(x => bestDexKeyForApiName(x.apiName))
         .filter(Boolean);
       const line = Array.from(new Set(flat.length ? flat : [baseName]));
@@ -346,6 +362,8 @@ export function createPokeApi(data){
     const { base, updates } = await resolveBaseNonBaby(s, baseCache);
     const root = base || s;
 
+    const includeBabyLine = (root === 'Riolu') || !!BABY_BASE_EXCEPTIONS[root];
+
     // Second: always attempt to fetch the full non-baby line for the resolved base.
     // This avoids the "cached base => line [base]" pitfall.
     try{
@@ -357,7 +375,7 @@ export function createPokeApi(data){
       const chJson = await fetchJson(spJson.evolution_chain.url);
 
       const flat = flattenEvoChainNonBaby(chJson.chain)
-        .filter(x => !x.is_baby)
+        .filter(x => includeBabyLine ? true : !x.is_baby)
         .map(x => bestDexKeyForApiName(x.apiName))
         .filter(Boolean);
       let line = Array.from(new Set(flat.length ? flat : [root]));
@@ -390,5 +408,6 @@ export function createPokeApi(data){
     resolveEvoLineNonBaby,
     fetchSpecies,
     fetchPokemon,
+    fetchMove,
   };
 }

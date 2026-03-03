@@ -6,6 +6,7 @@ import { fixName } from '../data/nameFixes.js';
 import { fixMoveName } from '../data/moveFixes.js';
 import { STARTERS, makeRosterEntryFromClaimedSet, applyCharmRulesSync, normalizeMovePool, defaultPrioForMove, isStarterSpecies } from '../domain/roster.js';
 import { enforceBagConstraints } from '../domain/items.js';
+import { normalizePartyLayout, ensurePartyShape } from '../domain/party.js';
 
 function deepClone(x){
   return JSON.parse(JSON.stringify(x));
@@ -16,6 +17,14 @@ function byId(arr, id){
 }
 
 const DEFAULT_PP = 12;
+
+// Legacy save compatibility: early builds stored some abilities with minor typos.
+// Keep this mapping minimal and exact-match. New data files should be canonical.
+function normalizeAbilityNameLegacy(ability){
+  const a = String(ability || '').trim();
+  if (a === 'Lightningrod') return 'Lightning Rod';
+  return a;
+}
 
 // Legacy (pre-alpha v1) default prio mapping used only to avoid clobbering user-edited prios.
 // If a move's prio still matches this legacy default, we can safely upgrade it to the new defaults.
@@ -63,7 +72,7 @@ export function hydrateState(raw, defaultState, data){
 
   if (!('startAnimal' in state.settings)) state.settings.startAnimal = defaultState.settings.startAnimal || 'Goat';
 
-  // v20: AoE friendly-fire safety toggle
+  // Patch: AoE friendly-fire safety toggle
   if (!('allowFriendlyFire' in state.settings)) state.settings.allowFriendlyFire = false;
 
   // Manual PP editing (debug / convenience) — default OFF.
@@ -72,9 +81,22 @@ export function hydrateState(raw, defaultState, data){
   // Lazy conserve mode (default ON): when PP<=5, bump prio tier by +1 once for auto-managed moves.
   if (!('autoBumpPrioLowPP' in state.settings)) state.settings.autoBumpPrioLowPP = true;
 
+  // Crit / risk settings (tooltips + threat model)
+  // Map legacy incoming tooltip flag (approx crit) -> new real crit toggle.
+  if ('inTooltipCritWorstCase' in state.settings && !('inTipCritWorst' in state.settings)) {
+    state.settings.inTipCritWorst = !!state.settings.inTooltipCritWorstCase;
+  }
+  if ('inTooltipCritWorstCase' in state.settings) delete state.settings.inTooltipCritWorstCase;
+  if (!('critMult' in state.settings)) state.settings.critMult = 1.5;
+  if (!('inTipRisk' in state.settings)) state.settings.inTipRisk = true;
+  if (!('inTipCritWorst' in state.settings)) state.settings.inTipCritWorst = true;
+  if (!('outTipCrit' in state.settings)) state.settings.outTipCrit = false;
+
   state.unlocked = state.unlocked || {};
   state.cleared = state.cleared || {};
   state.roster = Array.isArray(state.roster) ? state.roster : [];
+  // Party layout (UI-only)
+  ensurePartyShape(state);
   state.bag = state.bag || {};
   // Ensure shared team starting items exist (do not overwrite existing counts)
   if (!('Evo Charm' in state.bag)) state.bag['Evo Charm'] = (defaultState.bag && defaultState.bag['Evo Charm']) ? defaultState.bag['Evo Charm'] : 2;
@@ -94,8 +116,19 @@ export function hydrateState(raw, defaultState, data){
 
   // Battle sim + PP
   state.battles = state.battles || {};
+  // Do not persist dev audit payloads (keeps saves small and avoids localStorage quota issues).
+  try{
+    for (const [wk, b] of Object.entries(state.battles||{})){
+      if (!b || typeof b !== 'object'){
+        delete state.battles[wk];
+        continue;
+      }
+      if ('_audit' in b) delete b._audit;
+    }
+  }catch(e){ /* ignore */ }
   state.pp = state.pp || {};
   if (!state.ui.dexDefenderLevelByBase) state.ui.dexDefenderLevelByBase = {};
+  if (!('rosterModsOpen' in state.ui)) state.ui.rosterModsOpen = false;
   // New deterministic Pokédex origin routing (preferred over dexReturnTab).
   if (!('dexOrigin' in state.ui)) state.ui.dexOrigin = null;
   if (!('dexOriginRosterId' in state.ui)) state.ui.dexOriginRosterId = null;
@@ -141,6 +174,18 @@ export function hydrateState(raw, defaultState, data){
     }
   }
 
+  // Normalize party slots after any roster seeding/caps/cleanup.
+  // If this is a fresh/empty layout, seed the 4 starters across the 4 character cards.
+  normalizePartyLayout(state, {seedStarters:true});
+
+  // Rename legacy default party names (P1..P4) to Player 1..4, without overriding custom names.
+  if (state.party && Array.isArray(state.party.names) && state.party.names.length === 4){
+    const legacy = ['P1','P2','P3','P4'];
+    const next = ['Player 1','Player 2','Player 3','Player 4'];
+    const isLegacy = state.party.names.every((v,i)=>String(v||'').trim() === legacy[i]);
+    if (isLegacy) state.party.names = next;
+  }
+
   // Ensure roster species are unlocked + normalize roster entries
   for (const r of state.roster){
     if (!r || typeof r !== 'object') continue;
@@ -153,6 +198,7 @@ export function hydrateState(raw, defaultState, data){
 
     if (!Array.isArray(r.movePool)) r.movePool = [];
     if (!('item' in r)) r.item = null;
+    if (typeof r.ability === 'string') r.ability = normalizeAbilityNameLegacy(r.ability);
 
     // Legacy+: priorities must be 1..5
     normalizeMovePool(r);
@@ -182,9 +228,12 @@ export function hydrateState(raw, defaultState, data){
     // If movePool empty, rebuild
     if (r.movePool.length === 0 && data.claimedSets?.[r.baseSpecies]){
       const fresh = makeRosterEntryFromClaimedSet(data, r.baseSpecies);
-      r.ability = r.ability || fresh.ability;
+      r.ability = normalizeAbilityNameLegacy(r.ability || fresh.ability);
       r.movePool = fresh.movePool;
     }
+
+    // Normalize after any potential rebuild.
+    if (typeof r.ability === 'string') r.ability = normalizeAbilityNameLegacy(r.ability);
 
     // Charm rules + effectiveSpecies
     applyCharmRulesSync(data, state, r);
