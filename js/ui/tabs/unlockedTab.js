@@ -654,7 +654,17 @@ function renderDexPlateGrid(types, ability, moves){
         const mv = data.moves?.[canon] || data.moves?.[rawName] || null;
         const type = mv?.type || '—';
         const cat = mv?.category || '—';
-        const bp = (typeof mv?.power === 'number' && Number.isFinite(mv.power)) ? String(Math.round(mv.power)) : '—';
+        // Debug: reflect move base power overrides in UI (so displayed BP matches calc).
+        let pow = mv?.power;
+        try{
+          const enabled = !!state?.settings?.enableMovePowerOverrides;
+          if (enabled){
+            const ovr = state?.settings?.movePowerOverrides?.[canon] ?? state?.settings?.movePowerOverrides?.[rawName];
+            const p = (ovr !== undefined && ovr !== null && ovr !== '') ? Number(ovr) : null;
+            if (Number.isFinite(p) && p > 0) pow = p;
+          }
+        }catch(e){ /* ignore */ }
+        const bp = (typeof pow === 'number' && Number.isFinite(pow)) ? String(Math.round(pow)) : '—';
 
         ensureMoveDesc(rawName);
         const desc = state.dexMoveCache?.[fixName(canon)] || mv?.notes || '';

@@ -1239,3 +1239,13 @@ This patch implements the most important missing effects while keeping determini
 - `js/ui/tabs/settingsTab.js`
 - `REPORT.md`
 
+
+## PATCH 39b — Show BP overrides in UI
+
+- When **Enable move BP overrides (debug)** is ON, move lists display the overridden BP so UI matches the calc.
+
+### Touched files
+- `js/ui/tabs/rosterTab.js`
+- `js/ui/tabs/unlockedTab.js`
+- `REPORT.md`
+

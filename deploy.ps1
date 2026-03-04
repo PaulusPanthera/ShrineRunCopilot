@@ -14,8 +14,8 @@ git pull --rebase
 
 Write-Host "== robocopy mirror (with exclusions) ==" -ForegroundColor Cyan
 robocopy $src $dest /MIR `
-  /XD ".git" "node_modules" ".vscode" "logs" "additional assets" "additonal assets" `
-  /XF ".DS_Store" "thumbs.db" ".gitignore" | Out-Host
+  /XD ".git" "node_modules" ".vscode" "logs" "reports" "additional assets" "additonal assets" `
+  /XF ".DS_Store" "thumbs.db" ".gitignore" "abundant_shrine_state_alpha_*.json" | Out-Host
 
 Write-Host "== git status ==" -ForegroundColor Cyan
 git status
