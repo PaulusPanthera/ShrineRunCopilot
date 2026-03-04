@@ -484,13 +484,19 @@ function renderWavePlanner(state, waveKey, slots, wp){
     return sel;
   };
 
-  const clearMoveOverridesBtn = el('button', {class:'btn-mini'}, 'Clear');
-  clearMoveOverridesBtn.addEventListener('click', ()=>{
+  const clearMoveOverridesBtn = el('button', {class:'btn-mini', title:'Clear (current wave). Shift+Clear = all waves.'}, 'Clear');
+  clearMoveOverridesBtn.addEventListener('click', (ev)=>{
+    const global = !!(ev && ev.shiftKey);
     store.update(s=>{
-      const w = s.wavePlans[waveKey];
-      if (!w.attackMoveOverride) return;
-      delete w.attackMoveOverride[starterA];
-      delete w.attackMoveOverride[starterB];
+      if (global){
+        for (const k of Object.keys(s.wavePlans||{})){
+          const w = s.wavePlans[k];
+          if (w && w.attackMoveOverride) delete w.attackMoveOverride;
+        }
+      } else {
+        const w = s.wavePlans[waveKey];
+        if (w && w.attackMoveOverride) delete w.attackMoveOverride;
+      }
       ensureWavePlan(data, s, waveKey, slots);
     });
   });
@@ -545,13 +551,19 @@ function renderWavePlanner(state, waveKey, slots, wp){
     return sel;
   };
 
-  const clearItemOverridesBtn = el('button', {class:'btn-mini'}, 'Clear');
-  clearItemOverridesBtn.addEventListener('click', ()=>{
+  const clearItemOverridesBtn = el('button', {class:'btn-mini', title:'Clear (current wave). Shift+Clear = all waves.'}, 'Clear');
+  clearItemOverridesBtn.addEventListener('click', (ev)=>{
+    const global = !!(ev && ev.shiftKey);
     store.update(s=>{
-      const w = s.wavePlans[waveKey];
-      if (!w.itemOverride) return;
-      delete w.itemOverride[starterA];
-      delete w.itemOverride[starterB];
+      if (global){
+        for (const k of Object.keys(s.wavePlans||{})){
+          const w = s.wavePlans[k];
+          if (w && w.itemOverride) delete w.itemOverride;
+        }
+      } else {
+        const w = s.wavePlans[waveKey];
+        if (w && w.itemOverride) delete w.itemOverride;
+      }
       ensureWavePlan(data, s, waveKey, slots);
     });
   });

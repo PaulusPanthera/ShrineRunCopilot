@@ -1259,3 +1259,14 @@ This patch implements the most important missing effects while keeping determini
 - `js/data/loadData.js`
 - `REPORT.md`
 
+
+## PATCH 40b — Clear buttons: wave-only, Shift+Clear global
+
+- In the Wave Planner fight plan, **Clear** now resets overrides for the **current wave only**.
+- **Shift+Clear** resets overrides across **all waves**.
+- Added hover tooltip on Clear buttons explaining the shortcut.
+
+### Touched files
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
+- `REPORT.md`
+

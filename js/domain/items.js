@@ -14,6 +14,7 @@ export const CORE_ITEMS = [
   'Leftovers',
   'Shell Bell',
   'Black Sludge',
+  'Protective Pads',
   'Life Orb',
   'Muscle Band',
   'Wise Glasses',
@@ -282,6 +283,7 @@ const SELL_EXPLICIT = {
   'Metronome': 8,
   'Thick Club': 8,
   'Loaded Dice': 8,
+  'Protective Pads': 8,
 };
 
 // Explicit per-single BUY values.
