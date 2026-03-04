@@ -81,6 +81,24 @@ export function hydrateState(raw, defaultState, data){
   // Manual roster level editing (debug / convenience) — default OFF.
   if (!('allowManualLevelEdit' in state.settings)) state.settings.allowManualLevelEdit = false;
 
+  // Debug: per-move base power overrides (default OFF).
+  if (!('enableMovePowerOverrides' in state.settings)) state.settings.enableMovePowerOverrides = false;
+  if (!('movePowerOverrides' in state.settings)) state.settings.movePowerOverrides = {};
+  if (!state.settings.movePowerOverrides || typeof state.settings.movePowerOverrides !== 'object') state.settings.movePowerOverrides = {};
+
+  // Normalize override keys + values (canonical move names, finite positive numbers only).
+  try{
+    const next = {};
+    for (const [rawK, rawV] of Object.entries(state.settings.movePowerOverrides||{})){
+      const k = fixMoveName(String(rawK||'').trim());
+      if (!k) continue;
+      const v = Number(rawV);
+      if (!Number.isFinite(v) || v <= 0) continue;
+      next[k] = Math.round(v);
+    }
+    state.settings.movePowerOverrides = next;
+  }catch(e){ /* ignore */ }
+
   // Lazy conserve mode (default ON): when PP<=5, bump prio tier by +1 once for auto-managed moves.
   if (!('autoBumpPrioLowPP' in state.settings)) state.settings.autoBumpPrioLowPP = true;
 

@@ -1314,7 +1314,7 @@
     "category": "Physical",
     "name": "Sucker Punch",
     "notes": null,
-    "power": 80.0,
+    "power": 70.0,
     "priority": 1,
     "targets": "Def",
     "type": "Dark",

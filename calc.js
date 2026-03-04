@@ -235,7 +235,16 @@ function weatherFromAbilityLc(abLc){
 
   function computeDamageRange({data, attacker, defender, moveName, settings, tags}){
     const {dex, moves, typing, rules, stages} = data;
-    const mv = moves[moveName];
+    let mv = moves[moveName];
+
+    // Debug: allow hotfixing move base power via settings overrides.
+    // (Used to quickly correct metadata mistakes without rebuilding data files.)
+    try{
+      const enabled = !!settings?.enableMovePowerOverrides;
+      const ovr = enabled ? (settings?.movePowerOverrides?.[moveName]) : undefined;
+      const p = (ovr !== undefined && ovr !== null && ovr !== '') ? Number(ovr) : null;
+      if (mv && Number.isFinite(p) && p > 0) mv = {...mv, power: p};
+    }catch(e){ /* ignore */ }
     const isWeightVarPower = (moveName === 'Low Kick' || moveName === 'Grass Knot');
     const isReturn = (moveName === 'Return');
     const isReversal = (moveName === 'Reversal');

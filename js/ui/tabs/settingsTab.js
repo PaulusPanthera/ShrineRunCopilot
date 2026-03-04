@@ -249,6 +249,94 @@ function renderSettings(state){
       b.addEventListener('click', ()=> store.update(st=>{ st.ui.tab='waves'; }));
       return b;
     })(),
+
+    el('hr'),
+    el('div', {class:'panel-subtitle'}, 'Debug tools'),
+    fieldCheck('Enable move BP overrides (debug)', (s.enableMovePowerOverrides ?? false), v=>store.update(st=>{ st.settings.enableMovePowerOverrides = v; })),
+    (s.enableMovePowerOverrides ? (function(){
+      const listId = mkFieldId('Move list');
+      const nameId = mkFieldId('Move name');
+      const bpId = mkFieldId('Base power');
+
+      const mvNames = Object.keys(data.moves||{}).sort((a,b)=>a.localeCompare(b));
+      const dl = el('datalist', {id:listId}, mvNames.map(n=>el('option', {value:n})));
+
+      const inpName = el('input', {id:nameId, type:'text', list:listId, placeholder:'Move name…', style:'min-width:220px'});
+      const inpBp = el('input', {id:bpId, type:'number', min:'1', max:'250', step:'1', value:'', style:'width:110px'});
+
+      const bSet = el('button', {class:'btn-mini'}, 'Set');
+      const bClear = el('button', {class:'btn-mini btn-danger'}, 'Clear');
+
+      function curOverrides(){
+        const o = (store.getState()?.settings?.movePowerOverrides) || {};
+        return (o && typeof o === 'object') ? o : {};
+      }
+
+      function refreshList(host){
+        host.innerHTML = '';
+        const ov = curOverrides();
+        const keys = Object.keys(ov||{}).sort((a,b)=>a.localeCompare(b));
+        if (!keys.length){
+          host.appendChild(el('div', {class:'muted small'}, 'No overrides set.'));
+          return;
+        }
+        for (const k of keys){
+          const row = el('div', {style:'display:flex; gap:10px; align-items:center; justify-content:space-between; padding:6px 0; border-top:1px solid rgba(255,255,255,0.06)'});
+          const left = el('div', {style:'display:flex; gap:10px; align-items:center; flex-wrap:wrap'}, [
+            el('span', {class:'mono'}, k),
+            el('span', {class:'pill'}, `BP ${Number(ov[k])||'?'} `),
+          ]);
+          const bx = el('button', {class:'btn-mini btn-danger'}, 'X');
+          bx.addEventListener('click', ()=>{
+            store.update(st=>{
+              if (!st.settings.movePowerOverrides) st.settings.movePowerOverrides = {};
+              delete st.settings.movePowerOverrides[k];
+            });
+            refreshList(host);
+          });
+          row.appendChild(left);
+          row.appendChild(bx);
+          host.appendChild(row);
+        }
+      }
+
+      const listHost = el('div', {style:'margin-top:10px'});
+      refreshList(listHost);
+
+      bSet.addEventListener('click', ()=>{
+        const name = String(inpName.value||'').trim();
+        const bp = Math.floor(Number(inpBp.value)||0);
+        if (!name || !data.moves?.[name]){ alert('Pick a valid move name from the list.'); return; }
+        if (!(bp > 0)){ alert('Enter a positive base power.'); return; }
+        store.update(st=>{
+          if (!st.settings.movePowerOverrides || typeof st.settings.movePowerOverrides !== 'object') st.settings.movePowerOverrides = {};
+          st.settings.movePowerOverrides[name] = bp;
+        });
+        refreshList(listHost);
+      });
+
+      bClear.addEventListener('click', ()=>{
+        const name = String(inpName.value||'').trim();
+        if (!name) return;
+        store.update(st=>{
+          if (!st.settings.movePowerOverrides) st.settings.movePowerOverrides = {};
+          delete st.settings.movePowerOverrides[name];
+        });
+        refreshList(listHost);
+      });
+
+      return el('div', {}, [
+        el('div', {class:'muted small'}, 'Hotfix move base power used in damage calcs (does not edit data files).'),
+        dl,
+        el('div', {style:'display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-top:10px'}, [
+          el('div', {class:'field', style:'margin:0'}, [el('label', {for:nameId}, 'Move'), inpName]),
+          el('div', {class:'field', style:'margin:0'}, [el('label', {for:bpId}, 'BP'), inpBp]),
+          bSet,
+          bClear,
+        ]),
+        listHost,
+      ]);
+    })() : null),
   ]);
   const pAbout = panel('Credits & Impressum', [
     el('div', {class:'panel-subtitle'}, 'Credits'),

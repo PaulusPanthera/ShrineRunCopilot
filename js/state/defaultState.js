@@ -62,6 +62,11 @@ export function createDefaultState(data){
       // If ON, allow manually editing roster levels in the UI.
       // Default OFF to keep the planner consistent with the run state.
       allowManualLevelEdit: false,
+
+      // Debug: override move base power for specific moves (for fast hotfixing metadata mistakes).
+      // When enabled, Settings exposes a small editor that writes into movePowerOverrides.
+      enableMovePowerOverrides: false,
+      movePowerOverrides: {},
       // If ON (default), when a move drops to PP<=5 we bump its prio tier by +1 (once) to conserve scarce moves.
       autoBumpPrioLowPP: true,
       movesPerMon: 3,

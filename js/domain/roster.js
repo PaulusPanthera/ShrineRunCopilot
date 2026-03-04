@@ -131,7 +131,15 @@ export function defaultPrioForMove(data, species, moveName, ability=null, prioCt
   if (!mi || !mi.type || !mi.category) return 1;
 
   const cat = String(mi.category);
-  const bp = Number(mi.power) || 0;
+  // Debug: allow move BP overrides to affect default prio strength estimation.
+  let bp = Number(mi.power) || 0;
+  try{
+    const st = prioCtx?.state || null;
+    const enabled = !!st?.settings?.enableMovePowerOverrides;
+    const ovr = enabled ? st?.settings?.movePowerOverrides?.[moveName] : undefined;
+    const p = (ovr !== undefined && ovr !== null && ovr !== '') ? Number(ovr) : null;
+    if (Number.isFinite(p) && p > 0) bp = p;
+  }catch(e){ /* ignore */ }
 
   // Utility/status moves are always P1.
   if (!(cat === 'Physical' || cat === 'Special') || bp <= 0) return 1;

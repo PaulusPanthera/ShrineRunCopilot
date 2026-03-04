@@ -1221,3 +1221,21 @@ This patch implements the most important missing effects while keeping determini
 - `js/ui/tabs/waves/planner/wavePlannerPanel.js`
 - `REPORT.md`
 
+
+## PATCH 39 — Sucker Punch BP fix + Move BP override debug tool
+
+- Fixed **Sucker Punch** base power to **70** (PokeMMO expectation).
+- Added a Settings debug tool to hotfix move base power without editing data files:
+  - Toggle: **Enable move BP overrides (debug)**
+  - Editor: set/clear per-move BP overrides (stored in save state)
+- Move BP overrides affect damage calcs **and** default prio estimation (so auto prios can be recomputed consistently).
+
+### Touched files
+- `data/moves.json`
+- `calc.js`
+- `js/domain/roster.js`
+- `js/state/defaultState.js`
+- `js/state/migrate.js`
+- `js/ui/tabs/settingsTab.js`
+- `REPORT.md`
+
