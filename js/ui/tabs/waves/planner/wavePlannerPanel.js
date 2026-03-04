@@ -883,11 +883,12 @@ function renderWavePlanner(state, waveKey, slots, wp){
       }
 
       // Spread penalty should be based on how many targets are actually damaged (immunity matters).
-      // This mirrors the battle engine so Fight plan lines match Outcome preview.
+      // Prefer the per-turn planSim targets (they know if the other lead was already KO'd before the AoE user acts).
+      const sideRef = (sim && sim.side) ? sim.side : aoeSide;
       const targetsDamaged = aoe
         ? (
             ((Number((sim?.main?.minPct ?? best?.minPct) || 0) > 0) ? 1 : 0)
-            + ((aoeSide && Number(aoeSide.minPct || 0) > 0) ? 1 : 0)
+            + ((sideRef && Number(sideRef.minPct || 0) > 0) ? 1 : 0)
             + ((hitsAlly && ff && !ff.immune && Number(ff.minPct || 0) > 0) ? 1 : 0)
           )
         : 1;
@@ -906,7 +907,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
         ff = {...ff, minAdj: 0, maxAdj: 0, couldKO: false};
       }
 
-      const sideTxt = (aoeSide && aoe) ? ` · also ${aoeSide.defender}: ${formatPct((aoeSide.minPct||0)*mult)} min` : '';
+      const sideTxt = (sideRef && aoe) ? ` · also ${sideRef.defender}: ${formatPct((sideRef.minPct||0)*mult)} min` : '';
       const out = best
         ? `${rosterLabel(x.att)} → ${x.def.defender}: ${best.move} (P${best.prio} · ${formatPct(adjMin)} min${aoe ? ` · AOE×${mult===1? '1.00':'0.75'}` : ''}${sideTxt})`
         : `${rosterLabel(x.att)} → ${x.def.defender}: —`;
@@ -1433,6 +1434,15 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	      if (String(aId) === String(bId)) return null;
 	      if (defs.length < 2) return null;
 
+	      // Snapshot roster HP% before the sim (for Life Orb / recoil persistence).
+	      // NOTE: This is a LOG-only side effect (manual Fight logging), not a preview mechanic.
+	      const hpBeforeRoster = {};
+	      for (const id of [aId, bId]){
+	        const rm = byId(s.roster||[], id);
+	        const prev = rm?.mods?.hpPct;
+	        hpBeforeRoster[id] = (prev === undefined || prev === null) ? null : Number(prev);
+	      }
+
 	      // Seed PP for the two attackers and snapshot before.
 	      ensurePPForRosterMon(s, aMon);
 	      ensurePPForRosterMon(s, bMon);
@@ -1557,6 +1567,20 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	        return sl ? pokeApi.baseOfSync(sl.defender, baseCache) : rk;
 	      });
 
+	      // Persist attacker HP% back to roster (log-only) and compute hpDelta for undo.
+	      const hpDelta = [];
+	      for (const id of [aId, bId]){
+	        const rm = byId(s.roster||[], id);
+	        if (!rm) continue;
+	        const prevHp = hpBeforeRoster[id];
+	        const nextHp = (bb && bb.hpAtk && bb.hpAtk[id] != null) ? Number(bb.hpAtk[id]) : null;
+	        if (Number.isFinite(nextHp)){
+	          rm.mods = {...(rm.mods||{})};
+	          rm.mods.hpPct = Math.max(0, Math.min(100, Math.round(nextHp)));
+	          hpDelta.push({monId: id, prevHpPct: prevHp, nextHpPct: rm.mods.hpPct});
+	        }
+	      }
+
 	      // Cleanup temp battle
 	      delete s.battles[tmpKey];
 	      delete s.wavePlans[tmpKey];
@@ -1581,6 +1605,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	        claimRowKeys,
 	        claimBases,
 	        ppDelta,
+	        hpDelta,
 	        itemOverride,
 	        bagDelta,
 	        consumedItems,
@@ -1625,6 +1650,22 @@ function renderWavePlanner(state, waveKey, slots, wp){
 	        for (const d of (entry.ppDelta||[])){
 	          if (!s.pp?.[d.monId]?.[d.move]) continue;
 	          s.pp[d.monId][d.move].cur = d.prevCur;
+	        }
+
+	        // Restore roster HP% (Life Orb / recoil) for logged fights.
+	        for (const d of (entry.hpDelta||[])){
+	          const rm = byId(s.roster||[], d.monId);
+	          if (!rm) continue;
+	          if (d.prevHpPct === null || d.prevHpPct === undefined){
+	            if (rm.mods){
+	              rm.mods = {...rm.mods};
+	              delete rm.mods.hpPct;
+	              if (!Object.keys(rm.mods).length) delete rm.mods;
+	            }
+	          } else {
+	            rm.mods = {...(rm.mods||{})};
+	            rm.mods.hpPct = Number(d.prevHpPct);
+	          }
 	        }
 	
 	        // Revert claims for this entry if no other remaining log entry still claims them.
@@ -3529,6 +3570,8 @@ const headLeft = el('div', {}, [
 
         const ohkoPairs = lead.bothOhko;
         const prioAvg = lead.prioAvg;
+        const worstPrio = lead.worstPrio;
+        const overkill = lead.overkill;
         let clearAll = 0;
         for (const ds of allDef){
           const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
@@ -3537,14 +3580,16 @@ const headLeft = el('div', {}, [
           if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) clearAll += 1;
         }
 
-        pairs.push({a,b, ohkoPairs, prioAvg, clearAll});
+        pairs.push({a,b, ohkoPairs, prioAvg, worstPrio, overkill, clearAll});
       }
     }
 
     pairs.sort((x,y)=>{
       if (x.clearAll !== y.clearAll) return y.clearAll - x.clearAll;
       if (x.ohkoPairs !== y.ohkoPairs) return y.ohkoPairs - x.ohkoPairs;
-      return x.prioAvg - y.prioAvg;
+      if (x.worstPrio !== y.worstPrio) return x.worstPrio - y.worstPrio;
+      if (x.prioAvg !== y.prioAvg) return x.prioAvg - y.prioAvg;
+      return (x.overkill ?? 0) - (y.overkill ?? 0);
     });
 
     for (const p of pairs.slice(0,12)){

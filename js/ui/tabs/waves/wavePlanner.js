@@ -28,6 +28,13 @@ function renderWaveCard(state, waveKey, slots){
   const first = slots[0];
   const title = `${waveKey} • ${first.animal} • Lv ${first.level}`;
 
+  // Overview "logged" status: wave is considered logged once 4 fights are logged
+  // AND the wave loot item has been claimed (waveItem set).
+  const wp = state.wavePlans?.[waveKey] || null;
+  const fightsLogged = (wp?.fightLog || []).length >= 4;
+  const lootLogged = !!(wp?.waveItem);
+  const isLogged = fightsLogged && lootLogged;
+
   const btn = el('button', {class:'btn-mini btn-expander'}, expanded ? 'Collapse wave' : 'Expand wave');
   btn.addEventListener('click', ()=>{
     store.update(s => { s.ui.waveExpanded[waveKey] = !expanded; });
@@ -280,6 +287,8 @@ function renderWaveCard(state, waveKey, slots){
     ]);
   })();
 
+  const loggedPill = isLogged ? el('div', {class:'pill good', title:'Wave logged (4 fights + loot claimed)'}, 'LOGGED') : null;
+
   const head = el('div', {class:'wave-head'}, [
     el('div', {class:'wave-left'}, [
       el('div', {}, [
@@ -287,7 +296,7 @@ function renderWaveCard(state, waveKey, slots){
         el('div', {class:'wave-meta'}, `Phase ${first.phase} · Wave ${first.wave} · ${slots.length} defenders`),
       ]),
     ]),
-    el('div', {class:'wave-actions'}, [lootInline, btn]),
+    el('div', {class:'wave-actions'}, [loggedPill, lootInline, btn].filter(Boolean)),
   ]);
 
   const body = el('div', {class:'wave-body ' + (expanded ? '' : 'hidden')});
@@ -298,7 +307,7 @@ function renderWaveCard(state, waveKey, slots){
     body.appendChild(renderWavePlanner(state, waveKey, slots, wp));
   }
 
-  return el('div', {class:'wave-card' + (expanded ? ' expanded' : '')}, [head, body]);
+  return el('div', {class:'wave-card' + (isLogged ? ' logged' : '') + (expanded ? ' expanded' : '')}, [head, body]);
 }
 
   return renderWaveCard;

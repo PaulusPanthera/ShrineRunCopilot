@@ -1133,3 +1133,91 @@ This patch implements the most important missing effects while keeping determini
 - `js/ui/tabs/unlockedTab.js`
 - `REPORT.md`
 
+
+## PATCH 32 — Nian checkpoint PP logger: roster-id correctness + clean-plan baseline + claimed overview
+
+- **Fix:** Nian checkpoint selectors now use **rosterMon.id** (not array indices). This makes PP debit / undo update the same canonical IDs used by Roster + planner.
+- **Compatibility:** older saves that stored party IDs as array indices are normalized on load/render.
+- **Clean plan baseline:** default clean run assumes **Empoleon Scald×2 + Flash Cannon×1** (matches the intended “good RNG” baseline; use Advanced to deviate).
+- **Overview cue:** checkpoint dividers now show a **LOGGED** status pill and a claimed-tinted divider after a successful PP log; Undo clears it when it was created by the last action.
+
+### Touched files
+- `js/ui/tabs/wavesTab.js`
+- `styles.css`
+- `REPORT.md`
+
+
+## PATCH 33 — Wave overview: LOGGED status when fights + loot are logged
+
+- Wave cards now show a **LOGGED** pill (and a subtle claimed tint) when the wave has **4 fights logged** AND its **wave loot item is claimed**.
+- This gives a fast collapsed overview of “fully logged” waves (fights + loot), similar to the Nian checkpoint overview cue.
+
+### Touched files
+- `js/ui/tabs/waves/wavePlanner.js`
+- `styles.css`
+- `REPORT.md`
+
+
+## PATCH 34 — Bonus boss Politoed: paid unlock checkpoint (no sim yet)
+
+- Added a **BONUS BOSS** checkpoint at the end of Waves as a simple **paid unlock**:
+  - Button **Pay 10g & unlock Politoed** (requires `shop.gold >= 10`).
+  - Marks the divider **logged** for overview and unlocks **Politoed** in the roster add list.
+  - **Undo** refunds the gold and removes the unlock (Undo is disabled while Politoed is already in roster to avoid confusing state).
+- Added a migration cleanup that removes experimental invalid unlock keys like `BONUS_POLITOED_*` from older dev patches.
+
+### Touched files
+- `js/ui/tabs/wavesTab.js`
+- `js/state/migrate.js`
+- `REPORT.md`
+
+
+## PATCH 35 — Boss dividers: normalize LOGGED pill casing
+
+- Nian checkpoint dividers and the bonus boss divider now display the overview pill as **LOGGED** (uppercase) for consistency with wave cards and checkpoint headers.
+
+### Touched files
+- `js/ui/tabs/wavesTab.js`
+- `REPORT.md`
+
+
+## PATCH 36 — Auto starters: include worstPrio tie-breaker (no drift vs Suggested)
+
+- Auto starter picking now uses the same tie-break ordering as the Suggested lead pairs list:
+  - `clearAll desc` → `ohkoPairs desc` → `worstPrio asc` → `prioØ asc` → `overkill asc`
+- This eliminates rare tie cases where Auto could pick a different pair than the top Suggested entry.
+
+### Touched files
+- `js/domain/waves.js`
+- `REPORT.md`
+
+
+## PATCH 37 — Boss checkpoints: expand/collapse style alignment + cp1..cp7 support
+
+- Nian checkpoint panel is now available after **every** NIAN BOSS divider (cp1..cp7).
+- Boss divider toggle now uses the same **Expand/Collapse** wording + button style as wave cards.
+- Nian + bonus boss checkpoint cards are styled to match normal wave cards:
+  - consistent border/background
+  - LOGGED cards get the same green “logged” tint
+- Primary CTA wording aligned with the wave planner: **Fight** / **Fight (N turns)**.
+
+### Touched files
+- `js/ui/tabs/wavesTab.js`
+- `styles.css`
+- `REPORT.md`
+
+
+## PATCH 38 — Evolution ability parity + AoE preview parity
+
+- Fixed claimed-set abilities for evolution lines where the ability changes on evolution:
+  - Herdier/Stoutland now use **Intimidate** (base Lillipup remains Vital Spirit).
+  - Mightyena now uses **Intimidate** (base Poochyena remains Rattled).
+- Evo toggle now applies the **effective species** claimed-set ability (when available), so battle engine + previews reflect the correct evolved ability.
+- Fight plan AoE preview now prefers the per-turn `planSim` side-target info, so it won’t show a phantom “also X” (or wrong spread label) when the other lead was already KO’d before the AoE user acts.
+
+### Touched files
+- `data/claimedSets.json`
+- `js/domain/roster.js`
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
+- `REPORT.md`
+

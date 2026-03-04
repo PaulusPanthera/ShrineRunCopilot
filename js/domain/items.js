@@ -13,6 +13,7 @@ export const TYPES_NO_FAIRY = [
 export const CORE_ITEMS = [
   'Leftovers',
   'Shell Bell',
+  'Black Sludge',
   'Life Orb',
   'Muscle Band',
   'Wise Glasses',
@@ -269,6 +270,7 @@ const SELL_EXPLICIT = {
   'Evo Charm': 8,
   'Strength Charm': 6,
   'Rare Candy': 8,
+  'Black Sludge': 8,
   'Life Orb': 12,
   'Wide Lens': 8,
   'Light Ball': 8,
@@ -279,6 +281,7 @@ const SELL_EXPLICIT = {
   'Leftovers': 12,
   'Metronome': 8,
   'Thick Club': 8,
+  'Loaded Dice': 8,
 };
 
 // Explicit per-single BUY values.

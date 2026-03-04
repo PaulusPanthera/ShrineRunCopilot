@@ -6,6 +6,10 @@ import { settingsForWave, enemyThreatForMatchup, assumedEnemyThreatForMatchup } 
 
 export const DEFAULT_MOVE_PP = 12;
 
+function displayMonName(rm, fallback){
+  return (rm?.effectiveSpecies || rm?.baseSpecies || fallback || '');
+}
+
 function byId(arr, id){
   return (arr||[]).find(x => x && x.id === id);
 }
@@ -174,7 +178,7 @@ function maybeTriggerFocusSash({battle, state, wp, targetId, prevHp, nextHp, tur
   battle.consumed.push({attackerId: targetId, item: 'Focus Sash', kind: 'sash'});
 
   if (turnLog){
-    const who = targetLabel ? String(targetLabel) : (byId(state?.roster||[], targetId)?.baseSpecies || 'Target');
+    const who = targetLabel ? String(targetLabel) : (displayMonName(byId(state?.roster||[], targetId), 'Target') || 'Target');
     turnLog.push(`${who} hung on at 1% (Focus Sash).`);
   }
 
@@ -193,7 +197,7 @@ function maybePopAirBalloon({battle, state, wp, targetId, turnLog, targetLabel})
   battle.consumed.push({attackerId: targetId, item: 'Air Balloon', kind: 'balloon'});
 
   if (turnLog){
-    const who = targetLabel ? String(targetLabel) : (byId(state?.roster||[], targetId)?.baseSpecies || 'Target');
+    const who = targetLabel ? String(targetLabel) : (displayMonName(byId(state?.roster||[], targetId), 'Target') || 'Target');
     turnLog.push(`${who}'s Air Balloon popped.`);
   }
 }
@@ -332,20 +336,20 @@ function applyOnHitImmunityBoost({battle, state, targetId, moveType, turnLog}){
   if (t === 'Electric'){
     if (abLc === 'motor drive'){
       d.spe = clampInt((d.spe||0) + 1, -6, 6);
-      if (turnLog) turnLog.push(`${rm.baseSpecies || targetId} gained +1 Spe (Motor Drive).`);
+      if (turnLog) turnLog.push(`${displayMonName(rm, targetId)} gained +1 Spe (Motor Drive).`);
     } else if (abLc === 'lightning rod'){
       d.spa = clampInt((d.spa||0) + 1, -6, 6);
-      if (turnLog) turnLog.push(`${rm.baseSpecies || targetId} gained +1 SpA (Lightning Rod).`);
+      if (turnLog) turnLog.push(`${displayMonName(rm, targetId)} gained +1 SpA (Lightning Rod).`);
     }
   } else if (t === 'Water'){
     if (abLc === 'storm drain'){
       d.spa = clampInt((d.spa||0) + 1, -6, 6);
-      if (turnLog) turnLog.push(`${rm.baseSpecies || targetId} gained +1 SpA (Storm Drain).`);
+      if (turnLog) turnLog.push(`${displayMonName(rm, targetId)} gained +1 SpA (Storm Drain).`);
     }
   } else if (t === 'Grass'){
     if (abLc === 'sap sipper'){
       d.atk = clampInt((d.atk||0) + 1, -6, 6);
-      if (turnLog) turnLog.push(`${rm.baseSpecies || targetId} gained +1 Atk (Sap Sipper).`);
+      if (turnLog) turnLog.push(`${displayMonName(rm, targetId)} gained +1 Atk (Sap Sipper).`);
     }
   }
 
@@ -1549,7 +1553,7 @@ function autoFillEmptySlots({battle, state, data, slotByKey, waveKey, turnLog}){
     battle.joinCount = battle.joinCount || {atk:0, def:0};
     battle.joinCount.atk = (battle.joinCount.atk || 0) + 1;
     const rm = (state?.roster||[]).find(r=>r && r.id === next);
-    const nm = rm?.baseSpecies || String(next);
+    const nm = displayMonName(rm, String(next)) || String(next);
     // Show join #3/#4 semantics for clarity.
     const joinN = (battle.joinCount.atk || 0);
     if (turnLog) turnLog.push(`Reinforcement entered: ${nm} · #${joinN}.`);
@@ -1918,7 +1922,7 @@ if (!id || !rk) continue;
 if ((battle.hpAtk[id] ?? 0) <= 0) continue; // fainted before acting
 
 const atkMon = byId(state.roster, id);
-const atkName = atkMon?.baseSpecies || 'Attacker';
+const atkName = displayMonName(atkMon, 'Attacker') || 'Attacker';
 const itemBefore = effectiveAttackerItem({state, wp, battle, attackerId: id});
 
 // Truant: alternate between acting and loafing (no PP spend on loaf turns).
@@ -1994,7 +1998,7 @@ if (act.aoe){
         allyInfo = {
           kind:'ally',
           id: allyId,
-          name: allyMon.baseSpecies || String(allyId),
+          name: displayMonName(allyMon, String(allyId)) || String(allyId),
           min: minA,
           max: maxA,
           immune,
@@ -2257,13 +2261,13 @@ for (const tid of targetIds){
     const immune = immuneFromAllyAbilityItem(tmonEff, moveType);
     const min0 = clampDmgPct(act.minPct||0);
     const max0 = clampDmgPct(act.maxPct||act.minPct||0);
-    hits.push({tid, name: tmon.baseSpecies || String(tid), moveType, immune, min: immune ? 0 : min0, max: immune ? 0 : max0});
+    hits.push({tid, name: displayMonName(tmon, String(tid)) || String(tid), moveType, immune, min: immune ? 0 : min0, max: immune ? 0 : max0});
   } else {
     const moveType = String(rr.moveType || '');
     const immune = immuneFromAllyAbilityItem(tmonEff, moveType);
     const min0 = clampDmgPct(Number(rr.minPct)||0);
     const max0 = clampDmgPct(Number(rr.maxPct ?? rr.minPct)||0);
-    hits.push({tid, name: tmon.baseSpecies || String(tid), moveType, immune, min: immune ? 0 : min0, max: immune ? 0 : max0});
+    hits.push({tid, name: displayMonName(tmon, String(tid)) || String(tid), moveType, immune, min: immune ? 0 : min0, max: immune ? 0 : max0});
   }
 }
 
@@ -2380,7 +2384,7 @@ for (const h of hits){
       if (after <= before) continue;
       battle.hpAtk[id] = after;
       const rm = byId(state.roster||[], id);
-      heals.push(`${rm?.baseSpecies || id} +${(after-before).toFixed(1)}%`);
+      heals.push(`${displayMonName(rm, id)} +${(after-before).toFixed(1)}%`);
     }
     if (heals.length){
       turnLog.push(`Leftovers: ${heals.join(' · ')}.`);

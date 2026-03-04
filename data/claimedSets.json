@@ -913,7 +913,7 @@
     "species": "Haxorus"
   },
   "Herdier": {
-    "ability": "Vital Spirit",
+    "ability": "Intimidate",
     "canClaim": 0,
     "moves": [
       "Return",
@@ -1298,7 +1298,7 @@
     "species": "Mienshao"
   },
   "Mightyena": {
-    "ability": "Rattled",
+    "ability": "Intimidate",
     "canClaim": 0,
     "moves": [
       "Crunch",
@@ -2244,7 +2244,7 @@
     "species": "Steelix"
   },
   "Stoutland": {
-    "ability": "Vital Spirit",
+    "ability": "Intimidate",
     "canClaim": 0,
     "moves": [
       "Return",

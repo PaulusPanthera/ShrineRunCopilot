@@ -105,6 +105,7 @@ function renderSettings(state){
     el('div', {class:'settings-checkgrid'}, [
       fieldCheck('Conserve power (prefer closest-to-100% OHKO)', s.conservePower, v=>store.update(st=>{st.settings.conservePower=v;})),
       fieldCheck('Allow manual PP editing (debug)', s.allowManualPPEdit, v=>store.update(st=>{st.settings.allowManualPPEdit=v;})),
+      fieldCheck('Allow manual roster level editing (debug)', (s.allowManualLevelEdit ?? false), v=>store.update(st=>{st.settings.allowManualLevelEdit=v;})),
       fieldCheck('Auto-bump prio when PP ≤ 5 (lazy conserve)', s.autoBumpPrioLowPP, v=>store.update(st=>{st.settings.autoBumpPrioLowPP=v;})),
       fieldCheck('Outgoing tooltip: show roll + crit (late game)', (s.outTipCrit ?? false), v=>store.update(st=>{st.settings.outTipCrit=v;})),
     ]),

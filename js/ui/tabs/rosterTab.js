@@ -466,6 +466,7 @@ export function createRosterTab(ctx){
     const bagNamesAll = Object.keys(state.bag||{}).sort((a,b)=>a.localeCompare(b));
     const itemCandidatesBase = bagNamesAll.filter(n=>n!=='Evo Charm' && n!=='Strength Charm');
     const allowPPEdit = !!state.settings.allowManualPPEdit;
+    const allowLevelEdit = !!state.settings.allowManualLevelEdit;
     const expanded = state.ui?.rosterMoveExpanded || {};
 
     const openDexFor = (mon)=>{
@@ -645,6 +646,13 @@ export function createRosterTab(ctx){
           el('label', {class:'check mini', title: starter ? 'Evo unavailable for starters' : `Evo Charm (avail ${Math.max(0,evoAvail)})`}, [evoChk, el('span', {}, 'Evo')]),
           el('label', {class:'check mini', title: starter ? 'Strength forced for starters' : `Strength Charm (avail ${Math.max(0,strAvail)})`}, [strChk, el('span', {}, 'Str')]),
           makeItemPicker(mon),
+          (allowLevelEdit ? (function(){
+            const isOpen = (state.ui?.rosterEditOpenId === mon.id);
+            const b = el('button', {class:'btn-mini', type:'button'}, isOpen ? 'Edit ▲' : 'Edit ▼');
+            b.title = 'Roster editor (debug)';
+            b.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); store.update(s=>{ s.ui.rosterEditOpenId = (s.ui.rosterEditOpenId === mon.id ? null : mon.id); }); });
+            return b;
+          })() : null),
           (function(){
             const isOpen = (state.ui?.rosterModsOpenId === mon.id);
             const b = el('button', {class:'btn-mini', type:'button'}, isOpen ? 'Mods ▲' : 'Mods ▼');
@@ -669,6 +677,26 @@ export function createRosterTab(ctx){
       });
 
       panel.appendChild(head);
+
+      // Collapsible roster editor (debug) — currently: manual level editing.
+      const editOpen = allowLevelEdit && (state.ui?.rosterEditOpenId === mon.id);
+      if (editOpen){
+        const curLvl = Number(mon.level ?? state.settings.claimedLevel ?? 50);
+        const inpLvl = el('input', {type:'number', min:'1', max:'100', step:'1', value:String(curLvl), class:'inp-mini'});
+        inpLvl.addEventListener('change', ()=>{
+          const v = clampInt(inpLvl.value, 1, 100);
+          store.update(s=>{ const cur = byId(s.roster, mon.id); if (cur) cur.level = v; });
+        });
+        panel.appendChild(el('div', {class:'mon-mods'}, [
+          el('div', {class:'muted small', style:'margin:4px 0 8px 0'}, 'Roster editor (debug).'),
+          el('div', {class:'modrow compact'}, [
+            el('div', {class:'modchip'}, [
+              el('span', {class:'lbl'}, 'Level'),
+              inpLvl,
+            ]),
+          ]),
+        ]));
+      }
 
       // Collapsible battle modifiers (per mon)
       const modsOpen = (state.ui?.rosterModsOpenId === mon.id);
@@ -715,7 +743,7 @@ export function createRosterTab(ctx){
         const ppMax = Number(ppObj?.max ?? DEFAULT_MOVE_PP);
         const ppMeta = `${ppCur}/${ppMax}`;
         const key = `${mon.id}|${m.name}`;
-        const isOpen = !!expanded[key];
+        const isOpen = allowPPEdit && !!expanded[key];
 
         const chk = el('input', {type:'checkbox', checked: m.use !== false});
         chk.addEventListener('change', ()=>{
@@ -772,14 +800,16 @@ export function createRosterTab(ctx){
           });
         });
 
-        const editBtn = el('button', {class:'btn-mini', type:'button'}, isOpen ? 'Edit ▲' : 'Edit ▼');
-        editBtn.addEventListener('click', ()=>{
-          store.update(s=>{
-            s.ui.rosterMoveExpanded = s.ui.rosterMoveExpanded || {};
-            const k = `${mon.id}|${m.name}`;
-            s.ui.rosterMoveExpanded[k] = !s.ui.rosterMoveExpanded[k];
+        const editBtn = allowPPEdit ? el('button', {class:'btn-mini', type:'button'}, isOpen ? 'Edit ▲' : 'Edit ▼') : null;
+        if (editBtn){
+          editBtn.addEventListener('click', ()=>{
+            store.update(s=>{
+              s.ui.rosterMoveExpanded = s.ui.rosterMoveExpanded || {};
+              const k = `${mon.id}|${m.name}`;
+              s.ui.rosterMoveExpanded[k] = !s.ui.rosterMoveExpanded[k];
+            });
           });
-        });
+        }
 
         const ppRow = el('div', {class:'move-row-pp' + (isOpen ? '' : ' hidden')});
         if (allowPPEdit){
@@ -809,6 +839,13 @@ export function createRosterTab(ctx){
           ppRow.appendChild(el('span', {class:'muted small'}, `PP ${ppMeta}`));
         }
 
+        const rightTools = [
+          modeBtn,
+          prioSel,
+          el('span', {class:'pp-badge', title:'PP'}, ppMeta),
+        ];
+        if (editBtn) rightTools.push(editBtn);
+
         mpList.appendChild(el('div', {class:'move-row'}, [
           el('div', {class:'move-row-main'}, [
             el('div', {class:'move-row-left'}, [
@@ -818,10 +855,7 @@ export function createRosterTab(ctx){
               el('span', {class:'muted small'}, meta),
             ]),
             el('div', {class:'move-row-right'}, [
-              modeBtn,
-              prioSel,
-              el('span', {class:'pp-badge', title:'PP'}, ppMeta),
-              editBtn,
+              ...rightTools,
             ]),
           ]),
           ppRow,

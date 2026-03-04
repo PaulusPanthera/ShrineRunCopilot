@@ -457,8 +457,15 @@ body::after{
   display:flex; align-items:center; justify-content:space-between;
   box-shadow: var(--shadow);
 }
+.boss.claimed{
+  border-color: rgba(79,227,161,.28);
+  background: rgba(12,26,20,.55);
+}
 .boss .title{font-weight:900}
 .boss .hint{font-size:12px; color: rgba(255,209,102,.9)}
+.boss.claimed .hint{color: rgba(79,227,161,.85)}
+
+.boss-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end}
 
 .wave-card{
   margin-bottom:10px;
@@ -468,6 +475,11 @@ body::after{
   background: rgba(16,22,35,.62);
   box-shadow: 0 10px 24px rgba(0,0,0,.22);
 }
+.wave-card.logged{
+  border-color: rgba(79,227,161,.26);
+  background: rgba(12,26,20,.52);
+}
+.wave-card.logged .wave-meta{ color: rgba(79,227,161,.75); }
 .wave-card.expanded{
   background: rgba(10,14,24,.92);
   border-color: rgba(122,167,255,.28);
@@ -2516,3 +2528,73 @@ select:disabled, .sel-mini:disabled{
 
 .party-card-head{min-width:0}
 .party-card-head .party-name{min-width:0}
+
+/* Boss checkpoint cards (PP logger, no damage sim)
+   Styled to match normal wave cards for consistent Waves overview. */
+.checkpoint-card{
+  margin-bottom:10px;
+  padding:12px;
+  border-radius: var(--radius);
+  border:1px solid rgba(120,170,255,.16);
+  background: rgba(16,22,35,.62);
+  box-shadow: 0 10px 24px rgba(0,0,0,.22);
+}
+.checkpoint-card.logged{
+  border-color: rgba(79,227,161,.26);
+  background: rgba(12,26,20,.52);
+}
+.checkpoint-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+}
+.checkpoint-title{font-weight:900; color: rgba(232,238,252,.92)}
+.checkpoint-sub{font-size:12px; color: rgba(232,238,252,.78)}
+.checkpoint-guide{
+  margin: 0 0 10px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(122,167,255,.12);
+  background: rgba(0,0,0,.10);
+  color: rgba(232,238,252,.90);
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+.checkpoint-party{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  gap: 10px;
+  align-items:center;
+  margin-bottom: 10px;
+}
+.checkpoint-party .sel-mini{width:100%}
+@media (max-width: 900px){
+  .checkpoint-party{ grid-template-columns: 1fr 1fr; }
+}
+.checkpoint-party .slot{display:flex; gap:8px; align-items:center; min-width:0}
+.checkpoint-party .slot .lbl{width:16px; font-weight:900; color: rgba(232,238,252,.85)}
+
+.checkpoint-actions{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin: 8px 0 0}
+
+.checkpoint-advanced{
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(122,167,255,.12);
+}
+.checkpoint-turns{margin-top: 10px}
+.turn-row{padding: 10px 0; border-bottom: 1px dashed rgba(122,167,255,.10)}
+.turn-row:last-child{border-bottom:none}
+.turn-head{font-size:12px; font-weight:900; color: rgba(232,238,252,.85); margin-bottom: 6px}
+.checkpoint-turn-grid{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  gap: 10px;
+}
+.checkpoint-turn-grid .sel-mini{width:100%}
+@media (max-width: 900px){
+  .checkpoint-turn-grid{ grid-template-columns: 1fr 1fr; }
+}
+.checkpoint-mini{font-size:11px; color: var(--muted); font-weight:900; margin-bottom:4px}

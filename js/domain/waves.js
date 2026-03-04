@@ -4,6 +4,7 @@
 
 import { fixName } from '../data/nameFixes.js';
 import { buildDefaultMovePool } from './roster.js';
+import { DEFAULT_MOVE_PP } from './battle.js';
 
 function clampInt(v, lo, hi){
   const n = Number.parseInt(String(v), 10);
@@ -54,6 +55,91 @@ function movePoolForWave(wp, attacker){
   if (!forced) return pool;
   const filtered = (pool||[]).filter(m => m && m.use !== false && m.name === forced);
   return filtered.length ? filtered : pool;
+}
+
+// PP-aware move pool filter (keeps Auto consistent with Suggested lead pairs).
+function ppCurFor(ppMap, monId, moveName){
+  const n = Number(ppMap?.[monId]?.[moveName]?.cur);
+  return Number.isFinite(n) ? n : DEFAULT_MOVE_PP;
+}
+function filterMovePoolForWaveCalc({ppMap, monId, movePool, forcedMoveName=null}){
+  const base = (movePool||[]).filter(m => m && m.use !== false && m.name && ppCurFor(ppMap, monId, m.name) > 0);
+  if (forcedMoveName){
+    if (ppCurFor(ppMap, monId, forcedMoveName) > 0){
+      const forced = base.filter(m => m.name === forcedMoveName);
+      if (forced.length) return forced;
+    }
+  }
+  return base;
+}
+
+// Weather parity with planner suggestions.
+function weatherFromAbilityName(ab){
+  const a = String(ab||'').trim().toLowerCase();
+  if (a === 'drizzle') return 'rain';
+  if (a === 'drought') return 'sun';
+  if (a === 'sand stream') return 'sand';
+  if (a === 'snow warning') return 'hail';
+  return null;
+}
+function statOtherNeutral(base, level, iv, ev){
+  const evq = Math.floor(Number(ev||0)/4);
+  return Math.floor(((2*Number(base||0) + Number(iv||0) + evq) * Number(level||0))/100) + 5;
+}
+function enemyAbilityForSpecies(data, species){
+  const s = fixName(species);
+  return String(data?.claimedSets?.[s]?.ability || '').trim();
+}
+function speedForRosterEntry(data, state, r){
+  if (!r) return 0;
+  const sp = fixName(r.effectiveSpecies || r.baseSpecies);
+  const mon = data?.dex?.[sp];
+  const base = Number(mon?.base?.spe || 0);
+  const L = Number(state?.settings?.claimedLevel || 50);
+  const iv = Number(state?.settings?.claimedIV || 0);
+  const ev = Number(r.strength ? state?.settings?.strengthEV : state?.settings?.claimedEV) || 0;
+  return statOtherNeutral(base, L, iv, ev);
+}
+function speedForDefSlot(data, state, defSlot){
+  if (!defSlot) return 0;
+  const sp = fixName(defSlot.defender);
+  const mon = data?.dex?.[sp];
+  const base = Number(mon?.base?.spe || 0);
+  const L = Number(defSlot.level || 50);
+  const iv = Number(state?.settings?.wildIV || 0);
+  const ev = Number(state?.settings?.wildEV || 0);
+  return statOtherNeutral(base, L, iv, ev);
+}
+// Gen 5 start-of-battle weather: fastest setter activates first; slowest setter remains.
+// Deterministic tie-break: defenders win ties (stable for planning).
+function inferBattleWeatherFromLeads(data, state, atkEntries, defSlots){
+  const cands = [];
+  for (const r of (atkEntries||[])){
+    if (!r) continue;
+    const w = weatherFromAbilityName(r.ability);
+    if (!w) continue;
+    cands.push({weather:w, side:'atk', spe:speedForRosterEntry(data, state, r)});
+  }
+  for (const ds of (defSlots||[])){
+    if (!ds) continue;
+    const ab = enemyAbilityForSpecies(data, ds.defender);
+    const w = weatherFromAbilityName(ab);
+    if (!w) continue;
+    cands.push({weather:w, side:'def', spe:speedForDefSlot(data, state, ds)});
+  }
+  if (!cands.length) return null;
+  cands.sort((a,b)=>{
+    if (a.spe !== b.spe) return b.spe - a.spe; // slowest last
+    if (a.side !== b.side) return a.side === 'atk' ? -1 : 1;
+    return 0;
+  });
+  return cands[cands.length - 1]?.weather || null;
+}
+function withWeatherSettings(settings, weather){
+  if (!weather) return settings;
+  const s = {...settings};
+  s.weather = weather;
+  return s;
 }
 
 
@@ -589,256 +675,103 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
 
   const allDefSlots = (wp.defenders||[]).map(k=>slotByKey.get(baseKey(k))).filter(Boolean);
 
-  // Targeting assumption: any active battler can target any enemy.
-  // For lead-pair scoring we try both assignments (A->left/B->right and swap) and pick the better tuple.
-  const scoreFor = (aL, aR, defOrder)=>{
-    const dA = slotByKey.get(baseKey(defOrder[0]));
-    const dB = slotByKey.get(baseKey(defOrder[1]));
-    if (!dA || !dB) return {score:-Infinity};
+  // Keep Auto starter picking consistent with the Waves planner "Suggested lead pairs".
+  // Sorting priority: clearAll desc → OHKO pairs desc → prioØ asc → overkill asc.
+  const curA0 = byId(state.roster, (wp.attackerStart||[])[0]) || byId(state.roster, pool[0]);
+  const curA1 = byId(state.roster, (wp.attackerStart||[])[1]) || byId(state.roster, pool[1]);
+  const waveWeather = inferBattleWeatherFromLeads(data, state, [curA0, curA1].filter(Boolean), [def0, def1].filter(Boolean));
 
-    const leadIntCount = [dA, dB].filter(x => (x?.tags||[]).includes('INT')).length;
-
-    const defA = {species:dA.defender, level:dA.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
-    const defB = {species:dB.defender, level:dB.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
-
-    const atkObj = (r, s)=>({
-      species:(r.effectiveSpecies||r.baseSpecies),
-      level: s.claimedLevel,
-      ivAll: s.claimedIV,
-      evAll: r.strength ? s.strengthEV : s.claimedEV,
-    });
-
-    const bestVs = (att, def, defSlot)=>{
-      const sW0 = settingsForWave(state, wp, att.id, defSlot.rowKey, defSlot.defender);
-      const sW = applyEnemyIntimidateToSettings(sW0, att, leadIntCount);
-      return window.SHRINE_CALC.chooseBestMove({
-        data,
-        attacker: atkObj(att, sW),
-        defender: def,
-        movePool: movePoolForWave(wp, att),
-        settings: sW,
-        tags: defSlot.tags||[],
-      }).best;
-    };
-
-    // Deterministic 1-turn min-roll sim for the two chosen starter actions.
-    // Used to detect STU-break → AoE full clears that basic oneShot flags cannot represent.
-    const oneTurnClear = (act0, act1)=>{
-      try{
-        if (!(act0?.move && act1?.move)) return false;
-
-        const defSlots = [dA, dB];
-        const hpDef = {[dA.rowKey]: 1, [dB.rowKey]: 1};
-        const hpAtk = {[aL.id]: 1, [aR.id]: 1};
-
-        const atkObj2 = (rm, s)=>({
-          species:(rm.effectiveSpecies||rm.baseSpecies),
-          level: s.claimedLevel,
-          ivAll: s.claimedIV,
-          evAll: rm.strength ? s.strengthEV : s.claimedEV,
-        });
-        const defObj2 = (slot)=>({
-          species: slot.defender,
-          level: slot.level,
-          ivAll: state.settings.wildIV,
-          evAll: state.settings.wildEV,
-        });
-
-        const rrVsDef = (attMon, moveName, defSlot, curFrac)=>{
-          const s0 = settingsForWave(state, wp, attMon.id, defSlot.rowKey, defSlot.defender);
-          const s = {...applyEnemyIntimidateToSettings(s0, attMon, leadIntCount), defenderCurHpFrac: (curFrac ?? 1)};
-          const rr = window.SHRINE_CALC.computeDamageRange({data, attacker: atkObj2(attMon, s), defender: defObj2(defSlot), moveName, settings: s, tags: defSlot.tags||[]});
-          return (rr && rr.ok) ? rr : null;
-        };
-        const rrVsAlly = (attMon, moveName, allyMon, curFrac)=>{
-          const s0 = settingsForWave(state, wp, attMon.id, null);
-          const s = {...s0, defenderItem: itemForRosterMonInWave(wp, allyMon), defenderHpFrac: 1, defenderCurHpFrac: (curFrac ?? 1), applyINT: false, applySTU: false};
-          const rr = window.SHRINE_CALC.computeDamageRange({data, attacker: atkObj2(attMon, s), defender: atkObj2(allyMon, s), moveName, settings: s, tags: []});
-          return (rr && rr.ok) ? rr : null;
-        };
-
-        const acts = [act0, act1].map(a=>({
-          att: a.att,
-          move: a.move,
-          prio: (a.prio ?? 9),
-          spe: Number(a.spe ?? 0),
-          targetKey: a.targetKey,
-        }));
-        acts.sort((x,y)=>{
-          if ((x.prio??9) !== (y.prio??9)) return (x.prio??9) - (y.prio??9);
-          if ((y.spe??0) !== (x.spe??0)) return (y.spe??0) - (x.spe??0);
-          return String(x.att.id||'').localeCompare(String(y.att.id||''));
-        });
-
-        for (const act of acts){
-          const aoe = isAoeMove(act.move);
-          const hitsAlly = aoe && aoeHitsAlly(act.move);
-          const ally = (act.att.id === aL.id) ? aR : aL;
-
-          const targets = [];
-          if (aoe){
-            for (const ds of defSlots){
-              if (!ds) continue;
-              if ((hpDef[ds.rowKey] ?? 0) > 0) targets.push({kind:'def', slot: ds});
-            }
-            if (hitsAlly && ally && (hpAtk[ally.id] ?? 0) > 0) targets.push({kind:'ally', mon: ally});
-          } else {
-            const ds = (act.targetKey === dA.rowKey) ? dA : dB;
-            if (ds && (hpDef[ds.rowKey] ?? 0) > 0) targets.push({kind:'def', slot: ds});
-          }
-          if (!targets.length) continue;
-
-          const per = [];
-          for (const t of targets){
-            if (t.kind === 'def'){
-              const cur = hpDef[t.slot.rowKey] ?? 1;
-              const rr = rrVsDef(act.att, act.move, t.slot, cur);
-              if (rr) per.push({kind:'def', key: t.slot.rowKey, rr});
-            } else {
-              const cur = hpAtk[t.mon.id] ?? 1;
-              const rr = rrVsAlly(act.att, act.move, t.mon, cur);
-              if (rr){
-                const immune = immuneFromAllyAbilityItem(t.mon, rr.moveType);
-                per.push({kind:'ally', id: t.mon.id, immune, rr});
-              }
-            }
-          }
-          if (!per.length) continue;
-
-          let damaged = 0;
-          for (const o of per){
-            if (o.kind === 'ally' && o.immune) continue;
-            if (Number(o.rr?.minPct || 0) > 0) damaged += 1;
-          }
-          const mult = aoe ? spreadMult(damaged) : 1.0;
-
-          // FF rule: if FF is disallowed and this action could KO partner, invalidate this plan.
-          if (aoe && hitsAlly && !(state.settings?.allowFriendlyFire)){
-            const ff = per.find(o=>o.kind==='ally') || null;
-            if (ff && !ff.immune){
-              const maxAdj = Number(ff.rr?.maxPct ?? ff.rr?.minPct ?? 0) * mult;
-              if (maxAdj >= 100) return false;
-            }
-          }
-
-          // Apply deterministic min-roll damage.
-          for (const o of per){
-            const rawMin = Number(o.rr?.minPct || 0);
-            const finalMin = (o.kind === 'ally' && o.immune) ? 0 : (rawMin * mult);
-            if (finalMin <= 0) continue;
-            if (o.kind === 'def') hpDef[o.key] = Math.max(0, (hpDef[o.key] ?? 1) - (finalMin/100));
-            else hpAtk[o.id] = Math.max(0, (hpAtk[o.id] ?? 1) - (finalMin/100));
-          }
-        }
-
-        return (hpDef[dA.rowKey] <= 0) && (hpDef[dB.rowKey] <= 0);
-      }catch(e){
-        return false;
-      }
-    };
-
-    const a_vs_A = bestVs(aL, defA, dA);
-    const a_vs_B = bestVs(aL, defB, dB);
-    const b_vs_A = bestVs(aR, defA, dA);
-    const b_vs_B = bestVs(aR, defB, dB);
-
-    const tuple = (m0, m1, tKey0, tKey1)=>{
-      // Primary: minimize worst-case (ensure both starters have OHKO coverage)
-      const bothOhko = (m0?.oneShot && m1?.oneShot) ? 2 : ((m0?.oneShot || m1?.oneShot) ? 1 : 0);
-      const worstPrio = Math.max(m0?.prio ?? 9, m1?.prio ?? 9);
-      const prioSum = (m0?.prio ?? 9) + (m1?.prio ?? 9);
-      const overkillSum = Math.abs((m0?.minPct ?? 0) - 100) + Math.abs((m1?.minPct ?? 0) - 100);
-
-      // Detect 1-turn full clear (STU-break → AoE included).
-      const clear1 = oneTurnClear(
-        {att:aL, move:m0?.move, prio:m0?.prio, spe:m0?.attackerSpe, targetKey: tKey0},
-        {att:aR, move:m1?.move, prio:m1?.prio, spe:m1?.attackerSpe, targetKey: tKey1},
-      );
-
-      return {clear1, bothOhko, worstPrio, prioSum, overkillSum};
-    };
-
-    const t1 = tuple(a_vs_A, b_vs_B, dA.rowKey, dB.rowKey);
-    const t2 = tuple(a_vs_B, b_vs_A, dB.rowKey, dA.rowKey);
-
-    const betterTuple = (x,y)=>{
-      if ((x.clear1?1:0) !== (y.clear1?1:0)) return (x.clear1?1:0) > (y.clear1?1:0);
-      if (x.bothOhko !== y.bothOhko) return x.bothOhko > y.bothOhko;
-      if (x.worstPrio !== y.worstPrio) return x.worstPrio < y.worstPrio;
-      if (x.prioSum !== y.prioSum) return x.prioSum < y.prioSum;
-      return x.overkillSum <= y.overkillSum;
-    };
-
-    const lead = betterTuple(t1,t2) ? t1 : t2;
-
-    // Starters-only clear all selected defenders (3/4): at least one can OHKO each.
-    let startersClear = 0;
-    for (const ds of allDefSlots){
-      const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
-      const b0 = window.SHRINE_CALC.chooseBestMove({
-        data,
-        attacker:{species:(aL.effectiveSpecies||aL.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aL.strength?state.settings.strengthEV:state.settings.claimedEV},
-        defender:defObj,
-        movePool: movePoolForWave(wp, aL),
-        settings: settingsForWave(state, wp, aL.id, ds.rowKey, ds.defender),
-        tags: ds.tags||[],
-      }).best;
-      const b1 = window.SHRINE_CALC.chooseBestMove({
-        data,
-        attacker:{species:(aR.effectiveSpecies||aR.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aR.strength?state.settings.strengthEV:state.settings.claimedEV},
-        defender:defObj,
-        movePool: movePoolForWave(wp, aR),
-        settings: settingsForWave(state, wp, aR.id, ds.rowKey, ds.defender),
-        tags: ds.tags||[],
-      }).best;
-      if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) startersClear += 1;
-    }
-
-    // Survival penalty
-    let deathPenalty = 0;
-    const prioAvg = (lead.prioSum ?? 18) / 2;
-    if (prioAvg > 3.5){
-    const t0 = enemyThreatForMatchup(data, state, wp, aL, dA) || assumedEnemyThreatForMatchup(data, state, wp, aL, dA);
-    const t1t = enemyThreatForMatchup(data, state, wp, aR, dB) || assumedEnemyThreatForMatchup(data, state, wp, aR, dB);
-    if (t0?.diesBeforeMove) deathPenalty += 1;
-    if (t1t?.diesBeforeMove) deathPenalty += 1;
-    }
-
-    const score = (startersClear * 1_000_000)
-      + ((lead.clear1 ? 1 : 0) * 5_000_000_000)
-      + (lead.bothOhko * 10_000)
-      - (lead.worstPrio * 1_000)
-      - (lead.prioSum * 100)
-      - (lead.overkillSum)
-      - (deathPenalty * 50_000);
-
-    return {score};
+  const tuple = (m0,m1)=>{
+    const bothOhko = (m0?.oneShot && m1?.oneShot) ? 2 : ((m0?.oneShot || m1?.oneShot) ? 1 : 0);
+    const worstPrio = Math.max(m0?.prio ?? 9, m1?.prio ?? 9);
+    const prioAvg = ((m0?.prio ?? 9) + (m1?.prio ?? 9)) / 2;
+    const overkill = Math.abs((m0?.minPct ?? 0) - 100) + Math.abs((m1?.minPct ?? 0) - 100);
+    return {bothOhko, worstPrio, prioAvg, overkill};
+  };
+  const better = (x,y)=>{
+    if (x.bothOhko !== y.bothOhko) return x.bothOhko > y.bothOhko;
+    if (x.worstPrio !== y.worstPrio) return x.worstPrio < y.worstPrio;
+    if (x.prioAvg !== y.prioAvg) return x.prioAvg < y.prioAvg;
+    return x.overkill <= y.overkill;
   };
 
   let best = null;
   for (let i=0;i<pool.length;i++){
     for (let j=i+1;j<pool.length;j++){
-      const a0 = byId(state.roster, pool[i]);
-      const a1 = byId(state.roster, pool[j]);
-      if (!a0 || !a1) continue;
+      const a = byId(state.roster, pool[i]);
+      const b = byId(state.roster, pool[j]);
+      if (!a || !b) continue;
 
-      const atkOrders = [[a0,a1],[a1,a0]];
-      const defOrders = [[def0.rowKey, def1.rowKey],[def1.rowKey, def0.rowKey]];
-      for (const [aL,aR] of atkOrders){
-        for (const dOrd of defOrders){
-          const sc = scoreFor(aL,aR,dOrd);
-          if (!best || sc.score > best.score){
-            best = {score: sc.score, atk:[aL.id,aR.id], def:dOrd};
-          }
-        }
+      const forcedA = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[a.id] || null) : null;
+      const forcedB = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[b.id] || null) : null;
+      const poolA = filterMovePoolForWaveCalc({ppMap: state.pp || {}, monId: a.id, movePool: a.movePool || [], forcedMoveName: forcedA});
+      const poolB = filterMovePoolForWaveCalc({ppMap: state.pp || {}, monId: b.id, movePool: b.movePool || [], forcedMoveName: forcedB});
+
+      const defLeft = {species:def0.defender, level:def0.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
+      const defRight = {species:def1.defender, level:def1.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
+
+      const bestA0 = window.SHRINE_CALC.chooseBestMove({
+        data,
+        attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV},
+        defender:defLeft,
+        movePool: poolA,
+        settings: withWeatherSettings(settingsForWave(state, wp, a.id, def0.rowKey, def0.defender), waveWeather),
+        tags: def0.tags||[],
+      }).best;
+      const bestA1 = window.SHRINE_CALC.chooseBestMove({
+        data,
+        attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV},
+        defender:defRight,
+        movePool: poolA,
+        settings: withWeatherSettings(settingsForWave(state, wp, a.id, def1.rowKey, def1.defender), waveWeather),
+        tags: def1.tags||[],
+      }).best;
+      const bestB0 = window.SHRINE_CALC.chooseBestMove({
+        data,
+        attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV},
+        defender:defLeft,
+        movePool: poolB,
+        settings: withWeatherSettings(settingsForWave(state, wp, b.id, def0.rowKey, def0.defender), waveWeather),
+        tags: def0.tags||[],
+      }).best;
+      const bestB1 = window.SHRINE_CALC.chooseBestMove({
+        data,
+        attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV},
+        defender:defRight,
+        movePool: poolB,
+        settings: withWeatherSettings(settingsForWave(state, wp, b.id, def1.rowKey, def1.defender), waveWeather),
+        tags: def1.tags||[],
+      }).best;
+
+      const t1 = tuple(bestA0, bestB1); // a->left, b->right
+      const t2 = tuple(bestA1, bestB0); // swap targets
+      const lead = better(t1,t2) ? t1 : t2;
+
+      let clearAll = 0;
+      for (const ds of allDefSlots){
+        const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
+        const b0 = window.SHRINE_CALC.chooseBestMove({data, attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool: poolA, settings: withWeatherSettings(settingsForWave(state, wp, a.id, ds.rowKey, ds.defender), waveWeather), tags: ds.tags||[]}).best;
+        const b1 = window.SHRINE_CALC.chooseBestMove({data, attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool: poolB, settings: withWeatherSettings(settingsForWave(state, wp, b.id, ds.rowKey, ds.defender), waveWeather), tags: ds.tags||[]}).best;
+        if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) clearAll += 1;
       }
+
+      const cand = {a, b, clearAll, ohkoPairs: lead.bothOhko, worstPrio: lead.worstPrio, prioAvg: lead.prioAvg, overkill: lead.overkill};
+      const betterCand = (x,y)=>{
+        if (x.clearAll !== y.clearAll) return x.clearAll > y.clearAll;
+        if (x.ohkoPairs !== y.ohkoPairs) return x.ohkoPairs > y.ohkoPairs;
+        if (x.worstPrio !== y.worstPrio) return x.worstPrio < y.worstPrio;
+        if (x.prioAvg !== y.prioAvg) return x.prioAvg < y.prioAvg;
+        return x.overkill <= y.overkill;
+      };
+      if (!best || betterCand(cand, best)) best = cand;
     }
   }
 
   if (best){
-    wp.attackerStart = best.atk.slice(0,2);
-    wp.attackerOrder = best.atk.slice(0,2);
-    wp.defenderOrder = best.def.slice(0,2);
+    wp.attackerStart = [best.a.id, best.b.id];
+    wp.attackerOrder = [best.a.id, best.b.id];
+    // Keep current defender order stable; do not auto-swap defender sides here.
+    wp.defenderOrder = [def0.rowKey, def1.rowKey];
   }
 }
 

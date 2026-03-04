@@ -78,6 +78,9 @@ export function hydrateState(raw, defaultState, data){
   // Manual PP editing (debug / convenience) — default OFF.
   if (!('allowManualPPEdit' in state.settings)) state.settings.allowManualPPEdit = false;
 
+  // Manual roster level editing (debug / convenience) — default OFF.
+  if (!('allowManualLevelEdit' in state.settings)) state.settings.allowManualLevelEdit = false;
+
   // Lazy conserve mode (default ON): when PP<=5, bump prio tier by +1 once for auto-managed moves.
   if (!('autoBumpPrioLowPP' in state.settings)) state.settings.autoBumpPrioLowPP = true;
 
@@ -93,6 +96,16 @@ export function hydrateState(raw, defaultState, data){
   if (!('outTipCrit' in state.settings)) state.settings.outTipCrit = false;
 
   state.unlocked = state.unlocked || {};
+
+  // Cleanup: remove experimental/invalid bonus boss unlock keys from older dev patches.
+  // The tool only supports real species keys (must exist in data.claimedSets or data.dex).
+  try{
+    for (const k of Object.keys(state.unlocked||{})){
+      if (!k) continue;
+      if (String(k).startsWith('BONUS_POLITOED')) delete state.unlocked[k];
+    }
+  }catch(e){ /* ignore */ }
+
   state.cleared = state.cleared || {};
   state.roster = Array.isArray(state.roster) ? state.roster : [];
   // Party layout (UI-only)

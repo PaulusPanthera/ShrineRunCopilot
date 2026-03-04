@@ -59,6 +59,9 @@ export function createDefaultState(data){
       // If ON, allow manually editing PP numbers in the UI.
       // Default OFF to keep PP tracking honest.
       allowManualPPEdit: false,
+      // If ON, allow manually editing roster levels in the UI.
+      // Default OFF to keep the planner consistent with the run state.
+      allowManualLevelEdit: false,
       // If ON (default), when a move drops to PP<=5 we bump its prio tier by +1 (once) to conserve scarce moves.
       autoBumpPrioLowPP: true,
       movesPerMon: 3,

@@ -3,8 +3,7 @@
 // Phase completion rewards (awarded once per phase when ALL waves in that phase have 4/4 fights logged).
 
 export const PHASE_COMPLETION_REWARDS = {
-  // Phase 1 reward (confirmed)
-  1: { gold: 10, items: { 'Revive': 1 } },
+  // NOTE: Phase 1 reward moved to Nian Boss Checkpoint 1 (see Waves tab checkpoint panel).
 };
 
 function waveOrderKey(wk){

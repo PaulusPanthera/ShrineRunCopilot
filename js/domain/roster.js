@@ -303,6 +303,14 @@ export function getEvoTarget(data, base, evoCache){
 export function applyCharmRulesSync(data, state, entry){
   const base = entry.baseSpecies;
 
+  // Abundant Shrine quirk: some lines change ability on evolution (e.g. Lillipup→Herdier/Stoutland, Poochyena→Mightyena).
+  // Use the effective species' claimed set ability when available.
+  const applyEffectiveAbility = ()=>{
+    const eff = entry.effectiveSpecies || entry.baseSpecies;
+    const ab = (data?.claimedSets?.[eff]?.ability !== undefined) ? (data.claimedSets[eff].ability || '') : null;
+    if (ab != null) entry.ability = ab;
+  };
+
   // Apply rare, explicit moveset exceptions based on the *effective* species.
   // This keeps the "4 hardcoded moves" rule intact when Evo charm changes species.
   const applyEffectiveMoveset = ()=>{
@@ -315,16 +323,45 @@ export function applyCharmRulesSync(data, state, entry){
     // If the override is a full 4-move set, only enforce it when the pool still looks "base".
     if (looksBase && overridden && overridden.length === 4 && !overridden.every((v,i)=>v===names[i])){
       const prev = new Map(entry.movePool.map(m => [m.name, m]));
+      // Some base forms use a Hidden Power variant that becomes a stronger same-type move on evolution.
+      // Preserve PP (and intent toggles) by matching new move's type against old Hidden Power (Type).
+      const hpByType = new Map();
+      const hpTaken = new Set();
+      for (const m of (entry.movePool||[])){
+        if (!m || !m.name) continue;
+        if (!String(m.name).startsWith('Hidden Power')) continue;
+        const mi = moveInfo(data, m.name);
+        const t = mi?.type ? String(mi.type) : null;
+        if (!t) continue;
+        if (!hpByType.has(t)) hpByType.set(t, []);
+        hpByType.get(t).push(m);
+      }
       const rebuilt = buildDefaultMovePool(data, eff, overridden, 'base', entry.ability || '', {state, entry});
       // Preserve PP + use when the same move name exists.
       for (const mv of rebuilt){
         const old = prev.get(mv.name);
-        if (old){
-          mv.use = old.use;
-          mv.ppMax = Number.isFinite(Number(old.ppMax)) ? Number(old.ppMax) : mv.ppMax;
-          mv.pp = Number.isFinite(Number(old.pp)) ? Number(old.pp) : mv.pp;
-          mv.prio = Number.isFinite(Number(old.prio)) ? Number(old.prio) : mv.prio;
-          mv.prioAuto = (old.prioAuto === undefined) ? (mv.prioAuto ?? true) : !!old.prioAuto;
+        let src = old || null;
+
+        // Compatibility: map old Hidden Power (Type) → new same-type move.
+        if (!src){
+          const mi = moveInfo(data, mv.name);
+          const t = mi?.type ? String(mi.type) : null;
+          if (t && hpByType.has(t)){
+            const list = hpByType.get(t);
+            const pick = list.find(x => x && x.name && !hpTaken.has(x.name));
+            if (pick){
+              src = pick;
+              hpTaken.add(pick.name);
+            }
+          }
+        }
+
+        if (src){
+          mv.use = src.use;
+          mv.ppMax = Number.isFinite(Number(src.ppMax)) ? Number(src.ppMax) : mv.ppMax;
+          mv.pp = Number.isFinite(Number(src.pp)) ? Number(src.pp) : mv.pp;
+          mv.prio = Number.isFinite(Number(src.prio)) ? Number(src.prio) : mv.prio;
+          mv.prioAuto = (src.prioAuto === undefined) ? (mv.prioAuto ?? true) : !!src.prioAuto;
         }
       }
       entry.movePool = rebuilt;
@@ -362,6 +399,7 @@ export function applyCharmRulesSync(data, state, entry){
     entry.evo = false;
     entry.strength = true;
     entry.effectiveSpecies = base;
+    applyEffectiveAbility();
     applyEffectiveMoveset();
     recomputeAutoPrios();
     return {needsEvoResolve:false, evoBase:null};
@@ -374,17 +412,20 @@ export function applyCharmRulesSync(data, state, entry){
     const t = getEvoTarget(data, base, evoCache);
     if (t){
       entry.effectiveSpecies = t;
+      applyEffectiveAbility();
       applyEffectiveMoveset();
       recomputeAutoPrios();
       return {needsEvoResolve:false, evoBase:null};
     }
     entry.effectiveSpecies = base;
+    applyEffectiveAbility();
     applyEffectiveMoveset();
     recomputeAutoPrios();
     return {needsEvoResolve:true, evoBase: base};
   }
 
   entry.effectiveSpecies = base;
+  applyEffectiveAbility();
   applyEffectiveMoveset();
   recomputeAutoPrios();
   return {needsEvoResolve:false, evoBase:null};
