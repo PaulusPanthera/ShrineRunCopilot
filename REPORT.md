@@ -1260,13 +1260,25 @@ This patch implements the most important missing effects while keeping determini
 - `REPORT.md`
 
 
-## PATCH 41 — Nian checkpoint 2 reward + TM Fling placeholder
+## PATCH 42 — Avoid AoE move suggestions unless double OHKO
 
-- Added **Checkpoint 2** reward: **+10 gold + 1× TM - Fling (once)**. Reward is granted only if PP was actually logged and is undoable.
-- Added **Fling** to `data/moves.json` (placeholder BP=50; use BP override debug tool if needed).
+- Fight plan + Suggested lead pairs now avoid recommending AoE moves unless the AoE can **double-OHKO** both on-field lead defenders.
+- AoE moves remain available as a fallback when no viable non-AoE damaging move exists.
 
 ### Touched files
-- `js/ui/tabs/wavesTab.js`
-- `data/moves.json`
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
+- `js/domain/waves.js`
+- `REPORT.md`
+
+
+## PATCH 44 — Clear buttons: wave-only, Shift+Clear global (restored)
+
+- Restored the intended Clear behavior in Wave Planner:
+  - **Clear** resets overrides for the **current wave**.
+  - **Shift+Clear** resets overrides across **all waves**.
+- Added hover tooltips explaining the shortcut.
+
+### Touched files
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
 - `REPORT.md`
 

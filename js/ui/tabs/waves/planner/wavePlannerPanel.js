@@ -46,7 +46,7 @@ import {
   spreadMult,
 } from '../../../../domain/battle.js';
 import { applyMovesetOverrides, defaultNatureForSpecies } from '../../../../domain/shrineRules.js';
-import { applyCharmRulesSync } from '../../../../domain/roster.js';
+import { applyCharmRulesSync, isStarterSpecies } from '../../../../domain/roster.js';
 import { maybeAwardPhaseReward } from '../../../../domain/phaseRewards.js';
 import { getItemIcon, getTypeIcon } from '../../../icons.js';
 import { createDexApiHelpers } from '../../../dexApi.js';
@@ -484,7 +484,11 @@ function renderWavePlanner(state, waveKey, slots, wp){
     return sel;
   };
 
-  const clearMoveOverridesBtn = el('button', {class:'btn-mini', title:'Clear (current wave). Shift+Clear = all waves.'}, 'Clear');
+  // Clear = current wave only. Shift+Clear = all waves.
+  const clearMoveOverridesBtn = el('button', {
+    class:'btn-mini',
+    title:'Clear move overrides for the current wave. Shift+Clear clears all waves.'
+  }, 'Clear');
   clearMoveOverridesBtn.addEventListener('click', (ev)=>{
     const global = !!(ev && ev.shiftKey);
     store.update(s=>{
@@ -493,7 +497,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
           const w = s.wavePlans[k];
           if (w && w.attackMoveOverride) delete w.attackMoveOverride;
         }
-      } else {
+      }else{
         const w = s.wavePlans[waveKey];
         if (w && w.attackMoveOverride) delete w.attackMoveOverride;
       }
@@ -551,7 +555,11 @@ function renderWavePlanner(state, waveKey, slots, wp){
     return sel;
   };
 
-  const clearItemOverridesBtn = el('button', {class:'btn-mini', title:'Clear (current wave). Shift+Clear = all waves.'}, 'Clear');
+  // Clear = current wave only. Shift+Clear = all waves.
+  const clearItemOverridesBtn = el('button', {
+    class:'btn-mini',
+    title:'Clear item overrides for the current wave. Shift+Clear clears all waves.'
+  }, 'Clear');
   clearItemOverridesBtn.addEventListener('click', (ev)=>{
     const global = !!(ev && ev.shiftKey);
     store.update(s=>{
@@ -560,7 +568,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
           const w = s.wavePlans[k];
           if (w && w.itemOverride) delete w.itemOverride;
         }
-      } else {
+      }else{
         const w = s.wavePlans[waveKey];
         if (w && w.itemOverride) delete w.itemOverride;
       }
@@ -576,6 +584,10 @@ function renderWavePlanner(state, waveKey, slots, wp){
   itemWarnInline.style.display = 'none';
   itemWarnInline.title = 'Better solutions are available if you equip items from the Bag (see the item tips below).';
 
+  const charmWarnInline = pill('CHARMS','bad danger');
+  charmWarnInline.style.display = 'none';
+  charmWarnInline.title = 'Better solutions are available if you apply Strength/Evo charms on your roster (even if you need to buy them).';
+
   const itemRow = el('div', {style:'display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:6px'}, [
     el('span', {class:'muted small'}, 'Items:'),
     makeItemOverrideSel(starterA),
@@ -584,6 +596,7 @@ function renderWavePlanner(state, waveKey, slots, wp){
     clearItemOverridesBtn,
     slowWarnInline,
     itemWarnInline,
+    charmWarnInline,
     el('span', {class:'muted small'}, '· uses Bag availability; preview assumes equipped'),
   ]);
   planEl.appendChild(itemRow);
@@ -1188,6 +1201,98 @@ function renderWavePlanner(state, waveKey, slots, wp){
       return tips.slice(0, 2);
     };
 
+
+
+    // Charm suggestions (Fight plan): recommend applying Strength/Evo charms if they materially improve
+    // the matchup (flip SLOW→FAST, enable OHKO, or allow a lower-prio OHKO).
+    // These can be worth showing even when none are currently in the Bag, because you can usually buy them.
+    const canConsiderCharm = (mon, kind)=>{
+      if (!mon) return false;
+      const base = mon.baseSpecies || mon.effectiveSpecies || '';
+      if (isStarterSpecies(base)) return false;
+      if (kind === 'Strength Charm') return !mon.strength;
+      if (kind === 'Evo Charm') return !mon.evo;
+      return false;
+    };
+
+    const cloneMonForCharm = (mon, kind)=>{
+      if (!mon) return null;
+      const c = { ...mon };
+      c.movePool = (mon.movePool||[]).map(m=>({ ...m }));
+      if (kind === 'Strength Charm') c.strength = true;
+      if (kind === 'Evo Charm') c.evo = true;
+      try{ applyCharmRulesSync(data, state, c); }catch(e){}
+      return c;
+    };
+
+    const bestMoveForMonWithCharm = (att, defSlot, kind)=>{
+      if (!att || !defSlot || !kind) return null;
+      const hyp = cloneMonForCharm(att, kind);
+      if (!hyp) return null;
+      if (kind === 'Evo Charm'){
+        const eff = hyp.effectiveSpecies || hyp.baseSpecies;
+        const curEff = att.effectiveSpecies || att.baseSpecies;
+        if (!eff || eff === curEff) return null;
+      }
+
+      const atk = {
+        species: (hyp.effectiveSpecies||hyp.baseSpecies),
+        level: state.settings.claimedLevel,
+        ivAll: state.settings.claimedIV,
+        evAll: hyp.strength ? state.settings.strengthEV : state.settings.claimedEV,
+      };
+      const def = {
+        species: defSlot.defender,
+        level: defSlot.level,
+        ivAll: state.settings.wildIV,
+        evAll: state.settings.wildEV,
+      };
+
+      const forced = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[att.id] || null) : null;
+      const pool = filterMovePoolForCalc({ppMap: state.pp || {}, monId: att.id, movePool: hyp.movePool || [], forcedMoveName: forced});
+
+      const sW0 = settingsForWave(state, wp, att.id, defSlot.rowKey, defSlot.defender);
+      const sWInt = applyEnemyIntimidateToSettings(sW0, hyp, leadIntCount);
+      const sW = withWeatherSettings(sWInt, waveWeather);
+      try{
+        return calc.chooseBestMove({data, attacker: atk, defender: def, movePool: pool, settings: sW, tags: defSlot.tags||[]}).best;
+      }catch(e){
+        return null;
+      }
+    };
+
+    const charmTipsForMatchup = (att, defSlot, baseBest)=>{
+      if (!att || !defSlot || !baseBest) return [];
+      const baseFast = attackerActsFirst(baseBest);
+      const tips = [];
+      for (const kind of ['Strength Charm','Evo Charm']){
+        if (!canConsiderCharm(att, kind)) continue;
+        const b = bestMoveForMonWithCharm(att, defSlot, kind);
+        if (!b) continue;
+        const fast = attackerActsFirst(b);
+        const gainFast = (!baseFast && fast);
+        const gainOhko = (!baseBest.oneShot && !!b.oneShot);
+        const gainPrio = (Number.isFinite(Number(b.prio)) && Number.isFinite(Number(baseBest.prio)))
+          ? (Number(b.prio) < Number(baseBest.prio) && (!!b.oneShot || !baseBest.oneShot))
+          : false;
+        if (!gainFast && !gainOhko && !gainPrio) continue;
+        const have = availableCount(state, kind) > 0;
+        tips.push({kind, best:b, gainFast, gainOhko, gainPrio, have});
+      }
+      tips.sort((a,b)=>{
+        const ao = a.gainFast?1:0; const bo = b.gainFast?1:0;
+        if (ao !== bo) return bo-ao;
+        const ah = a.gainOhko?1:0; const bh = b.gainOhko?1:0;
+        if (ah !== bh) return bh-ah;
+        const ap = a.gainPrio?1:0; const bp = b.gainPrio?1:0;
+        if (ap !== bp) return bp-ap;
+        const apr = Number(a.best?.prio ?? 9);
+        const bpr = Number(b.best?.prio ?? 9);
+        if (apr !== bpr) return apr-bpr;
+        return Math.abs(Number(a.best?.minPct ?? 0) - 100) - Math.abs(Number(b.best?.minPct ?? 0) - 100);
+      });
+      return tips.slice(0, 2);
+    };
     const tipsLeft = itemTipsForMatchup(left.att, left.def, left.best);
     const tipsRight = itemTipsForMatchup(right.att, right.def, right.best);
     const fmtTip = (t)=>{
@@ -1202,6 +1307,25 @@ function renderWavePlanner(state, waveKey, slots, wp){
       itemWarnInline.style.display = '';
       itemWarnInline.title = `Better solutions with items:\n${tipLines.join('\n')}`;
       planTable.appendChild(el('div', {class:'danger-text small', style:'margin-top:8px'}, `⚠ Better with items: ${tipLines.join(' · ')}`));
+    }
+
+    const charmLeft = charmTipsForMatchup(left.att, left.def, left.best);
+    const charmRight = charmTipsForMatchup(right.att, right.def, right.best);
+
+    const fmtCharm = (t)=>{
+      const flags = [t.gainFast ? 'FAST' : null, t.gainOhko ? 'OHKO' : null, t.gainPrio ? 'lower prio' : null].filter(Boolean);
+      const fx = flags.length ? ` (${flags.join(', ')})` : '';
+      const buy = t.have ? '' : ' (buy)';
+      return `${t.kind}${buy}${fx} → ${t.best?.move||'—'} (P${t.best?.prio||'?'} ${formatPct(t.best?.minPct||0)})`;
+    };
+
+    const charmLines = [];
+    if (charmLeft.length) charmLines.push(`${rosterLabel(left.att)} vs ${left.def.defender}: ${charmLeft.map(fmtCharm).join(' · ')}`);
+    if (charmRight.length) charmLines.push(`${rosterLabel(right.att)} vs ${right.def.defender}: ${charmRight.map(fmtCharm).join(' · ')}`);
+    if (charmLines.length){
+      charmWarnInline.style.display = '';
+      charmWarnInline.title = `Better solutions with charms:\n${charmLines.join('\n')}`;
+      planTable.appendChild(el('div', {class:'danger-text small', style:'margin-top:8px'}, `⚠ Better with charms: ${charmLines.join(' · ')}`));
     }
 
     // Bench coverage

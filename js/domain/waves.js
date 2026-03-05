@@ -281,6 +281,70 @@ function spreadMult(targetsDamaged){
   return (targetsDamaged > 1) ? 0.75 : 1.0;
 }
 
+// Move selection policy used by Auto starter picking.
+// Avoid AoE moves unless they can double-OHKO both on-field defenders,
+// or there is no viable non-AoE damaging move.
+function chooseBestMoveDisciplined({data, attacker, defender, movePool, settings, tags, otherDefender=null, otherSettings=null, otherTags=null, allyRosterMon=null}){
+  const calc = (window && window.SHRINE_CALC) ? window.SHRINE_CALC : null;
+  if (!calc) return null;
+
+  const pool = (movePool||[]).filter(m=>m && m.use !== false && m.name);
+  const nonAoe = pool.filter(m=>!isAoeMove(m.name));
+  const aoe = pool.filter(m=>isAoeMove(m.name));
+
+  const choose = (mp, s, t)=> calc.chooseBestMove({data, attacker, defender, movePool: mp, settings: s, tags: t||[]}).best;
+
+  // Allow AoE only if it double-OHKOs both defenders (and no friendly-fire risk).
+  if (otherDefender && otherSettings && aoe.length){
+    let bestDouble = null;
+    const pickBetter = (a,b)=>{
+      if (!b) return true;
+      const ap = a?.prio ?? 9;
+      const bp = b?.prio ?? 9;
+      if (ap !== bp) return ap < bp;
+      const da = Math.abs((a.minPct ?? 0) - 100) + Math.abs((a.otherMinPct ?? 0) - 100);
+      const db = Math.abs((b.minPct ?? 0) - 100) + Math.abs((b.otherMinPct ?? 0) - 100);
+      return da <= db;
+    };
+
+    for (const m of aoe){
+      const moveName = m.name;
+      const rrA = calc.computeDamageRange({data, attacker, defender, moveName, settings, tags: tags||[]});
+      if (!rrA?.ok) continue;
+      const rrB = calc.computeDamageRange({data, attacker, defender: otherDefender, moveName, settings: otherSettings, tags: otherTags||[]});
+
+      const ffRisk = (aoeHitsAlly(moveName) && allyRosterMon && !immuneFromAllyAbilityItem(allyRosterMon, rrA.moveType));
+
+      let damaged = 0;
+      if ((rrA.minPct ?? 0) > 0) damaged += 1;
+      if (rrB?.ok && (rrB.minPct ?? 0) > 0) damaged += 1;
+      const mult = spreadMult(damaged);
+
+      const minA = (rrA.minPct ?? 0) * mult;
+      const minB = (rrB?.ok ? ((rrB.minPct ?? 0) * mult) : 0);
+      if (minA >= 100 && minB >= 100 && !ffRisk){
+        const cand = {
+          ...rrA,
+          prio: Number(m.prio)||2,
+          minPct: minA,
+          maxPct: (rrA.maxPct ?? rrA.minPct ?? 0) * mult,
+          oneShot: true,
+          otherMinPct: minB,
+        };
+        if (pickBetter(cand, bestDouble)) bestDouble = cand;
+      }
+    }
+    if (bestDouble) return bestDouble;
+  }
+
+  // Prefer non-AoE if possible.
+  const bestNon = nonAoe.length ? choose(nonAoe, settings, tags) : null;
+  if (bestNon) return bestNon;
+
+  // Fallback: allow AoE if there is no other way.
+  return choose(pool, settings, tags);
+}
+
 function immuneFromAllyAbilityItem(allyRosterMon, moveType){
   if (!allyRosterMon) return false;
   const type = String(moveType||'');
@@ -710,38 +774,18 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
       const defLeft = {species:def0.defender, level:def0.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
       const defRight = {species:def1.defender, level:def1.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
 
-      const bestA0 = window.SHRINE_CALC.chooseBestMove({
-        data,
-        attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV},
-        defender:defLeft,
-        movePool: poolA,
-        settings: withWeatherSettings(settingsForWave(state, wp, a.id, def0.rowKey, def0.defender), waveWeather),
-        tags: def0.tags||[],
-      }).best;
-      const bestA1 = window.SHRINE_CALC.chooseBestMove({
-        data,
-        attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV},
-        defender:defRight,
-        movePool: poolA,
-        settings: withWeatherSettings(settingsForWave(state, wp, a.id, def1.rowKey, def1.defender), waveWeather),
-        tags: def1.tags||[],
-      }).best;
-      const bestB0 = window.SHRINE_CALC.chooseBestMove({
-        data,
-        attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV},
-        defender:defLeft,
-        movePool: poolB,
-        settings: withWeatherSettings(settingsForWave(state, wp, b.id, def0.rowKey, def0.defender), waveWeather),
-        tags: def0.tags||[],
-      }).best;
-      const bestB1 = window.SHRINE_CALC.chooseBestMove({
-        data,
-        attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV},
-        defender:defRight,
-        movePool: poolB,
-        settings: withWeatherSettings(settingsForWave(state, wp, b.id, def1.rowKey, def1.defender), waveWeather),
-        tags: def1.tags||[],
-      }).best;
+      const sA0 = withWeatherSettings(settingsForWave(state, wp, a.id, def0.rowKey, def0.defender), waveWeather);
+      const sA1 = withWeatherSettings(settingsForWave(state, wp, a.id, def1.rowKey, def1.defender), waveWeather);
+      const sB0 = withWeatherSettings(settingsForWave(state, wp, b.id, def0.rowKey, def0.defender), waveWeather);
+      const sB1 = withWeatherSettings(settingsForWave(state, wp, b.id, def1.rowKey, def1.defender), waveWeather);
+
+      const atkA = {species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV};
+      const atkB = {species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV};
+
+      const bestA0 = chooseBestMoveDisciplined({data, attacker: atkA, defender: defLeft, movePool: poolA, settings: sA0, tags: def0.tags||[], otherDefender: defRight, otherSettings: sA1, otherTags: def1.tags||[], allyRosterMon: b});
+      const bestA1 = chooseBestMoveDisciplined({data, attacker: atkA, defender: defRight, movePool: poolA, settings: sA1, tags: def1.tags||[], otherDefender: defLeft, otherSettings: sA0, otherTags: def0.tags||[], allyRosterMon: b});
+      const bestB0 = chooseBestMoveDisciplined({data, attacker: atkB, defender: defLeft, movePool: poolB, settings: sB0, tags: def0.tags||[], otherDefender: defRight, otherSettings: sB1, otherTags: def1.tags||[], allyRosterMon: a});
+      const bestB1 = chooseBestMoveDisciplined({data, attacker: atkB, defender: defRight, movePool: poolB, settings: sB1, tags: def1.tags||[], otherDefender: defLeft, otherSettings: sB0, otherTags: def0.tags||[], allyRosterMon: a});
 
       const t1 = tuple(bestA0, bestB1); // a->left, b->right
       const t2 = tuple(bestA1, bestB0); // swap targets
@@ -750,8 +794,10 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
       let clearAll = 0;
       for (const ds of allDefSlots){
         const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
-        const b0 = window.SHRINE_CALC.chooseBestMove({data, attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool: poolA, settings: withWeatherSettings(settingsForWave(state, wp, a.id, ds.rowKey, ds.defender), waveWeather), tags: ds.tags||[]}).best;
-        const b1 = window.SHRINE_CALC.chooseBestMove({data, attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool: poolB, settings: withWeatherSettings(settingsForWave(state, wp, b.id, ds.rowKey, ds.defender), waveWeather), tags: ds.tags||[]}).best;
+        const s0 = withWeatherSettings(settingsForWave(state, wp, a.id, ds.rowKey, ds.defender), waveWeather);
+        const s1 = withWeatherSettings(settingsForWave(state, wp, b.id, ds.rowKey, ds.defender), waveWeather);
+        const b0 = chooseBestMoveDisciplined({data, attacker: atkA, defender: defObj, movePool: poolA, settings: s0, tags: ds.tags||[]});
+        const b1 = chooseBestMoveDisciplined({data, attacker: atkB, defender: defObj, movePool: poolB, settings: s1, tags: ds.tags||[]});
         if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) clearAll += 1;
       }
 
