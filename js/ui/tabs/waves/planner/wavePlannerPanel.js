@@ -3644,6 +3644,152 @@ const headLeft = el('div', {}, [
   const d0 = defStarters[0];
   const d1 = defStarters[1];
 
+  // Suggested lead pairs variants
+  const SUGG_MODES = [
+    {key:'clean', label:'Clean', tip:'Best prio / clean solve (no items, no charms).', allowItems:false, allowCharms:false},
+    {key:'items', label:'Items', tip:'Best solve assuming item usage (bag; Scarf may be buy).', allowItems:true, allowCharms:false},
+    {key:'itemsCharms', label:'Items+Charms', tip:'Best solve assuming items + Strength/Evo charms (charms may be buy).', allowItems:true, allowCharms:true},
+  ];
+  const curMode = (state.ui && state.ui.suggPairsMode) ? state.ui.suggPairsMode : 'clean';
+
+  const modeBar = el('div', {style:'display:flex; gap:8px; margin:8px 0 6px 0; flex-wrap:wrap'});
+  for (const m of SUGG_MODES){
+    const btn = el('button', {class:'btn btn-sm' + (m.key === curMode ? ' btn-primary' : ''), type:'button', title:m.tip}, m.label);
+    btn.addEventListener('click', ()=>{
+      store.update(st=>{
+        if (!st.ui) st.ui = {};
+        st.ui.suggPairsMode = m.key;
+      });
+    });
+    modeBar.appendChild(btn);
+  }
+  suggWrap.appendChild(modeBar);
+
+  const cloneForCharm = (mon, kind)=>{
+    if (!mon) return null;
+    const c = { ...mon };
+    c.movePool = (mon.movePool||[]).map(m=>({ ...m }));
+    if (kind === 'Strength Charm') c.strength = true;
+    if (kind === 'Evo Charm') c.evo = true;
+    try{ applyCharmRulesSync(data, state, c); }catch(e){}
+    // Evo charm must actually change species.
+    if (kind === 'Evo Charm'){
+      const eff0 = mon.effectiveSpecies || mon.baseSpecies;
+      const eff1 = c.effectiveSpecies || c.baseSpecies;
+      if (!eff1 || eff1 === eff0) return null;
+    }
+    return c;
+  };
+
+  const candidateItemsFor = (mon)=>{
+    if (!mon) return [];
+    const types = moveTypesFromMovePool(data, mon.movePool || []);
+    const out = [];
+    for (const it of tipCandidatesForTypes(types)){
+      if (availableCountWithItemOverrides(state, (wp && wp.itemOverride) ? wp.itemOverride : {}, it) > 0) out.push(it);
+    }
+    // Always show Scarf as buy option (speed-gated cleans).
+    out.push('Choice Scarf');
+    // Cap for perf.
+    return Array.from(new Set(out)).slice(0, 8);
+  };
+
+  const bestMoveForLoadout = (attMon, defSlot, loadout)=>{
+    if (!attMon || !defSlot) return null;
+    const atk = {species:(attMon.effectiveSpecies||attMon.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: attMon.strength?state.settings.strengthEV:state.settings.claimedEV};
+    const def = {species:defSlot.defender, level:defSlot.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
+    const forced = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[attMon.id] || null) : null;
+    const pool = filterMovePoolForCalc({ppMap: state.pp || {}, monId: attMon.id, movePool: attMon.movePool || [], forcedMoveName: forced});
+
+    const sW0 = settingsForWave(state, wp, attMon.id, defSlot.rowKey, defSlot.defender);
+    const sW1 = {
+      ...sW0,
+      attackerItem: (loadout?.item || null),
+      attackerAbility: (attMon.ability || sW0.attackerAbility || ''),
+    };
+    const sWInt = applyEnemyIntimidateToSettings(sW1, attMon, leadIntCount);
+    const sW = withWeatherSettings(sWInt, waveWeather);
+    try{
+      return calc.chooseBestMove({data, attacker: atk, defender: def, movePool: pool, settings: sW, tags: defSlot.tags||[]}).best;
+    }catch(e){
+      return null;
+    }
+  };
+
+  const scoreMove = (m)=>{
+    if (!m) return {ohko:0, prio:9, slow:1, dist:999};
+    const ohko = m.oneShot ? 1 : 0;
+    const prio = Number(m.prio ?? 9);
+    const slow = attackerActsFirst(m) ? 0 : 1;
+    const dist = Math.abs(Number(m.minPct ?? 0) - 100);
+    return {ohko, prio, slow, dist};
+  };
+  const betterMove = (a,b)=>{
+    const x = scoreMove(a);
+    const y = scoreMove(b);
+    if (x.ohko !== y.ohko) return x.ohko > y.ohko;
+    if (x.prio !== y.prio) return x.prio < y.prio;
+    if (x.slow !== y.slow) return x.slow < y.slow;
+    return x.dist <= y.dist;
+  };
+
+  const pickBestLoadoutFor = (mon, modeKey)=>{
+    const mode = SUGG_MODES.find(x=>x.key===modeKey) || SUGG_MODES[0];
+    const baseSpecies = mon?.baseSpecies || mon?.effectiveSpecies || '';
+    const canStr = mode.allowCharms && !isStarterSpecies(baseSpecies) && !mon.strength;
+    const canEvo = mode.allowCharms && !isStarterSpecies(baseSpecies) && !mon.evo;
+
+    const charmOptions = [{name:null, mon}];
+    if (canStr){
+      const c = cloneForCharm(mon, 'Strength Charm');
+      if (c) charmOptions.push({name:'Strength Charm', mon:c});
+    }
+    if (canEvo){
+      const c = cloneForCharm(mon, 'Evo Charm');
+      if (c) charmOptions.push({name:'Evo Charm', mon:c});
+    }
+
+    const best = {score:null, charm:null, item:null, monRef:mon, leadMoves:null, clearCount:0};
+    for (const ch of charmOptions){
+      const itemOptions = [{item:null}];
+      if (mode.allowItems){
+        for (const it of candidateItemsFor(ch.mon)) itemOptions.push({item:it});
+      }
+      for (const it of itemOptions){
+        // Score this fixed loadout by OHKO coverage across selected defenders.
+        let clearCount = 0;
+        for (const ds of allDef){
+          const bm = bestMoveForLoadout(ch.mon, ds, it);
+          if (bm && bm.oneShot) clearCount += 1;
+        }
+        const m0 = d0 ? bestMoveForLoadout(ch.mon, d0, it) : null;
+        const m1 = d1 ? bestMoveForLoadout(ch.mon, d1, it) : null;
+        const leadOhko = (m0?.oneShot ? 1 : 0) + (m1?.oneShot ? 1 : 0);
+        const leadPr = ((m0?.prio ?? 9) + (m1?.prio ?? 9)) / 2;
+        const leadSlow = (!attackerActsFirst(m0) ? 1 : 0) + (!attackerActsFirst(m1) ? 1 : 0);
+
+        const sc = {clear:clearCount, leadOhko, leadPr, leadSlow};
+        const better = (A,B)=>{
+          if (!B) return true;
+          if (A.clear !== B.clear) return A.clear > B.clear;
+          if (A.leadOhko !== B.leadOhko) return A.leadOhko > B.leadOhko;
+          if (A.leadPr !== B.leadPr) return A.leadPr < B.leadPr;
+          if (A.leadSlow !== B.leadSlow) return A.leadSlow < B.leadSlow;
+          return false;
+        };
+        if (better(sc, best.score)){
+          best.score = sc;
+          best.charm = ch.name;
+          best.item = it.item;
+          best.monRef = ch.mon;
+          best.leadMoves = {m0, m1};
+          best.clearCount = clearCount;
+        }
+      }
+    }
+    return best;
+  };
+
   if (atkMons.length >= 2 && d0 && d1){
     const pairs = [];
     for (let i=0;i<atkMons.length;i++){
@@ -3651,78 +3797,32 @@ const headLeft = el('div', {}, [
         const a = atkMons[i];
         const b = atkMons[j];
 
-        const forcedA = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[a.id] || null) : null;
-        const forcedB = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[b.id] || null) : null;
-        const poolA = filterMovePoolForCalc({ppMap: state.pp || {}, monId: a.id, movePool: a.movePool || [], forcedMoveName: forcedA});
-        const poolB = filterMovePoolForCalc({ppMap: state.pp || {}, monId: b.id, movePool: b.movePool || [], forcedMoveName: forcedB});
+        const la = pickBestLoadoutFor(a, curMode);
+        const lb = pickBestLoadoutFor(b, curMode);
 
-        const defLeft = {species:d0.defender, level:d0.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
-        const defRight = {species:d1.defender, level:d1.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
+        const mA0 = la.leadMoves?.m0 || bestMoveForMon(a, d0);
+        const mA1 = la.leadMoves?.m1 || bestMoveForMon(a, d1);
+        const mB0 = lb.leadMoves?.m0 || bestMoveForMon(b, d0);
+        const mB1 = lb.leadMoves?.m1 || bestMoveForMon(b, d1);
 
-        // Targeting assumption: either starter can hit either lead defender.
-        const bestA0 = calc.chooseBestMove({
-          data,
-          attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV},
-          defender:defLeft,
-          movePool: poolA,
-          settings: withWeatherSettings(settingsForWave(state, wp, a.id, d0.rowKey, d0.defender), waveWeather),
-          tags: d0.tags||[],
-        }).best;
-        const bestA1 = calc.chooseBestMove({
-          data,
-          attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV},
-          defender:defRight,
-          movePool: poolA,
-          settings: withWeatherSettings(settingsForWave(state, wp, a.id, d1.rowKey, d1.defender), waveWeather),
-          tags: d1.tags||[],
-        }).best;
-        const bestB0 = calc.chooseBestMove({
-          data,
-          attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV},
-          defender:defLeft,
-          movePool: poolB,
-          settings: withWeatherSettings(settingsForWave(state, wp, b.id, d0.rowKey, d0.defender), waveWeather),
-          tags: d0.tags||[],
-        }).best;
-        const bestB1 = calc.chooseBestMove({
-          data,
-          attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV},
-          defender:defRight,
-          movePool: poolB,
-          settings: withWeatherSettings(settingsForWave(state, wp, b.id, d1.rowKey, d1.defender), waveWeather),
-          tags: d1.tags||[],
-        }).best;
+        const chosen = chooseLeadAssignment(mA0,mA1,mB0,mB1);
+        const leftBest = chosen.swap ? mA1 : mA0;
+        const rightBest = chosen.swap ? mB0 : mB1;
 
-        const tuple = (m0,m1)=>{
-          const bothOhko = (m0?.oneShot && m1?.oneShot) ? 2 : ((m0?.oneShot || m1?.oneShot) ? 1 : 0);
-          const worstPrio = Math.max(m0?.prio ?? 9, m1?.prio ?? 9);
-          const prioAvg = ((m0?.prio ?? 9) + (m1?.prio ?? 9)) / 2;
-          const overkill = Math.abs((m0?.minPct ?? 0) - 100) + Math.abs((m1?.minPct ?? 0) - 100);
-          return {bothOhko, worstPrio, prioAvg, overkill};
-        };
-        const t1 = tuple(bestA0, bestB1);
-        const t2 = tuple(bestA1, bestB0);
-        const better = (x,y)=>{
-          if (x.bothOhko !== y.bothOhko) return x.bothOhko > y.bothOhko;
-          if (x.worstPrio !== y.worstPrio) return x.worstPrio < y.worstPrio;
-          if (x.prioAvg !== y.prioAvg) return x.prioAvg < y.prioAvg;
-          return x.overkill <= y.overkill;
-        };
-        const lead = better(t1,t2) ? t1 : t2;
+        const ohkoPairs = (leftBest?.oneShot ? 1 : 0) + (rightBest?.oneShot ? 1 : 0);
+        const prioAvg = ((leftBest?.prio ?? 9) + (rightBest?.prio ?? 9)) / 2;
+        const worstPrio = Math.max(leftBest?.prio ?? 9, rightBest?.prio ?? 9);
+        const overkill = Math.abs((leftBest?.minPct ?? 0) - 100) + Math.abs((rightBest?.minPct ?? 0) - 100);
 
-        const ohkoPairs = lead.bothOhko;
-        const prioAvg = lead.prioAvg;
-        const worstPrio = lead.worstPrio;
-        const overkill = lead.overkill;
+        // Clear: how many selected defenders are OHKO'd by either starter under the fixed loadouts.
         let clearAll = 0;
         for (const ds of allDef){
-          const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
-          const b0 = calc.chooseBestMove({data, attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool: poolA, settings: withWeatherSettings(settingsForWave(state, wp, a.id, ds.rowKey, ds.defender), waveWeather), tags: ds.tags||[]}).best;
-          const b1 = calc.chooseBestMove({data, attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool: poolB, settings: withWeatherSettings(settingsForWave(state, wp, b.id, ds.rowKey, ds.defender), waveWeather), tags: ds.tags||[]}).best;
-          if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) clearAll += 1;
+          const am = bestMoveForLoadout(la.monRef || a, ds, {item:la.item});
+          const bm = bestMoveForLoadout(lb.monRef || b, ds, {item:lb.item});
+          if ((am && am.oneShot) || (bm && bm.oneShot)) clearAll += 1;
         }
 
-        pairs.push({a,b, ohkoPairs, prioAvg, worstPrio, overkill, clearAll});
+        pairs.push({a,b, ohkoPairs, prioAvg, worstPrio, overkill, clearAll, la, lb});
       }
     }
 
@@ -3734,13 +3834,31 @@ const headLeft = el('div', {}, [
       return (x.overkill ?? 0) - (y.overkill ?? 0);
     });
 
+    const fmtLoadout = (L)=>{
+      const bits = [];
+      if (L?.charm){
+        const have = availableCount(state, L.charm) > 0;
+        bits.push(have ? L.charm : `${L.charm} (buy)`);
+      }
+      if (L?.item){
+        const have = (L.item === 'Choice Scarf')
+          ? (availableCount(state, 'Choice Scarf') > 0)
+          : (availableCountWithItemOverrides(state, (wp && wp.itemOverride) ? wp.itemOverride : {}, L.item) > 0);
+        bits.push(have ? L.item : `${L.item}${L.item==='Choice Scarf'?' (buy)':' (bag:0)'}`);
+      }
+      return bits.length ? bits.join(' + ') : 'none';
+    };
+
     for (const p of pairs.slice(0,12)){
-      const chipEl = el('div', {class:'chip'}, [
-        el('strong', {}, `${rosterLabel(p.a)} + ${rosterLabel(p.b)}`),
-        el('span', {class:'muted'}, ` · OHKO ${p.ohkoPairs}/2`),
-        el('span', {class:'muted'}, ` · clear ${p.clearAll}/${allDef.length}`),
-        el('span', {class:'muted'}, ` · prioØ ${formatPrioAvg(p.prioAvg)}`),
-      ]);
+      const chipEl = el('div', {class:'chip'});
+      chipEl.appendChild(el('strong', {}, `${rosterLabel(p.a)} + ${rosterLabel(p.b)}`));
+      chipEl.appendChild(el('span', {class:'muted'}, ` · OHKO ${p.ohkoPairs}/2`));
+      chipEl.appendChild(el('span', {class:'muted'}, ` · clear ${p.clearAll}/${allDef.length}`));
+      chipEl.appendChild(el('span', {class:'muted'}, ` · prioØ ${formatPrioAvg(p.prioAvg)}`));
+      if (curMode !== 'clean') chipEl.appendChild(el('span', {class:'muted'}, curMode === 'items' ? ' · items' : ' · items+charms'));
+
+      chipEl.title = `${rosterLabel(p.a)}: ${fmtLoadout(p.la)}\n${rosterLabel(p.b)}: ${fmtLoadout(p.lb)}`;
+
       chipEl.addEventListener('click', ()=>{
         store.update(st=>{
           const w = st.wavePlans[waveKey];

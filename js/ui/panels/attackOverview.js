@@ -231,13 +231,18 @@ export function createAttackOverview({ data, calc, store, els }){
     };
 
     const iconOrPill = (name, kind='item')=>{
+      const have = availableCount(state, name) > 0;
+      const title = (kind === 'charm')
+        ? (have ? name : `${name} (buy)`)
+        : (have ? name : `${name} (not owned)`);
+
       const src = getItemIcon(name);
       if (src){
-        return el('img', {class:'item-ico', src, alt:'', title:name});
+        return el('img', {class:'item-ico', src, alt:'', title});
       }
       const txt = (kind === 'charm') ? (name === 'Strength Charm' ? 'STR' : (name === 'Evo Charm' ? 'EVO' : 'CHARM')) : 'ITEM';
-      const p = pill(txt, 'warn');
-      p.title = name;
+      const p = pill(txt, have ? 'good' : 'warn');
+      p.title = title;
       return p;
     };
 
