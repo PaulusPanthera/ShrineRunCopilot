@@ -659,17 +659,6 @@
     ],
     "species": "Empoleon"
   },
-  "Espeon": {
-    "ability": "Anticipation",
-    "canClaim": 0,
-    "moves": [
-      "Hidden Power (Ice)",
-      "Shadow Ball",
-      "Helping Hand",
-      "Healing Wind"
-    ],
-    "species": "Espeon"
-  },
   "Excadrill": {
     "ability": "Mold Breaker",
     "canClaim": 0,
@@ -812,6 +801,17 @@
       "Protective Aura"
     ],
     "species": "Girafarig"
+  },
+  "Glaceon": {
+    "ability": "Ice Body",
+    "canClaim": 0,
+    "moves": [
+      "Hidden Power (Ice)",
+      "Shadow Ball",
+      "Helping Hand",
+      "Healing Wind"
+    ],
+    "species": "Glaceon"
   },
   "Glameow": {
     "ability": "Limber",
@@ -1411,10 +1411,10 @@
     "ability": "Sheer Force",
     "canClaim": 1,
     "moves": [
-      "Sludge Bomb",
-      "Earth Power",
-      "Blizzard",
-      "Toxic"
+      "Earthquake",
+      "Sludge Wave",
+      "Ice Beam",
+      "Protect"
     ],
     "species": "Nidoqueen"
   },

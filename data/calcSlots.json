@@ -2002,6 +2002,17 @@
     "tags": []
   },
   {
+    "rowKey": "P3W4S9",
+    "waveKey": "P3W4",
+    "phase": 3,
+    "wave": 4,
+    "animal": "Dog",
+    "level": 50,
+    "slot": 9,
+    "defender": "Glaceon",
+    "tags": []
+  },
+  {
     "rowKey": "P3W5S1",
     "waveKey": "P3W5",
     "phase": 3,
@@ -2284,7 +2295,7 @@
     "animal": "Tiger",
     "level": 51,
     "slot": 4,
-    "defender": "Espeon",
+    "defender": "Glaceon",
     "tags": []
   },
   {
@@ -3296,7 +3307,7 @@
     "animal": "Tiger",
     "level": 53,
     "slot": 4,
-    "defender": "Espeon",
+    "defender": "Glaceon",
     "tags": []
   },
   {

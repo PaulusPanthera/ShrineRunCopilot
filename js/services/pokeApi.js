@@ -6,7 +6,7 @@ import { fixName } from '../data/nameFixes.js';
 
 // Hard overrides for alpha (branch evolutions / special cases)
 export const EVO_OVERRIDES = {
-  Eevee: 'Espeon',
+  Eevee: 'Glaceon',
   Slowpoke: 'Slowking',
 };
 
@@ -18,7 +18,7 @@ export const EVO_PRESET = {
 
 // Base-species overrides
 export const BASE_OVERRIDES = {
-  Espeon: 'Eevee',
+  Glaceon: 'Eevee',
   Slowking: 'Slowpoke',
   Whimsicott: 'Cottonee',
   Ampharos: 'Mareep',
@@ -33,7 +33,7 @@ const BABY_BASE_EXCEPTIONS = {
 
 // Tool overrides: restrict certain multi-branch evo lines for the Pokédex UI.
 const EVO_LINE_OVERRIDES = {
-  Eevee: ['Eevee','Espeon'],
+  Eevee: ['Eevee','Glaceon'],
 };
 
 function normName(s){

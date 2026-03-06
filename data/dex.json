@@ -917,21 +917,6 @@
       "Steel"
     ]
   },
-  "Espeon": {
-    "base": {
-      "atk": 65,
-      "def": 60,
-      "hp": 65,
-      "spa": 130,
-      "spd": 95,
-      "spe": 110
-    },
-    "bst": 525,
-    "name": "Espeon",
-    "types": [
-      "Psychic"
-    ]
-  },
   "Excadrill": {
     "base": {
       "atk": 135,
@@ -1132,6 +1117,21 @@
     "types": [
       "Normal",
       "Psychic"
+    ]
+  },
+  "Glaceon": {
+    "base": {
+      "hp": 65,
+      "atk": 60,
+      "def": 110,
+      "spa": 130,
+      "spd": 95,
+      "spe": 65
+    },
+    "bst": 525,
+    "name": "Glaceon",
+    "types": [
+      "Ice"
     ]
   },
   "Glameow": {
