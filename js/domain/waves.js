@@ -745,6 +745,19 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
   const curA1 = byId(state.roster, (wp.attackerStart||[])[1]) || byId(state.roster, pool[1]);
   const waveWeather = inferBattleWeatherFromLeads(data, state, [curA0, curA1].filter(Boolean), [def0, def1].filter(Boolean));
 
+  const hasInt = (ds)=> (ds?.tags||[]).includes('INT');
+  const leadIntCount = [def0, def1].filter(hasInt).length;
+  const reinf3 = allDefSlots[2] || null;
+  const reinf4 = allDefSlots[3] || null;
+  const reinf3Int = hasInt(reinf3) ? 1 : 0;
+  const reinf4Int = hasInt(reinf4) ? 1 : 0;
+  const intCountForDefSlot = (ds)=>{
+    if (!ds) return leadIntCount;
+    if (reinf4 && ds.rowKey === reinf4.rowKey) return leadIntCount + reinf3Int + reinf4Int;
+    if (reinf3 && ds.rowKey === reinf3.rowKey) return leadIntCount + reinf3Int;
+    return leadIntCount;
+  };
+
   const tuple = (m0,m1)=>{
     const bothOhko = (m0?.oneShot && m1?.oneShot) ? 2 : ((m0?.oneShot || m1?.oneShot) ? 1 : 0);
     const worstPrio = Math.max(m0?.prio ?? 9, m1?.prio ?? 9);
@@ -774,10 +787,10 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
       const defLeft = {species:def0.defender, level:def0.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
       const defRight = {species:def1.defender, level:def1.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
 
-      const sA0 = withWeatherSettings(settingsForWave(state, wp, a.id, def0.rowKey, def0.defender), waveWeather);
-      const sA1 = withWeatherSettings(settingsForWave(state, wp, a.id, def1.rowKey, def1.defender), waveWeather);
-      const sB0 = withWeatherSettings(settingsForWave(state, wp, b.id, def0.rowKey, def0.defender), waveWeather);
-      const sB1 = withWeatherSettings(settingsForWave(state, wp, b.id, def1.rowKey, def1.defender), waveWeather);
+      const sA0 = withWeatherSettings(applyEnemyIntimidateToSettings(settingsForWave(state, wp, a.id, def0.rowKey, def0.defender), a, leadIntCount), waveWeather);
+      const sA1 = withWeatherSettings(applyEnemyIntimidateToSettings(settingsForWave(state, wp, a.id, def1.rowKey, def1.defender), a, leadIntCount), waveWeather);
+      const sB0 = withWeatherSettings(applyEnemyIntimidateToSettings(settingsForWave(state, wp, b.id, def0.rowKey, def0.defender), b, leadIntCount), waveWeather);
+      const sB1 = withWeatherSettings(applyEnemyIntimidateToSettings(settingsForWave(state, wp, b.id, def1.rowKey, def1.defender), b, leadIntCount), waveWeather);
 
       const atkA = {species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV};
       const atkB = {species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV};
@@ -791,53 +804,20 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
       const t2 = tuple(bestA1, bestB0); // swap targets
       const lead = better(t1,t2) ? t1 : t2;
 
-      // IMPORTANT: for partial clears (e.g. 2/3), we must prioritize *lead* KOs on Turn 1.
-      // Bench-only theoretical KOs (reinforcements) shouldn't dominate ranking.
-      const leadKillsT1 = lead.bothOhko;
-
       let clearAll = 0;
-      const bestVsA = new Map();
-      const bestVsB = new Map();
       for (const ds of allDefSlots){
         const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
-        const s0 = withWeatherSettings(settingsForWave(state, wp, a.id, ds.rowKey, ds.defender), waveWeather);
-        const s1 = withWeatherSettings(settingsForWave(state, wp, b.id, ds.rowKey, ds.defender), waveWeather);
+        const ic = intCountForDefSlot(ds);
+        const s0 = withWeatherSettings(applyEnemyIntimidateToSettings(settingsForWave(state, wp, a.id, ds.rowKey, ds.defender), a, ic), waveWeather);
+        const s1 = withWeatherSettings(applyEnemyIntimidateToSettings(settingsForWave(state, wp, b.id, ds.rowKey, ds.defender), b, ic), waveWeather);
         const b0 = chooseBestMoveDisciplined({data, attacker: atkA, defender: defObj, movePool: poolA, settings: s0, tags: ds.tags||[]});
         const b1 = chooseBestMoveDisciplined({data, attacker: atkB, defender: defObj, movePool: poolB, settings: s1, tags: ds.tags||[]});
-        bestVsA.set(ds.rowKey, b0);
-        bestVsB.set(ds.rowKey, b1);
         if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) clearAll += 1;
       }
 
-      // Conservative focus-fire heuristic:
-      // Only applies after 2 lead KOs on Turn 1 (i.e., both leads are removed), and only for 3-defender selections.
-      // If the remaining defender can be guaranteed by combined min-roll damage from both attackers, count as a clean 2-turn clear.
-      let focusKill = 0;
-      if (leadKillsT1 >= 2 && allDefSlots.length === 3){
-        const leadKeys = new Set([def0.rowKey, def1.rowKey]);
-        const rem = allDefSlots.find(ds => ds && !leadKeys.has(ds.rowKey));
-        if (rem){
-          const ma = bestVsA.get(rem.rowKey);
-          const mb = bestVsB.get(rem.rowKey);
-          const aMin = Number(ma?.minPct ?? 0);
-          const bMin = Number(mb?.minPct ?? 0);
-          if (aMin > 0 && bMin > 0 && (aMin + bMin) >= 100) focusKill = 1;
-        }
-      }
-
-      const effClear = Math.min(allDefSlots.length, clearAll + focusKill);
-
-      const cand = {a, b, clearAll, effClear, focusKill, leadKillsT1, ohkoPairs: lead.bothOhko, worstPrio: lead.worstPrio, prioAvg: lead.prioAvg, overkill: lead.overkill};
+      const cand = {a, b, clearAll, ohkoPairs: lead.bothOhko, worstPrio: lead.worstPrio, prioAvg: lead.prioAvg, overkill: lead.overkill};
       const betterCand = (x,y)=>{
-        if (x.effClear !== y.effClear) return x.effClear > y.effClear;
-
-        // If we cannot full-clear, prefer solutions that guarantee lead KOs on Turn 1.
-        // This prevents "bench-only theoretical" clear counts from dominating.
-        const total = allDefSlots.length;
-        if ((x.effClear ?? x.clearAll) < total && (y.effClear ?? y.clearAll) < total){
-          if ((x.leadKillsT1 ?? 0) !== (y.leadKillsT1 ?? 0)) return (x.leadKillsT1 ?? 0) > (y.leadKillsT1 ?? 0);
-        }
-
+        if (x.clearAll !== y.clearAll) return x.clearAll > y.clearAll;
         if (x.ohkoPairs !== y.ohkoPairs) return x.ohkoPairs > y.ohkoPairs;
         if (x.worstPrio !== y.worstPrio) return x.worstPrio < y.worstPrio;
         if (x.prioAvg !== y.prioAvg) return x.prioAvg < y.prioAvg;
@@ -873,6 +853,20 @@ export function autoPickOrdersForWave(data, state, wp, slotByKey){
 
   const allDefSlots = (wp.defenders||[]).map(k=>slotByKey.get(baseKey(k))).filter(Boolean);
 
+  const waveWeather = inferBattleWeatherFromLeads(data, state, [atk0, atk1].filter(Boolean), [def0, def1].filter(Boolean));
+  const hasInt = (ds)=> (ds?.tags||[]).includes('INT');
+  const leadIntCount = [def0, def1].filter(hasInt).length;
+  const reinf3 = allDefSlots[2] || null;
+  const reinf4 = allDefSlots[3] || null;
+  const reinf3Int = hasInt(reinf3) ? 1 : 0;
+  const reinf4Int = hasInt(reinf4) ? 1 : 0;
+  const intCountForDefSlot = (ds)=>{
+    if (!ds) return leadIntCount;
+    if (reinf4 && ds.rowKey === reinf4.rowKey) return leadIntCount + reinf3Int + reinf4Int;
+    if (reinf3 && ds.rowKey === reinf3.rowKey) return leadIntCount + reinf3Int;
+    return leadIntCount;
+  };
+
   const scorePlan = (atkOrder, defOrder)=>{
     const aL = byId(state.roster, atkOrder[0]);
     const aR = byId(state.roster, atkOrder[1]);
@@ -883,22 +877,38 @@ export function autoPickOrdersForWave(data, state, wp, slotByKey){
     const defLeft = {species:dL.defender, level:dL.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
     const defRight = {species:dR.defender, level:dR.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
 
-    const bestL = window.SHRINE_CALC.chooseBestMove({
+    const forcedL = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[aL.id] || null) : null;
+    const forcedR = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[aR.id] || null) : null;
+    const poolL = filterMovePoolForWaveCalc({ppMap: state.pp || {}, monId: aL.id, movePool: aL.movePool || [], forcedMoveName: forcedL});
+    const poolR = filterMovePoolForWaveCalc({ppMap: state.pp || {}, monId: aR.id, movePool: aR.movePool || [], forcedMoveName: forcedR});
+
+    const sL0 = withWeatherSettings(applyEnemyIntimidateToSettings(settingsForWave(state, wp, aL.id, dL.rowKey, dL.defender), aL, leadIntCount), waveWeather);
+    const sR0 = withWeatherSettings(applyEnemyIntimidateToSettings(settingsForWave(state, wp, aR.id, dR.rowKey, dR.defender), aR, leadIntCount), waveWeather);
+
+    const bestL = chooseBestMoveDisciplined({
       data,
       attacker:{species:(aL.effectiveSpecies||aL.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aL.strength?state.settings.strengthEV:state.settings.claimedEV},
       defender:defLeft,
-      movePool: movePoolForWave(wp, aL),
-      settings: settingsForWave(state, wp, aL.id, dL.rowKey, dL.defender),
+      movePool: poolL,
+      settings: sL0,
       tags: dL.tags||[],
-    }).best;
-    const bestR = window.SHRINE_CALC.chooseBestMove({
+      otherDefender: defRight,
+      otherSettings: withWeatherSettings(applyEnemyIntimidateToSettings(settingsForWave(state, wp, aL.id, dR.rowKey, dR.defender), aL, leadIntCount), waveWeather),
+      otherTags: dR.tags||[],
+      allyRosterMon: aR,
+    });
+    const bestR = chooseBestMoveDisciplined({
       data,
       attacker:{species:(aR.effectiveSpecies||aR.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aR.strength?state.settings.strengthEV:state.settings.claimedEV},
       defender:defRight,
-      movePool: movePoolForWave(wp, aR),
-      settings: settingsForWave(state, wp, aR.id, dR.rowKey, dR.defender),
+      movePool: poolR,
+      settings: sR0,
       tags: dR.tags||[],
-    }).best;
+      otherDefender: defLeft,
+      otherSettings: withWeatherSettings(applyEnemyIntimidateToSettings(settingsForWave(state, wp, aR.id, dL.rowKey, dL.defender), aR, leadIntCount), waveWeather),
+      otherTags: dL.tags||[],
+      allyRosterMon: aL,
+    });
 
     const bothOhko = (bestL?.oneShot && bestR?.oneShot) ? 2 : ((bestL?.oneShot || bestR?.oneShot) ? 1 : 0);
     const worstPrio = Math.max(bestL?.prio ?? 9, bestR?.prio ?? 9);
@@ -909,22 +919,23 @@ export function autoPickOrdersForWave(data, state, wp, slotByKey){
     let startersClear = 0;
     for (const ds of allDefSlots){
       const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
-      const b0 = window.SHRINE_CALC.chooseBestMove({
+      const ic = intCountForDefSlot(ds);
+      const b0 = chooseBestMoveDisciplined({
         data,
         attacker:{species:(aL.effectiveSpecies||aL.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aL.strength?state.settings.strengthEV:state.settings.claimedEV},
         defender:defObj,
-        movePool: movePoolForWave(wp, aL),
-        settings: settingsForWave(state, wp, aL.id, ds.rowKey, ds.defender),
+        movePool: poolL,
+        settings: withWeatherSettings(applyEnemyIntimidateToSettings(settingsForWave(state, wp, aL.id, ds.rowKey, ds.defender), aL, ic), waveWeather),
         tags: ds.tags||[],
-      }).best;
-      const b1 = window.SHRINE_CALC.chooseBestMove({
+      });
+      const b1 = chooseBestMoveDisciplined({
         data,
         attacker:{species:(aR.effectiveSpecies||aR.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: aR.strength?state.settings.strengthEV:state.settings.claimedEV},
         defender:defObj,
-        movePool: movePoolForWave(wp, aR),
-        settings: settingsForWave(state, wp, aR.id, ds.rowKey, ds.defender),
+        movePool: poolR,
+        settings: withWeatherSettings(applyEnemyIntimidateToSettings(settingsForWave(state, wp, aR.id, ds.rowKey, ds.defender), aR, ic), waveWeather),
         tags: ds.tags||[],
-      }).best;
+      });
       if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) startersClear += 1;
     }
 
