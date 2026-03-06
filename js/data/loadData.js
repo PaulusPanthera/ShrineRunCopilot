@@ -5,6 +5,7 @@
 import { fixName } from './nameFixes.js';
 import { fixMoveName } from './moveFixes.js';
 import { applyMovesetOverrides } from '../domain/shrineRules.js';
+import { applyClaimedSetFixes } from './claimedSetFixes.js';
 
 // Tags that are computed dynamically from claimedSets (and MUST never be trusted from calcSlots).
 // If a tag isn't provably true from the pinned set, it should not appear.
@@ -90,6 +91,9 @@ export async function loadData(){
     if (Array.isArray(obj.moves)) obj.moves = obj.moves.map(fixMoveName);
     if (typeof obj.ability === 'string') obj.ability = String(obj.ability).trim();
   }
+
+  // Apply surgical fixes to pinned claimedSets (runtime-safe; avoids regressions from patch collisions).
+  applyClaimedSetFixes(claimedSets);
 
   // Apply name fixes to calc slots + dynamically derive calc-relevant tags
   // from the locked claimedSets (so tags stay correct if movesets change).

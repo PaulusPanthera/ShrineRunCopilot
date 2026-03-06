@@ -325,6 +325,22 @@ function immuneToWeatherChip(data, weather, species){
   return true;
 }
 
+
+
+function applyPartyDragonBlessing({battle, state, reason=''}){
+  if (!battle || !state) return;
+  // Dragon's Blessing: +2 Atk and +2 SpA to the whole attacker party (active + bench).
+  // This stacks and clamps in [-6, +6].
+  const ids = uniq([...(battle.atk?.active||[]), ...(battle.atk?.bench||[])]).filter(Boolean);
+  if (!ids.length) return;
+  for (const id of ids){
+    const d = ensureStageDelta(battle, id);
+    d.atk = clampInt((d.atk || 0) + 2, -6, 6);
+    d.spa = clampInt((d.spa || 0) + 2, -6, 6);
+    battle.stageDelta[id] = d;
+  }
+  // Optional audit log is handled by the caller (turn log).
+}
 function applyOnHitImmunityBoost({battle, state, targetId, moveType, turnLog}){
   if (!battle || !state || !targetId) return;
   const rm = byId(state.roster||[], targetId);
@@ -1961,6 +1977,40 @@ if (atkAbLc0 === 'truant'){
     continue;
   }
   battle.truantState[kTr] = true;
+}
+
+
+
+// Dragon's Blessing: party-wide buff (no damage).
+if (String(act.move||'') === "Dragon's Blessing"){
+  const ppBefore = getPP(state, id, act.move);
+  decPP(state, id, act.move);
+  const ppAfter = getPP(state, id, act.move);
+
+  // Audit (dev-facing)
+  try{
+    const audit = ensureAudit(battle);
+    const k = `${battle.turnCount}|atk|${id}|${act.move}|BLESS`;
+    if (audit.execKeys[k]){
+      battle.warnings = battle.warnings || [];
+      battle.warnings.push('Audit: duplicate attacker action key (possible double-spend).');
+      console.error('Audit dup action', k);
+    }
+    audit.execKeys[k] = true;
+    audit.ppEvents.push({turn: battle.turnCount, side:'atk', actorId:id, move:act.move, before:ppBefore.cur, after:ppAfter.cur});
+  }catch(e){ /* ignore */ }
+
+  applyPartyDragonBlessing({battle, state, reason:'move'});
+  turnLog.push(`${atkName} used Dragon's Blessing → party Atk +2, SpA +2 · PP ${ppBefore.cur}→${ppAfter.cur}/${ppAfter.max}.`);
+  battle.history.push({side:'atk', actorId:id, move: act.move, prio: act.prio ?? 9, targetKey: rk});
+
+  // Choice items: lock even on status moves.
+  maybeSetChoiceLock({battle, state, wp, attackerId:id, item:itemBefore, moveName: act.move, turnLog, attackerLabel: atkName});
+
+  // Metronome: record use (streak resets/continues as usual).
+  metronomeRecordUse(battle, id, act.move, itemBefore);
+
+  continue;
 }
 
 // AoE (spread) attacker moves: hit both defenders, and sometimes the ally.
