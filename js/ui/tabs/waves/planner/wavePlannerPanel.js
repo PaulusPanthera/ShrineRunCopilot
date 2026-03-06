@@ -641,16 +641,13 @@ function renderWavePlanner(state, waveKey, slots, wp){
     };
   };
 
-  // NOTE: Fight plan display picks "best" moves for multiple defenders. To avoid misleading
-  // repeats when a move has low PP (e.g., 1 PP left), callers can pass a temporary ppMap
-  // (ppBudget) that is decremented as we lay out the plan lines.
-  const bestMoveForMon = (att, defSlot, ppMapOverride=null)=>{
+  const bestMoveForMon = (att, defSlot)=>{
     if (!att || !defSlot) return null;
     const atk = {species:(att.effectiveSpecies||att.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: att.strength?state.settings.strengthEV:state.settings.claimedEV};
     const def = {species:defSlot.defender, level:defSlot.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
 
     const forced = (wp && wp.attackMoveOverride) ? (wp.attackMoveOverride[att.id] || null) : null;
-    const pool = filterMovePoolForCalc({ppMap: ppMapOverride || state.pp || {}, monId: att.id, movePool: att.movePool || [], forcedMoveName: forced});
+    const pool = filterMovePoolForCalc({ppMap: state.pp || {}, monId: att.id, movePool: att.movePool || [], forcedMoveName: forced});
 
     const sW0 = settingsForWave(state, wp, att.id, defSlot.rowKey, defSlot.defender);
     const sWInt = applyEnemyIntimidateToSettings(sW0, att, leadIntCount);
@@ -713,31 +710,6 @@ function renderWavePlanner(state, waveKey, slots, wp){
   const planTable = el('div', {class:'plan'});
 
   if (a0 && a1 && lead0 && lead1){
-    // Local PP budget for rendering the plan lines (does not mutate real state).
-    // This prevents "uses Ice Punch twice" style display when only 1 PP remains.
-    const ppBudget = JSON.parse(JSON.stringify(state.pp || {}));
-    const initBudgetForMon = (mon)=>{
-      if (!mon || !mon.id) return;
-      const id = mon.id;
-      ppBudget[id] = ppBudget[id] || {};
-      for (const m of (mon.movePool||[])){
-        if (!m || m.use === false || !m.name) continue;
-        const src = state.pp?.[id]?.[m.name];
-        if (src) ppBudget[id][m.name] = JSON.parse(JSON.stringify(src));
-        else if (!ppBudget[id][m.name]) ppBudget[id][m.name] = {cur: DEFAULT_MOVE_PP, max: DEFAULT_MOVE_PP};
-      }
-    };
-    const reservePPUse = (monId, moveName)=>{
-      if (!monId || !moveName) return;
-      ppBudget[monId] = ppBudget[monId] || {};
-      const ent = ppBudget[monId][moveName] || {cur: DEFAULT_MOVE_PP, max: DEFAULT_MOVE_PP};
-      const cur = Number(ent.cur ?? ent.max ?? DEFAULT_MOVE_PP);
-      ent.cur = Math.max(0, cur - 1);
-      ppBudget[monId][moveName] = ent;
-    };
-    initBudgetForMon(a0);
-    initBudgetForMon(a1);
-
     const mA0 = bestMoveForMon(a0, lead0);
     const mA1 = bestMoveForMon(a0, lead1);
     const mB0 = bestMoveForMon(a1, lead0);
@@ -745,10 +717,6 @@ function renderWavePlanner(state, waveKey, slots, wp){
     const chosen = chooseLeadAssignment(mA0,mA1,mB0,mB1);
     const left = chosen.swap ? {att:a0, def:lead1, best:mA1} : {att:a0, def:lead0, best:mA0};
     const right = chosen.swap ? {att:a1, def:lead0, best:mB0} : {att:a1, def:lead1, best:mB1};
-
-    // Reserve the two lead actions so later "bench" coverage uses the remaining PP.
-    reservePPUse(left.att?.id, left.best?.move);
-    reservePPUse(right.att?.id, right.best?.move);
     const prAvg = ((left.best?.prio ?? 9) + (right.best?.prio ?? 9)) / 2;
 
     // Deterministic 1-turn min-roll sim for the chosen lead assignment.
@@ -1365,13 +1333,9 @@ function renderWavePlanner(state, waveKey, slots, wp){
     if (bench.length){
       const benchLines = [];
       for (const ds of bench){
-        const am = bestMoveForMon(a0, ds, ppBudget);
-        const bm = bestMoveForMon(a1, ds, ppBudget);
-        const pick = (am && am.oneShot && (!bm || !bm.oneShot || (am.prio??9) <= (bm.prio??9)))
-          ? {monId: a0.id, who:rosterLabel(a0), m:am}
-          : {monId: a1.id, who:rosterLabel(a1), m:bm};
-        // Reserve the displayed bench pick so subsequent duplicates reflect PP.
-        reservePPUse(pick.monId, pick.m?.move);
+        const am = bestMoveForMon(a0, ds);
+        const bm = bestMoveForMon(a1, ds);
+        const pick = (am && am.oneShot && (!bm || !bm.oneShot || (am.prio??9) <= (bm.prio??9))) ? {who:rosterLabel(a0), m:am} : {who:rosterLabel(a1), m:bm};
         benchLines.push(`${ds.defender}: ${pick.who} ${pick.m?.move||'—'} (P${pick.m?.prio||'?'} ${formatPct(pick.m?.minPct||0)})`);
       }
       planTable.appendChild(el('div', {class:'muted small', style:'margin-top:8px'}, `Bench: ${benchLines.join(' · ')}`));
@@ -3690,38 +3654,11 @@ const headLeft = el('div', {}, [
         const defRight = {species:d1.defender, level:d1.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
 
         // Targeting assumption: either starter can hit either lead defender.
-        const bestA0 = calc.chooseBestMove({
-          data,
-          attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV},
-          defender:defLeft,
-          movePool: poolA,
-          settings: withWeatherSettings(settingsForWave(state, wp, a.id, d0.rowKey, d0.defender), waveWeather),
-          tags: d0.tags||[],
-        }).best;
-        const bestA1 = calc.chooseBestMove({
-          data,
-          attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV},
-          defender:defRight,
-          movePool: poolA,
-          settings: withWeatherSettings(settingsForWave(state, wp, a.id, d1.rowKey, d1.defender), waveWeather),
-          tags: d1.tags||[],
-        }).best;
-        const bestB0 = calc.chooseBestMove({
-          data,
-          attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV},
-          defender:defLeft,
-          movePool: poolB,
-          settings: withWeatherSettings(settingsForWave(state, wp, b.id, d0.rowKey, d0.defender), waveWeather),
-          tags: d0.tags||[],
-        }).best;
-        const bestB1 = calc.chooseBestMove({
-          data,
-          attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV},
-          defender:defRight,
-          movePool: poolB,
-          settings: withWeatherSettings(settingsForWave(state, wp, b.id, d1.rowKey, d1.defender), waveWeather),
-          tags: d1.tags||[],
-        }).best;
+        // Use the same per-mon helper as Fight plan (respects PP filtering and other planner rules).
+        const bestA0 = bestMoveForMon(a, d0);
+        const bestA1 = bestMoveForMon(a, d1);
+        const bestB0 = bestMoveForMon(b, d0);
+        const bestB1 = bestMoveForMon(b, d1);
 
         const tuple = (m0,m1)=>{
           const bothOhko = (m0?.oneShot && m1?.oneShot) ? 2 : ((m0?.oneShot || m1?.oneShot) ? 1 : 0);
@@ -3745,20 +3682,36 @@ const headLeft = el('div', {}, [
         const worstPrio = lead.worstPrio;
         const overkill = lead.overkill;
         let clearAll = 0;
+        let focusKills = 0;
         for (const ds of allDef){
           const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
-          const b0 = calc.chooseBestMove({data, attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool: poolA, settings: withWeatherSettings(settingsForWave(state, wp, a.id, ds.rowKey, ds.defender), waveWeather), tags: ds.tags||[]}).best;
-          const b1 = calc.chooseBestMove({data, attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool: poolB, settings: withWeatherSettings(settingsForWave(state, wp, b.id, ds.rowKey, ds.defender), waveWeather), tags: ds.tags||[]}).best;
+          const b0 = bestMoveForMon(a, ds);
+          const b1 = bestMoveForMon(b, ds);
           if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) clearAll += 1;
+          else {
+            const m0 = Number(b0?.minPct ?? 0);
+            const m1 = Number(b1?.minPct ?? 0);
+            if ((m0 > 0 || m1 > 0) && (m0 + m1 >= 100)) focusKills += 1;
+          }
         }
 
-        pairs.push({a,b, ohkoPairs, prioAvg, worstPrio, overkill, clearAll});
+        pairs.push({a,b, ohkoPairs, prioAvg, worstPrio, overkill, clearAll, focusKills});
       }
     }
 
     pairs.sort((x,y)=>{
+      // If we don't fully clear the selected defenders, prefer at least one T1 KO.
+      const xIncomplete = (x.clearAll ?? 0) < allDef.length;
+      const yIncomplete = (y.clearAll ?? 0) < allDef.length;
+      if (xIncomplete && yIncomplete){
+        const xHas = (x.ohkoPairs ?? 0) > 0;
+        const yHas = (y.ohkoPairs ?? 0) > 0;
+        if (xHas !== yHas) return yHas ? 1 : -1;
+      }
+
       if (x.clearAll !== y.clearAll) return y.clearAll - x.clearAll;
       if (x.ohkoPairs !== y.ohkoPairs) return y.ohkoPairs - x.ohkoPairs;
+      if ((x.focusKills ?? 0) !== (y.focusKills ?? 0)) return (y.focusKills ?? 0) - (x.focusKills ?? 0);
       if (x.worstPrio !== y.worstPrio) return x.worstPrio - y.worstPrio;
       if (x.prioAvg !== y.prioAvg) return x.prioAvg - y.prioAvg;
       return (x.overkill ?? 0) - (y.overkill ?? 0);
@@ -3769,6 +3722,7 @@ const headLeft = el('div', {}, [
         el('strong', {}, `${rosterLabel(p.a)} + ${rosterLabel(p.b)}`),
         el('span', {class:'muted'}, ` · OHKO ${p.ohkoPairs}/2`),
         el('span', {class:'muted'}, ` · clear ${p.clearAll}/${allDef.length}`),
+        el('span', {class:'muted'}, ` · focus ${(p.focusKills ?? 0)}`),
         el('span', {class:'muted'}, ` · prioØ ${formatPrioAvg(p.prioAvg)}`),
       ]);
       chipEl.addEventListener('click', ()=>{

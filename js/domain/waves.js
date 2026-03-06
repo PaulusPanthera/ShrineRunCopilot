@@ -792,6 +792,10 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
       const lead = better(t1,t2) ? t1 : t2;
 
       let clearAll = 0;
+      // "Focus kill" heuristic: if neither attacker can OHKO a defender, but the two best
+      // (min-roll) hits combined would KO (sum >= 100%), treat it as an easier guaranteed
+      // follow-up (T2 focus fire). This is especially important for 3-defender waves.
+      let focusKills = 0;
       for (const ds of allDefSlots){
         const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
         const s0 = withWeatherSettings(settingsForWave(state, wp, a.id, ds.rowKey, ds.defender), waveWeather);
@@ -799,12 +803,29 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
         const b0 = chooseBestMoveDisciplined({data, attacker: atkA, defender: defObj, movePool: poolA, settings: s0, tags: ds.tags||[]});
         const b1 = chooseBestMoveDisciplined({data, attacker: atkB, defender: defObj, movePool: poolB, settings: s1, tags: ds.tags||[]});
         if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) clearAll += 1;
+        else {
+          const m0 = Number(b0?.minPct ?? 0);
+          const m1 = Number(b1?.minPct ?? 0);
+          if ((m0 > 0 || m1 > 0) && (m0 + m1 >= 100)) focusKills += 1;
+        }
       }
 
-      const cand = {a, b, clearAll, ohkoPairs: lead.bothOhko, worstPrio: lead.worstPrio, prioAvg: lead.prioAvg, overkill: lead.overkill};
+      const cand = {a, b, clearAll, focusKills, ohkoPairs: lead.bothOhko, worstPrio: lead.worstPrio, prioAvg: lead.prioAvg, overkill: lead.overkill};
       const betterCand = (x,y)=>{
+        // If we don't fully clear all defenders, prefer plans that get at least one KO on turn 1.
+        // (Avoids "no kill until turn 2" lines that feel dumb even if they eventually win.)
+        const xIncomplete = (x.clearAll ?? 0) < allDefSlots.length;
+        const yIncomplete = (y.clearAll ?? 0) < allDefSlots.length;
+        if (xIncomplete && yIncomplete){
+          const xT1 = (x.ohkoPairs ?? 0);
+          const yT1 = (y.ohkoPairs ?? 0);
+          const xHas = xT1 > 0;
+          const yHas = yT1 > 0;
+          if (xHas !== yHas) return xHas;
+        }
         if (x.clearAll !== y.clearAll) return x.clearAll > y.clearAll;
         if (x.ohkoPairs !== y.ohkoPairs) return x.ohkoPairs > y.ohkoPairs;
+        if (x.focusKills !== y.focusKills) return x.focusKills > y.focusKills;
         if (x.worstPrio !== y.worstPrio) return x.worstPrio < y.worstPrio;
         if (x.prioAvg !== y.prioAvg) return x.prioAvg < y.prioAvg;
         return x.overkill <= y.overkill;

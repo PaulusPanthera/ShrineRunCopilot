@@ -662,6 +662,17 @@ Auto x4 had two correctness drifts:
 - `REPORT.md`
 
 
+## PATCH 51 — Improve lead-pair intelligence for partial clears
+
+- Suggested lead pairs and Auto starter picking now prefer at least **one KO on turn 1** when a full clear isn't available.
+- Added "focus kill" heuristic: if neither attacker can OHKO a defender, but the two best min-roll hits together would KO (sum ≥ 100%), it is treated as a strong guaranteed follow-up (T2 focus fire). This improves 3-defender waves where you can go 2 KOs on T1 → focus the last target.
+
+### Touched files
+- `js/domain/waves.js`
+- `js/ui/tabs/waves/planner/wavePlannerPanel.js`
+- `REPORT.md`
+
+
 ---
 
 ## Patch: planner_gems_1p5_and_defender_ability_fallback
@@ -1280,18 +1291,5 @@ This patch implements the most important missing effects while keeping determini
 
 ### Touched files
 - `js/ui/tabs/waves/planner/wavePlannerPanel.js`
-- `REPORT.md`
-
-
-## PATCH 45 — Evo moveset sync + preserve charm counts on migrate
-
-- Fix: when a roster mon is evolved (effective species differs), its 4-move pool is rebuilt from the **effective species claimed set** (with the existing override rules applied).
-  - Preserves PP/use/prio when possible.
-  - Includes Hidden Power(Type) → same-type evolved move mapping (e.g. **Hidden Power (Steel)** → **Flash Cannon** on Empoleon while preserving PP).
-- Fix: migration no longer clamps charm counts (e.g. legacy **8 → 2**). Users can legitimately buy/earn these; clamping caused evo toggles to be dropped via bag constraint enforcement.
-
-### Touched files
-- `js/domain/roster.js`
-- `js/state/migrate.js`
 - `REPORT.md`
 

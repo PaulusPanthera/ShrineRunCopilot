@@ -355,6 +355,28 @@ function applyOnHitImmunityBoost({battle, state, targetId, moveType, turnLog}){
 
   battle.stageDelta[targetId] = d;
 }
+
+function isDragonsBlessing(moveName){
+  const n = String(moveName || '').replace(/’/g, "'").trim();
+  return n === "Dragon's Blessing";
+}
+
+function applyDragonsBlessingPartyBuff({battle, state, sourceId, turnLog}){
+  if (!battle || !state) return;
+  const ids = uniq([...(battle.atk?.active||[]), ...(battle.atk?.bench||[])]).filter(Boolean);
+  if (!ids.length) return;
+  for (const id of ids){
+    const rm = byId(state.roster||[], id);
+    if (!rm) continue;
+    const d = ensureStageDelta(battle, id);
+    d.atk = clampInt((d.atk||0) + 2, -6, 6);
+    d.spa = clampInt((d.spa||0) + 2, -6, 6);
+    battle.stageDelta[id] = d;
+  }
+  if (turnLog){
+    turnLog.push(`Dragon's Blessing: party gained +2 Atk and +2 SpA.`);
+  }
+}
 function normPrio(x){
   const n = Number(x);
   // Default midpoint for the expanded 1..5 tier system.
@@ -1918,7 +1940,8 @@ export function stepBattleTurn({data, calc, state, waveKey, slots}){
 
 const id = act.actorId;
 let rk = act.targetKey;
-if (!id || !rk) continue;
+if (!id) continue;
+if (!rk && !isDragonsBlessing(act.move)) continue;
 if ((battle.hpAtk[id] ?? 0) <= 0) continue; // fainted before acting
 
 const atkMon = byId(state.roster, id);
@@ -1937,6 +1960,39 @@ if (atkAbLc0 === 'truant'){
     continue;
   }
   battle.truantState[kTr] = true;
+}
+
+// Dragon's Blessing: party-wide +2 Atk/+2 SpA. No damage; target is ignored.
+if (isDragonsBlessing(act.move)){
+  const ppBefore = getPP(state, id, act.move);
+  decPP(state, id, act.move);
+  const ppAfter = getPP(state, id, act.move);
+
+  // Audit (dev-facing)
+  try{
+    const audit = ensureAudit(battle);
+    const k = `${battle.turnCount}|atk|${id}|${act.move}|BUFF`;
+    if (audit.execKeys[k]){
+      battle.warnings = battle.warnings || [];
+      battle.warnings.push('Audit: duplicate attacker action key (possible double-spend).');
+      console.error('Audit dup action', k);
+    }
+    audit.execKeys[k] = true;
+    audit.ppEvents.push({turn: battle.turnCount, side:'atk', actorId:id, move:act.move, before:ppBefore.cur, after:ppAfter.cur});
+  }catch(e){ /* ignore */ }
+
+  turnLog.push(`${atkName} used ${act.move} (P${act.prio ?? '?'}) · PP ${ppBefore.cur}→${ppAfter.cur}/${ppAfter.max}.`);
+  battle.history.push({side:'atk', actorId:id, move: act.move, prio: act.prio ?? 9, targetKey: rk || null});
+
+  // Apply the party buff (affects current actives + future reinforcements in this battle).
+  applyDragonsBlessingPartyBuff({battle, state, sourceId: id, turnLog});
+
+  // Choice items: lock into the first used move.
+  maybeSetChoiceLock({battle, state, wp, attackerId:id, item:itemBefore, moveName: act.move, turnLog, attackerLabel: atkName});
+
+  // Metronome: count usage for scaling later.
+  metronomeRecordUse(battle, id, act.move, itemBefore);
+  continue;
 }
 
 // AoE (spread) attacker moves: hit both defenders, and sometimes the ally.
