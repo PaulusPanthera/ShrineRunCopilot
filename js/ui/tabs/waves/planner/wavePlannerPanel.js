@@ -3654,11 +3654,38 @@ const headLeft = el('div', {}, [
         const defRight = {species:d1.defender, level:d1.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
 
         // Targeting assumption: either starter can hit either lead defender.
-        // Use the same per-mon helper as Fight plan (respects PP filtering and other planner rules).
-        const bestA0 = bestMoveForMon(a, d0);
-        const bestA1 = bestMoveForMon(a, d1);
-        const bestB0 = bestMoveForMon(b, d0);
-        const bestB1 = bestMoveForMon(b, d1);
+        const bestA0 = calc.chooseBestMove({
+          data,
+          attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV},
+          defender:defLeft,
+          movePool: poolA,
+          settings: withWeatherSettings(settingsForWave(state, wp, a.id, d0.rowKey, d0.defender), waveWeather),
+          tags: d0.tags||[],
+        }).best;
+        const bestA1 = calc.chooseBestMove({
+          data,
+          attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV},
+          defender:defRight,
+          movePool: poolA,
+          settings: withWeatherSettings(settingsForWave(state, wp, a.id, d1.rowKey, d1.defender), waveWeather),
+          tags: d1.tags||[],
+        }).best;
+        const bestB0 = calc.chooseBestMove({
+          data,
+          attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV},
+          defender:defLeft,
+          movePool: poolB,
+          settings: withWeatherSettings(settingsForWave(state, wp, b.id, d0.rowKey, d0.defender), waveWeather),
+          tags: d0.tags||[],
+        }).best;
+        const bestB1 = calc.chooseBestMove({
+          data,
+          attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV},
+          defender:defRight,
+          movePool: poolB,
+          settings: withWeatherSettings(settingsForWave(state, wp, b.id, d1.rowKey, d1.defender), waveWeather),
+          tags: d1.tags||[],
+        }).best;
 
         const tuple = (m0,m1)=>{
           const bothOhko = (m0?.oneShot && m1?.oneShot) ? 2 : ((m0?.oneShot || m1?.oneShot) ? 1 : 0);
@@ -3677,41 +3704,58 @@ const headLeft = el('div', {}, [
         };
         const lead = better(t1,t2) ? t1 : t2;
 
+        // IMPORTANT: for partial clears (e.g. 2/3), prioritize *lead* KOs on Turn 1.
+        // Bench-only theoretical KOs (reinforcements) shouldn't dominate ranking.
+        const leadKillsT1 = lead.bothOhko;
+
         const ohkoPairs = lead.bothOhko;
         const prioAvg = lead.prioAvg;
         const worstPrio = lead.worstPrio;
         const overkill = lead.overkill;
         let clearAll = 0;
-        let focusKills = 0;
+        const bestVsA = new Map();
+        const bestVsB = new Map();
         for (const ds of allDef){
           const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
-          const b0 = bestMoveForMon(a, ds);
-          const b1 = bestMoveForMon(b, ds);
+          const b0 = calc.chooseBestMove({data, attacker:{species:(a.effectiveSpecies||a.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: a.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool: poolA, settings: withWeatherSettings(settingsForWave(state, wp, a.id, ds.rowKey, ds.defender), waveWeather), tags: ds.tags||[]}).best;
+          const b1 = calc.chooseBestMove({data, attacker:{species:(b.effectiveSpecies||b.baseSpecies), level: state.settings.claimedLevel, ivAll: state.settings.claimedIV, evAll: b.strength?state.settings.strengthEV:state.settings.claimedEV}, defender:defObj, movePool: poolB, settings: withWeatherSettings(settingsForWave(state, wp, b.id, ds.rowKey, ds.defender), waveWeather), tags: ds.tags||[]}).best;
+          bestVsA.set(ds.rowKey, b0);
+          bestVsB.set(ds.rowKey, b1);
           if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) clearAll += 1;
-          else {
-            const m0 = Number(b0?.minPct ?? 0);
-            const m1 = Number(b1?.minPct ?? 0);
-            if ((m0 > 0 || m1 > 0) && (m0 + m1 >= 100)) focusKills += 1;
+        }
+
+        // Conservative focus-fire heuristic:
+        // Only applies after 2 lead KOs on Turn 1 (i.e., both leads are removed), and only for 3-defender selections.
+        // If the remaining defender can be guaranteed by combined min-roll damage from both attackers, count as a clean 2-turn clear.
+        let focusKill = 0;
+        if (leadKillsT1 >= 2 && allDef.length === 3){
+          const leadKeys = new Set([d0.rowKey, d1.rowKey]);
+          const rem = allDef.find(ds => ds && !leadKeys.has(ds.rowKey));
+          if (rem){
+            const ma = bestVsA.get(rem.rowKey);
+            const mb = bestVsB.get(rem.rowKey);
+            const aMin = Number(ma?.minPct ?? 0);
+            const bMin = Number(mb?.minPct ?? 0);
+            if (aMin > 0 && bMin > 0 && (aMin + bMin) >= 100) focusKill = 1;
           }
         }
 
-        pairs.push({a,b, ohkoPairs, prioAvg, worstPrio, overkill, clearAll, focusKills});
+        const effClear = Math.min(allDef.length, clearAll + focusKill);
+
+        pairs.push({a,b, ohkoPairs, prioAvg, worstPrio, overkill, clearAll, effClear, focusKill, leadKillsT1});
       }
     }
 
     pairs.sort((x,y)=>{
-      // If we don't fully clear the selected defenders, prefer at least one T1 KO.
-      const xIncomplete = (x.clearAll ?? 0) < allDef.length;
-      const yIncomplete = (y.clearAll ?? 0) < allDef.length;
-      if (xIncomplete && yIncomplete){
-        const xHas = (x.ohkoPairs ?? 0) > 0;
-        const yHas = (y.ohkoPairs ?? 0) > 0;
-        if (xHas !== yHas) return yHas ? 1 : -1;
+      if ((x.effClear ?? x.clearAll) !== (y.effClear ?? y.clearAll)) return (y.effClear ?? y.clearAll) - (x.effClear ?? x.clearAll);
+
+      // If we cannot full-clear, prefer solutions that guarantee lead KOs on Turn 1.
+      const total = allDef.length;
+      if ((x.effClear ?? x.clearAll) < total && (y.effClear ?? y.clearAll) < total){
+        if ((x.leadKillsT1 ?? 0) !== (y.leadKillsT1 ?? 0)) return (y.leadKillsT1 ?? 0) - (x.leadKillsT1 ?? 0);
       }
 
-      if (x.clearAll !== y.clearAll) return y.clearAll - x.clearAll;
       if (x.ohkoPairs !== y.ohkoPairs) return y.ohkoPairs - x.ohkoPairs;
-      if ((x.focusKills ?? 0) !== (y.focusKills ?? 0)) return (y.focusKills ?? 0) - (x.focusKills ?? 0);
       if (x.worstPrio !== y.worstPrio) return x.worstPrio - y.worstPrio;
       if (x.prioAvg !== y.prioAvg) return x.prioAvg - y.prioAvg;
       return (x.overkill ?? 0) - (y.overkill ?? 0);
@@ -3721,8 +3765,8 @@ const headLeft = el('div', {}, [
       const chipEl = el('div', {class:'chip'}, [
         el('strong', {}, `${rosterLabel(p.a)} + ${rosterLabel(p.b)}`),
         el('span', {class:'muted'}, ` · OHKO ${p.ohkoPairs}/2`),
-        el('span', {class:'muted'}, ` · clear ${p.clearAll}/${allDef.length}`),
-        el('span', {class:'muted'}, ` · focus ${(p.focusKills ?? 0)}`),
+        el('span', {class:'muted'}, ` · clear ${(p.effClear ?? p.clearAll)}/${allDef.length}`),
+        ...(p.focusKill ? [el('span', {class:'muted'}, ` · focus ${p.focusKill}`)] : []),
         el('span', {class:'muted'}, ` · prioØ ${formatPrioAvg(p.prioAvg)}`),
       ]);
       chipEl.addEventListener('click', ()=>{

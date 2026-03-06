@@ -791,41 +791,54 @@ export function autoPickStartersAndOrdersForWave(data, state, wp, slotByKey){
       const t2 = tuple(bestA1, bestB0); // swap targets
       const lead = better(t1,t2) ? t1 : t2;
 
+      // IMPORTANT: for partial clears (e.g. 2/3), we must prioritize *lead* KOs on Turn 1.
+      // Bench-only theoretical KOs (reinforcements) shouldn't dominate ranking.
+      const leadKillsT1 = lead.bothOhko;
+
       let clearAll = 0;
-      // "Focus kill" heuristic: if neither attacker can OHKO a defender, but the two best
-      // (min-roll) hits combined would KO (sum >= 100%), treat it as an easier guaranteed
-      // follow-up (T2 focus fire). This is especially important for 3-defender waves.
-      let focusKills = 0;
+      const bestVsA = new Map();
+      const bestVsB = new Map();
       for (const ds of allDefSlots){
         const defObj = {species:ds.defender, level:ds.level, ivAll: state.settings.wildIV, evAll: state.settings.wildEV};
         const s0 = withWeatherSettings(settingsForWave(state, wp, a.id, ds.rowKey, ds.defender), waveWeather);
         const s1 = withWeatherSettings(settingsForWave(state, wp, b.id, ds.rowKey, ds.defender), waveWeather);
         const b0 = chooseBestMoveDisciplined({data, attacker: atkA, defender: defObj, movePool: poolA, settings: s0, tags: ds.tags||[]});
         const b1 = chooseBestMoveDisciplined({data, attacker: atkB, defender: defObj, movePool: poolB, settings: s1, tags: ds.tags||[]});
+        bestVsA.set(ds.rowKey, b0);
+        bestVsB.set(ds.rowKey, b1);
         if ((b0 && b0.oneShot) || (b1 && b1.oneShot)) clearAll += 1;
-        else {
-          const m0 = Number(b0?.minPct ?? 0);
-          const m1 = Number(b1?.minPct ?? 0);
-          if ((m0 > 0 || m1 > 0) && (m0 + m1 >= 100)) focusKills += 1;
+      }
+
+      // Conservative focus-fire heuristic:
+      // Only applies after 2 lead KOs on Turn 1 (i.e., both leads are removed), and only for 3-defender selections.
+      // If the remaining defender can be guaranteed by combined min-roll damage from both attackers, count as a clean 2-turn clear.
+      let focusKill = 0;
+      if (leadKillsT1 >= 2 && allDefSlots.length === 3){
+        const leadKeys = new Set([def0.rowKey, def1.rowKey]);
+        const rem = allDefSlots.find(ds => ds && !leadKeys.has(ds.rowKey));
+        if (rem){
+          const ma = bestVsA.get(rem.rowKey);
+          const mb = bestVsB.get(rem.rowKey);
+          const aMin = Number(ma?.minPct ?? 0);
+          const bMin = Number(mb?.minPct ?? 0);
+          if (aMin > 0 && bMin > 0 && (aMin + bMin) >= 100) focusKill = 1;
         }
       }
 
-      const cand = {a, b, clearAll, focusKills, ohkoPairs: lead.bothOhko, worstPrio: lead.worstPrio, prioAvg: lead.prioAvg, overkill: lead.overkill};
+      const effClear = Math.min(allDefSlots.length, clearAll + focusKill);
+
+      const cand = {a, b, clearAll, effClear, focusKill, leadKillsT1, ohkoPairs: lead.bothOhko, worstPrio: lead.worstPrio, prioAvg: lead.prioAvg, overkill: lead.overkill};
       const betterCand = (x,y)=>{
-        // If we don't fully clear all defenders, prefer plans that get at least one KO on turn 1.
-        // (Avoids "no kill until turn 2" lines that feel dumb even if they eventually win.)
-        const xIncomplete = (x.clearAll ?? 0) < allDefSlots.length;
-        const yIncomplete = (y.clearAll ?? 0) < allDefSlots.length;
-        if (xIncomplete && yIncomplete){
-          const xT1 = (x.ohkoPairs ?? 0);
-          const yT1 = (y.ohkoPairs ?? 0);
-          const xHas = xT1 > 0;
-          const yHas = yT1 > 0;
-          if (xHas !== yHas) return xHas;
+        if (x.effClear !== y.effClear) return x.effClear > y.effClear;
+
+        // If we cannot full-clear, prefer solutions that guarantee lead KOs on Turn 1.
+        // This prevents "bench-only theoretical" clear counts from dominating.
+        const total = allDefSlots.length;
+        if ((x.effClear ?? x.clearAll) < total && (y.effClear ?? y.clearAll) < total){
+          if ((x.leadKillsT1 ?? 0) !== (y.leadKillsT1 ?? 0)) return (x.leadKillsT1 ?? 0) > (y.leadKillsT1 ?? 0);
         }
-        if (x.clearAll !== y.clearAll) return x.clearAll > y.clearAll;
+
         if (x.ohkoPairs !== y.ohkoPairs) return x.ohkoPairs > y.ohkoPairs;
-        if (x.focusKills !== y.focusKills) return x.focusKills > y.focusKills;
         if (x.worstPrio !== y.worstPrio) return x.worstPrio < y.worstPrio;
         if (x.prioAvg !== y.prioAvg) return x.prioAvg < y.prioAvg;
         return x.overkill <= y.overkill;
