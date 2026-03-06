@@ -1411,10 +1411,10 @@
     "ability": "Sheer Force",
     "canClaim": 1,
     "moves": [
-      "Sludge Bomb",
-      "Earth Power",
-      "Blizzard",
-      "Toxic"
+      "Earthquake",
+      "Sludge Wave",
+      "Ice Beam",
+      "Protect"
     ],
     "species": "Nidoqueen"
   },
@@ -1914,7 +1914,7 @@
     "species": "Sceptile"
   },
   "Scrafty": {
-    "ability": "Moxie",
+    "ability": "Intimidate",
     "canClaim": 0,
     "moves": [
       "Crunch",

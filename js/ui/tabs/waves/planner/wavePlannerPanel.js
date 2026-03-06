@@ -3647,6 +3647,7 @@ const headLeft = el('div', {}, [
   // Suggested lead pairs variants
   const SUGG_MODES = [
     {key:'clean', label:'Clean', tip:'Best prio / clean solve (no items, no charms).', allowItems:false, allowCharms:false},
+    {key:'charms', label:'Charms', tip:'Best solve assuming Strength/Evo charms (charms may be buy; no items).', allowItems:false, allowCharms:true},
     {key:'items', label:'Items', tip:'Best solve assuming item usage (bag; Scarf may be buy).', allowItems:true, allowCharms:false},
     {key:'itemsCharms', label:'Items+Charms', tip:'Best solve assuming items + Strength/Evo charms (charms may be buy).', allowItems:true, allowCharms:true},
   ];
@@ -3855,7 +3856,12 @@ const headLeft = el('div', {}, [
       chipEl.appendChild(el('span', {class:'muted'}, ` · OHKO ${p.ohkoPairs}/2`));
       chipEl.appendChild(el('span', {class:'muted'}, ` · clear ${p.clearAll}/${allDef.length}`));
       chipEl.appendChild(el('span', {class:'muted'}, ` · prioØ ${formatPrioAvg(p.prioAvg)}`));
-      if (curMode !== 'clean') chipEl.appendChild(el('span', {class:'muted'}, curMode === 'items' ? ' · items' : ' · items+charms'));
+      if (curMode !== 'clean'){
+        const modeTag = (curMode === 'items') ? 'items'
+          : (curMode === 'charms') ? 'charms'
+          : 'items+charms';
+        chipEl.appendChild(el('span', {class:'muted'}, ` · ${modeTag}`));
+      }
 
       chipEl.title = `${rosterLabel(p.a)}: ${fmtLoadout(p.la)}\n${rosterLabel(p.b)}: ${fmtLoadout(p.lb)}`;
 
